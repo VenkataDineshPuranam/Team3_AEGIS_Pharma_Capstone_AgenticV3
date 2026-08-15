@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AEGIS-PHARMA V3</title>
+<meta name="description" content="A governed, observable, multi-agent AI system for six pharma workflows — LangGraph orchestration, server-side governance, and a real operator UI.">
+<style>
+  :root {
+    --bg: #ffffff;
+    --bg-raised: #f6f7f9;
+    --text: #14171c;
+    --text-dim: #565d68;
+    --border: #e2e5ea;
+    --accent: #2f5fdb;
+    --accent-dim: #eef2fd;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f1115;
+      --bg-raised: #171a20;
+      --text: #e8eaed;
+      --text-dim: #9aa1ac;
+      --border: #2a2e37;
+      --accent: #7fa2f7;
+      --accent-dim: #1a2233;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f1115;
+    --bg-raised: #171a20;
+    --text: #e8eaed;
+    --text-dim: #9aa1ac;
+    --border: #2a2e37;
+    --accent: #7fa2f7;
+    --accent-dim: #1a2233;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    line-height: 1.55;
+    margin: 0;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 4rem 1.5rem 6rem; }
+  header { margin-bottom: 3rem; }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    color: var(--accent);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 0.75rem;
+  }
+  h1 { font-size: 2.1rem; margin: 0 0 0.6rem; letter-spacing: -0.01em; }
+  .lede { color: var(--text-dim); font-size: 1.05rem; max-width: 62ch; margin: 0 0 1.75rem; }
+  .cta-row { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+  .btn {
+    display: inline-block;
+    padding: 0.6rem 1.1rem;
+    border-radius: 8px;
+    font-size: 0.92rem;
+    font-weight: 600;
+    text-decoration: none;
+    border: 1px solid var(--border);
+  }
+  .btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .btn.secondary { color: var(--text); background: var(--bg-raised); }
+
+  h2 { font-size: 1.15rem; margin: 2.75rem 0 1rem; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; }
+  .card {
+    border: 1px solid var(--border);
+    background: var(--bg-raised);
+    border-radius: 10px;
+    padding: 1.1rem 1.2rem;
+  }
+  .card h3 { font-size: 0.95rem; margin: 0 0 0.4rem; }
+  .card p { font-size: 0.87rem; color: var(--text-dim); margin: 0; }
+
+  .quickstart {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .quickstart .tab-bar {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-raised);
+  }
+  .quickstart .tab-bar button {
+    font-family: var(--sans);
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 0.65rem 1rem;
+    border: none;
+    background: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+  }
+  .quickstart .tab-bar button[aria-selected="true"] {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+  .quickstart pre {
+    margin: 0;
+    padding: 1.1rem 1.2rem;
+    overflow-x: auto;
+    font-family: var(--mono);
+    font-size: 0.83rem;
+    line-height: 1.6;
+    display: none;
+  }
+  .quickstart pre.active { display: block; }
+  code { font-family: var(--mono); }
+  .inline-code {
+    background: var(--accent-dim);
+    color: var(--accent);
+    padding: 0.1em 0.4em;
+    border-radius: 4px;
+    font-size: 0.88em;
+  }
+
+  .stack-list { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 0.5rem; }
+  .stack-list li {
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    padding: 0.3rem 0.65rem;
+    border-radius: 6px;
+    background: var(--accent-dim);
+    color: var(--accent);
+  }
+
+  .docs-links { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.6rem; }
+  .docs-links a {
+    display: block;
+    color: var(--text);
+    text-decoration: none;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.7rem 0.9rem;
+    font-size: 0.88rem;
+  }
+  .docs-links a:hover { border-color: var(--accent); color: var(--accent); }
+  .docs-links .path { display: block; font-family: var(--mono); font-size: 0.76rem; color: var(--text-dim); margin-top: 0.2rem; }
+
+  footer {
+    margin-top: 4rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+    color: var(--text-dim);
+    font-size: 0.82rem;
+  }
+  footer a { color: var(--text-dim); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">AEGIS-PHARMA · V3</div>
+    <h1>A governed multi-agent AI system for pharma operations</h1>
+    <p class="lede">
+      Six LangGraph-orchestrated workflows — GxP batch review, pharmacovigilance intake,
+      supply-shortage planning, preclinical research review, clinical trial integrity, and
+      regulatory submission completeness — with human-in-the-loop approval, prompt-injection
+      defense, and an AI-BOM enforced server-side, not just documented.
+    </p>
+    <div class="cta-row">
+      <a class="btn primary" href="https://github.com/VenkataDineshPuranam/Team3_AEGIS_Pharma_Capstone_AgenticV3">View on GitHub</a>
+      <a class="btn secondary" href="https://github.com/VenkataDineshPuranam/Team3_AEGIS_Pharma_Capstone_AgenticV3#readme">Read the README</a>
+    </div>
+  </header>
+
+  <section>
+    <h2>Quickstart</h2>
+    <div class="quickstart">
+      <div class="tab-bar" role="tablist">
+        <button role="tab" aria-selected="true" data-target="tab-script">One command</button>
+        <button role="tab" aria-selected="false" data-target="tab-docker">Docker</button>
+        <button role="tab" aria-selected="false" data-target="tab-manual">Manual</button>
+      </div>
+      <pre class="active" id="tab-script"><code>git clone https://github.com/VenkataDineshPuranam/Team3_AEGIS_Pharma_Capstone_AgenticV3.git
+cd Team3_AEGIS_Pharma_Capstone_AgenticV3
+./scripts/bootstrap.sh
+# fills in .env from the template, installs backend + frontend deps,
+# seeds demo data once you've added your NEO4J_*/ANTHROPIC_API_KEY values</code></pre>
+        <pre id="tab-docker"><code>git clone https://github.com/VenkataDineshPuranam/Team3_AEGIS_Pharma_Capstone_AgenticV3.git
+cd Team3_AEGIS_Pharma_Capstone_AgenticV3
+cp .env.example .env   # fill in ANTHROPIC_API_KEY at minimum
+docker compose up --build
+docker compose --profile seed run --rm seed   # first run only
+# API on :8000, web UI on :3000</code></pre>
+        <pre id="tab-manual"><code># Backend
+pip install -r requirements-dev.txt
+python3 -m services.integration.seed_users
+uvicorn services.api.main:app --port 8000
+
+# Frontend (separate terminal)
+cd apps/web && npm install && npm run dev</code></pre>
+      </div>
+    </div>
+    <p style="font-size:0.85rem;color:var(--text-dim);margin-top:0.75rem;">
+      Open <span class="inline-code">http://localhost:3000</span> — demo credentials for
+      all ten roles are in
+      <span class="inline-code">docs/governance/demo_login_credentials.md</span>.
+    </p>
+  </section>
+
+  <section>
+    <h2>What's inside</h2>
+    <div class="grid">
+      <div class="card">
+        <h3>Six governed workflows</h3>
+        <p>Batch review, PV intake, supply planning, preclinical review, trial integrity, submission completeness — each a LangGraph graph with its own eligibility and severity ladder.</p>
+      </div>
+      <div class="card">
+        <h3>HITL, for real</h3>
+        <p>Server-side authorization on every decision, live severity timers, and escalation notifications — display-only, never auto-approves (BC-12).</p>
+      </div>
+      <div class="card">
+        <h3>Prompt-injection defense</h3>
+        <p>Input and output scanning bracket three structural layers that make prohibited actions unrepresentable, not just discouraged.</p>
+      </div>
+      <div class="card">
+        <h3>AI-SBOM</h3>
+        <p>CycloneDX 1.6 ML-BOM, verified at CI and at container startup — a tampered tool contract stops the app from booting.</p>
+      </div>
+      <div class="card">
+        <h3>Record Assistant</h3>
+        <p>A chat panel on every page that explains a record in plain language — the model writes prose, a deterministic layer computes every fact and next step.</p>
+      </div>
+      <div class="card">
+        <h3>CI/CD</h3>
+        <p>GitHub Actions: lint/test/build on every push, tagged deploys to Azure Container Apps, and a nightly automated red-team sweep.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Stack</h2>
+    <ul class="stack-list">
+      <li>FastAPI</li><li>LangGraph</li><li>Next.js</li><li>Neo4j</li><li>Redis</li>
+      <li>Anthropic Claude</li><li>Azure Container Apps</li><li>CycloneDX</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Read more</h2>
+    <div class="docs-links">
+      <a href="https://github.com/VenkataDineshPuranam/Team3_AEGIS_Pharma_Capstone_AgenticV3/blob/main/PROJECT_SUMMARY.md">
+        Project summary
+        <span class="path">PROJECT_SUMMARY.md</span>
+      </a>
+      <a href="https://github.com/VenkataDineshPuranam/Team3_AEGIS_Pharma_Capstone_AgenticV3/blob/main/SPEC_DRIVEN_DEVELOPMENT.md">
+        Method &amp; stage list
+        <span class="path">SPEC_DRIVEN_DEVELOPMENT.md</span>
+      </a>
+      <a href="https://github.com/VenkataDineshPuranam/Team3_AEGIS_Pharma_Capstone_AgenticV3/tree/main/docs/architecture">
+        Architecture &amp; ADRs
+        <span class="path">docs/architecture/</span>
+      </a>
+      <a href="https://github.com/VenkataDineshPuranam/Team3_AEGIS_Pharma_Capstone_AgenticV3/tree/main/docs/governance">
+        Governance model
+        <span class="path">docs/governance/</span>
+      </a>
+    </div>
+  </section>
+
+  <footer>
+    Built with Spec-Driven Development. Source on
+    <a href="https://github.com/VenkataDineshPuranam/Team3_AEGIS_Pharma_Capstone_AgenticV3">GitHub</a>.
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.tab-bar button').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('.tab-bar button').forEach(function (b) { b.setAttribute('aria-selected', 'false'); });
+      document.querySelectorAll('.quickstart pre').forEach(function (p) { p.classList.remove('active'); });
+      btn.setAttribute('aria-selected', 'true');
+      document.getElementById(btn.dataset.target).classList.add('active');
+    });
+  });
+</script>
+</body>
+</html>

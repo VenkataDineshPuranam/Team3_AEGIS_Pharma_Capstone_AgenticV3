@@ -1,0 +1,93 @@
+# One-command local stack: Neo4j + Redis + API + web, wired together with the same
+# images CI builds and CD deploys (deploy/containers/Dockerfile.api / Dockerfile.web).
+#
+#   docker compose up --build
+#
+# Neo4j and Redis here are LOCAL dev substitutes for the cloud services ADR-009 targets
+# (Neo4j AuraDB, Azure Cache for Redis / Redis Cloud) -- see .env.example. Pointing
+# NEO4J_URI / REDIS_URL at this compose stack instead of the cloud is the only difference;
+# nothing in application code branches on which one is live.
+#
+# First run: `docker compose --profile seed run --rm seed` to seed demo users and ingest
+# the starter knowledge graph before hitting the API, or the workflows run in degraded
+# mode (ADR-007) with an empty graph / no login accounts.
+
+services:
+  neo4j:
+    image: neo4j:5-community
+    environment:
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:-devpassword123}
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    volumes:
+      - neo4j_data:/data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:7474"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: deploy/containers/Dockerfile.api
+    env_file:
+      - .env
+    environment:
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_USER: neo4j
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD:-devpassword123}
+      REDIS_URL: redis://redis:6379
+    ports:
+      - "8000:8000"
+    depends_on:
+      neo4j:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      dockerfile: deploy/containers/Dockerfile.web
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+
+  # Not part of the default `docker compose up` -- run explicitly once after first boot:
+  #   docker compose --profile seed run --rm seed
+  seed:
+    profiles: ["seed"]
+    build:
+      context: .
+      dockerfile: deploy/containers/Dockerfile.api
+    env_file:
+      - .env
+    environment:
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_USER: neo4j
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD:-devpassword123}
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      neo4j:
+        condition: service_healthy
+    entrypoint: ["sh", "-c"]
+    command:
+      - "python3 -m services.integration.seed_users && python3 -m packages.domain.kg.ingest"
+
+volumes:
+  neo4j_data:

@@ -21,7 +21,15 @@ real login layer and full gap closure across all 84 V1 tabletop-exercise scenari
 A real FastAPI orchestrator (`services/api/`) wrapping six governed LangGraph workflows,
 and a Next.js operator UI (`apps/web/`, the **AEGIS Control Center**).
 
-**Run it locally:**
+**Fastest path — one command:**
+```sh
+./scripts/bootstrap.sh
+```
+Creates a venv, installs backend + frontend deps, copies `.env.example` → `.env`, and (once
+you've filled in `NEO4J_URI`/`NEO4J_PASSWORD`/`ANTHROPIC_API_KEY`) seeds demo users and the
+starter knowledge graph. Re-run anytime; every step is idempotent.
+
+**Run it locally, manually:**
 ```sh
 # Backend — from the repo root
 pip install -r requirements-dev.txt          # runtime deps + pytest/ruff
@@ -33,7 +41,16 @@ npm install
 npm run build && npm start   # or `npm run dev` for hot reload
 ```
 
-**Or in containers** (the same images CI builds and CD deploys):
+**Or the whole stack in containers**, Neo4j and Redis included:
+```sh
+cp .env.example .env   # fill in ANTHROPIC_API_KEY at minimum
+docker compose up --build
+docker compose --profile seed run --rm seed   # first run only: demo users + starter KG
+```
+`docker-compose.yml` runs local Neo4j/Redis containers as dev substitutes for the cloud
+services ADR-009 targets — nothing in application code branches on which one is live.
+
+**Or build the deploy images directly** (the same images CI builds and CD deploys):
 ```sh
 docker build -f deploy/containers/Dockerfile.api -t aegis-api .
 docker build -f deploy/containers/Dockerfile.web \

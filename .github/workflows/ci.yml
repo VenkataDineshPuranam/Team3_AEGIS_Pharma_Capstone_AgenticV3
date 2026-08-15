@@ -1,5 +1,5 @@
-# CI -- what has to be true before a change can be deployed.
-name: CI
+# V3 CI -- what has to be true before a change can be deployed.
+name: V3 CI
 
 on:
   push:
@@ -93,6 +93,12 @@ jobs:
         # reason, and the live red-team suite runs in nightly-redteam.yml where a real key
         # is available. A pull request from a fork has no secrets, so gating on them here
         # would mean no fork could ever pass CI.
+        #
+        # ANTHROPIC_API_KEY only needs to be PRESENT, not valid: services/api/main.py
+        # constructs the LLM client at import time, so test collection fails on a missing
+        # key even though `not live` tests never call the API. Same placeholder used below.
+        env:
+          ANTHROPIC_API_KEY: "ci-placeholder-not-a-real-key"
         run: pytest -m "not live" -q --durations=10
 
       - name: API imports and serves without a provider key

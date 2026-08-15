@@ -11,7 +11,7 @@
 # complying with an injection the guard does not recognize. That is exactly the finding
 # worth waking up to, which is why it opens an issue rather than only going red.
 
-name: Nightly red-team
+name: V3 Nightly red-team
 
 on:
   schedule:

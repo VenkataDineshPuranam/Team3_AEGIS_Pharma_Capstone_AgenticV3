@@ -36,7 +36,7 @@
 # Until those exist the workflow stops in `preflight` with a readable message instead of
 # failing somewhere inside an az command.
 
-name: CD
+name: V3 CD
 
 on:
   push:

@@ -1,6 +1,6 @@
 # Publishes site/ as a static GitHub Pages site on every push to main that touches it.
 # No build step -- site/index.html is plain HTML/CSS/JS, uploaded as-is.
-name: Pages
+name: V3 Pages
 
 on:
   push:

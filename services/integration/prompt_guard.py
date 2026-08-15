@@ -197,7 +197,7 @@ _INPUT_PATTERNS: tuple[tuple[str, str, Severity, re.Pattern[str]], ...] = (
     ),
     # --- governance-specific: coercing a terminal decision --------------------------
     #
-    # The V2/V3 non-negotiable is that no agent makes a terminal safety/release/
+    # The V1/V2 non-negotiable is that no agent makes a terminal safety/release/
     # allocation decision. Text ASKING for one is not itself a policy violation (a
     # confused operator may genuinely ask "should I release this?"), which is why this is
     # medium, not high -- the answer is constrained by the system prompt and by

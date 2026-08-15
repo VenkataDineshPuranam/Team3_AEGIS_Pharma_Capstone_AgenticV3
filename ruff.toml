@@ -10,7 +10,7 @@ target-version = "py313"
 line-length = 120
 
 exclude = [
-    # Reference context only, gitignored, not part of the V3 repo (see .gitignore).
+    # Reference context only, gitignored, not part of the V2 repo (see .gitignore).
     "Project_AEGIS_Pharma_AI_FDE_Capstone_Workshop_Ready_v2_claude",
     "eval-ai-cache",
     "**/node_modules",

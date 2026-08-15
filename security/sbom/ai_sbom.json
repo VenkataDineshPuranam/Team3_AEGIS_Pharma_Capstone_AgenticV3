@@ -3,7 +3,7 @@
   "specVersion": "1.6",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-08-15T05:26:49.792573+00:00",
+    "timestamp": "2026-08-15T06:49:15.450792+00:00",
     "component": {
       "type": "application",
       "bom-ref": "aegis-pharma-v3",
@@ -457,7 +457,7 @@
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "1581026e90cacc46fc8736ec0e9486ce2563062036cb2940cc143d82c762b9ee"
+          "content": "47cb0fdb44e5ae7f81bcbe4768bb3e8d0c813d15cc426c325947675ef073e6da"
         }
       ],
       "properties": [

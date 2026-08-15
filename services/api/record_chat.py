@@ -24,7 +24,7 @@ The LLM writes PROSE. It does not compute FACTS and it does not choose ACTIONS.
   - The model's entire job is: summarize, answer the question, and paraphrase the steps.
 
 That split is what makes "what to do next" safe to offer at all. A free-form model asked
-"what should I do about this batch?" will eventually answer "release it" -- the V2/V3
+"what should I do about this batch?" will eventually answer "release it" -- the V1/V2
 non-negotiable that no agent makes a terminal safety decision cannot survive that question
 being delegated. So it isn't. The steps are procedural facts about the governance state
 ("this run is waiting on the EU Qualified Person"), never dispositions.

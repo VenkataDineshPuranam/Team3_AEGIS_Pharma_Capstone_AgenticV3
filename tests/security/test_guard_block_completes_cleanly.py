@@ -7,13 +7,24 @@ used a model that didn't trigger it, or hit a cache hit that bypassed synthesize
 This is the single highest-stakes path in the whole system (ADR-004's runtime guard) --
 a crash here is worse than a clean block, since a caller could plausibly retry into an
 unclear state. Guarding against regression explicitly.
+
+Requires a live, ingested Neo4j and Redis (the probe_retrieve call and cache clear below)
+-- skipped otherwise, consistent with the BLOCKED_BY_ENVIRONMENT convention from Stage 14
+(see e.g. tests/contract/test_evidence_retrieve_contract.py).
 """
+import os
 import uuid
 from pathlib import Path
 
+import pytest
 from dotenv import load_dotenv
 
 load_dotenv(dotenv_path=Path(__file__).resolve().parents[2] / ".env")
+
+pytestmark = pytest.mark.skipif(
+    not os.environ.get("NEO4J_PASSWORD") or "xxxxxxxx" in os.environ.get("NEO4J_URI", ""),
+    reason="BLOCKED_BY_ENVIRONMENT: Neo4j not configured",
+)
 
 from packages.domain.evidence import Claim
 from packages.domain.state import DecisionSupportOutput, new_state

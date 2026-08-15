@@ -1,18 +1,23 @@
-"""LLM client -- Stage 20a Phase 5. Implements services/api/nodes/llm_interface.py's
-LLMNodes protocol for two providers, selected by LLM_PROVIDER (.env.example documents
-both):
+"""LLM client -- Stage 20a Phase 5, extended in Stage 23. Implements
+services/api/nodes/llm_interface.py's LLMNodes protocol for three providers, selected by
+LLM_PROVIDER (.env.example documents all three):
 
-  anthropic  -- Route A (ADR-009). The only provider whose output counts toward Stage
-                20a's interim-assumption exit criteria.
-  groq       -- dev-only substitute (user request, this session) for exercising the real
-                call path while ANTHROPIC_API_KEY was being sorted. Defaults to a small/
-                cheap model (GROQ_MODEL, default llama-3.1-8b-instant) to conserve
-                tokens. Output from this provider is PROVISIONAL -- see .env.example's
-                LLM_PROVIDER comment and ADR-009 SS"Model hosting route".
+  anthropic      -- Route A (ADR-009), direct Anthropic API. The only provider whose
+                     output counts toward Stage 20a's interim-assumption exit criteria.
+  groq           -- dev-only substitute (user request, earlier session) for exercising
+                     the real call path while ANTHROPIC_API_KEY was being sorted.
+                     Defaults to a small/cheap model (GROQ_MODEL, default
+                     llama-3.1-8b-instant) to conserve tokens. Output from this provider
+                     is PROVISIONAL -- see .env.example's LLM_PROVIDER comment and
+                     ADR-009 SS"Model hosting route".
+  azure_foundry  -- ADR-009's actual deployment target: a model deployed behind Azure AI
+                     Foundry rather than called directly. See AzureFoundryLLM below for
+                     the endpoint shape this assumes.
 
-Both providers are prompted identically and parsed identically -- the only difference is
-which SDK sends the request, which is the entire point of ADR-009's "one client interface"
-guardrail: swapping providers is a constructor choice, not a prompt or parsing change.
+All three providers are prompted identically and parsed identically -- the only
+difference is which SDK sends the request, which is the entire point of ADR-009's "one
+client interface" guardrail: swapping providers is a constructor choice, not a prompt or
+parsing change.
 """
 from __future__ import annotations
 
@@ -357,6 +362,66 @@ class GroqLLM:
         return _parse_record_chat_response(text), tin, tout
 
 
+class AzureFoundryLLM:
+    """ADR-009's deployment target: Claude (or another catalog model) hosted behind an
+    Azure AI Foundry endpoint rather than called directly against api.anthropic.com. Uses
+    the `openai` SDK's `AzureOpenAI` client because Foundry's Model Catalog / Models-as-
+    -a-Service deployments expose an OpenAI-compatible chat-completions route regardless
+    of the underlying model family -- the same "one client interface, swap the
+    constructor" guardrail AnthropicLLM/GroqLLM already follow. If a specific Foundry
+    resource instead exposes the native Anthropic Messages API or the azure-ai-inference
+    route, only this constructor and `_call` change; synthesize/critic/record_chat and
+    every prompt/parser stay identical.
+
+    Required env (.env.example):
+      AZURE_FOUNDRY_ENDPOINT     e.g. https://<resource>.openai.azure.com or the Foundry
+                                  project's target URI (Foundry portal -> Deployments ->
+                                  the deployed model -> Target URI)
+      AZURE_FOUNDRY_API_KEY      Foundry deployment API key
+      AZURE_FOUNDRY_DEPLOYMENT   deployment name shown in the Foundry portal (not
+                                  necessarily the underlying model's own name)
+      AZURE_FOUNDRY_API_VERSION  optional, defaults to 2024-05-01-preview
+    """
+
+    def __init__(self, deployment: str | None = None):
+        import openai
+
+        self._client = openai.AzureOpenAI(
+            azure_endpoint=os.environ["AZURE_FOUNDRY_ENDPOINT"],
+            api_key=os.environ["AZURE_FOUNDRY_API_KEY"],
+            api_version=os.environ.get("AZURE_FOUNDRY_API_VERSION", "2024-05-01-preview"),
+        )
+        self._model = deployment or os.environ["AZURE_FOUNDRY_DEPLOYMENT"]
+
+    def _call(self, system: str, user: str) -> tuple[str, int, int]:
+        resp = self._client.chat.completions.create(
+            model=self._model,
+            messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
+        )
+        text = resp.choices[0].message.content
+        usage = resp.usage
+        return text, usage.prompt_tokens, usage.completion_tokens
+
+    def synthesize(self, state: GovernedState) -> tuple[DecisionSupportOutput, int, int]:
+        text, tin, tout = self._call(_SYNTHESIZE_SYSTEMS[state["workflow"]], _build_synthesize_user_prompt(state))
+        try:
+            return _parse_synthesize_response(text), tin, tout
+        except (json.JSONDecodeError, KeyError, ValidationError):
+            return DecisionSupportOutput(summary="[PARSE_ERROR]", claims=()), tin, tout
+
+    def critic(self, state: GovernedState) -> tuple[str, ReasonCode | None, int, int]:
+        text, tin, tout = self._call(_CRITIC_SYSTEMS[state["workflow"]], _build_critic_user_prompt(state))
+        try:
+            verdict, reason_code = _parse_critic_response(text)
+        except (json.JSONDecodeError, KeyError, ValueError):
+            verdict, reason_code = "reject", ReasonCode.CONTRACT_VIOLATION
+        return verdict, reason_code, tin, tout
+
+    def record_chat(self, user_prompt: str) -> tuple[dict, int, int]:
+        text, tin, tout = self._call(_RECORD_CHAT_SYSTEM, user_prompt)
+        return _parse_record_chat_response(text), tin, tout
+
+
 def get_llm():
     """Provider selected by LLM_PROVIDER (.env.example). Raises KeyError with a clear
     message if the corresponding API key is absent -- callers should catch this the same
@@ -366,4 +431,8 @@ def get_llm():
         return AnthropicLLM()
     if provider == "groq":
         return GroqLLM()
-    raise ValueError(f"Unknown LLM_PROVIDER {provider!r} -- expected 'anthropic' or 'groq'.")
+    if provider == "azure_foundry":
+        return AzureFoundryLLM()
+    raise ValueError(
+        f"Unknown LLM_PROVIDER {provider!r} -- expected 'anthropic', 'groq', or 'azure_foundry'."
+    )

@@ -42,14 +42,16 @@ jobs:
       - name: Live red-team against a real model
         id: live
         env:
-          LLM_PROVIDER: anthropic
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          LLM_PROVIDER: azure_foundry
+          AZURE_FOUNDRY_ENDPOINT: ${{ secrets.AZURE_FOUNDRY_ENDPOINT }}
+          AZURE_FOUNDRY_API_KEY: ${{ secrets.AZURE_FOUNDRY_API_KEY }}
+          AZURE_FOUNDRY_DEPLOYMENT: ${{ secrets.AZURE_FOUNDRY_DEPLOYMENT }}
           NEO4J_URI: ${{ secrets.NEO4J_URI }}
           NEO4J_USER: ${{ secrets.NEO4J_USER }}
           NEO4J_PASSWORD: ${{ secrets.NEO4J_PASSWORD }}
         run: |
-          if [ -z "$ANTHROPIC_API_KEY" ]; then
-            echo "::warning::ANTHROPIC_API_KEY is not configured; the live red-team did not run."
+          if [ -z "$AZURE_FOUNDRY_API_KEY" ]; then
+            echo "::warning::AZURE_FOUNDRY_API_KEY is not configured; the live red-team did not run."
             echo "ran=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi

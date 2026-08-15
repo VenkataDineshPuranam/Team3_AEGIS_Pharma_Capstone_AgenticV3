@@ -119,7 +119,11 @@ def probe_llm() -> DependencyHealth:
             name="LLM provider", status="not_configured",
             detail="LLM_PROVIDER unset -- graphs fall back to the deterministic StubLLM.",
         )
-    key_var = {"anthropic": "ANTHROPIC_API_KEY", "groq": "GROQ_API_KEY"}.get(provider)
+    key_var = {
+        "anthropic": "ANTHROPIC_API_KEY",
+        "groq": "GROQ_API_KEY",
+        "azure_foundry": "AZURE_FOUNDRY_API_KEY",
+    }.get(provider)
     if key_var and not os.environ.get(key_var):
         return DependencyHealth(
             name="LLM provider", status="not_configured",

@@ -94,21 +94,26 @@ jobs:
         # is available. A pull request from a fork has no secrets, so gating on them here
         # would mean no fork could ever pass CI.
         #
-        # ANTHROPIC_API_KEY only needs to be PRESENT, not valid: services/api/main.py
-        # constructs the LLM client at import time, so test collection fails on a missing
-        # key even though `not live` tests never call the API. Same placeholder used below.
+        # AZURE_FOUNDRY_* only needs to be PRESENT, not valid: services/api/main.py
+        # constructs the LLM client at import time (LLM_PROVIDER defaults to
+        # azure_foundry as of Stage 23), so test collection fails on a missing var even
+        # though `not live` tests never call the API. Same placeholders used below.
         env:
-          ANTHROPIC_API_KEY: "ci-placeholder-not-a-real-key"
+          AZURE_FOUNDRY_ENDPOINT: "https://ci-placeholder.openai.azure.com"
+          AZURE_FOUNDRY_API_KEY: "ci-placeholder-not-a-real-key"
+          AZURE_FOUNDRY_DEPLOYMENT: "ci-placeholder"
         run: pytest -m "not live" -q --durations=10
 
       - name: API imports and serves without a provider key
         # ADR-007's degraded mode, asserted rather than assumed: the app must start and
-        # answer /api/health with no ANTHROPIC_API_KEY present, because that is exactly
-        # the state a misconfigured deployment is in and it must fail visibly at the
-        # request, not opaquely at import.
+        # answer /api/health with no AZURE_FOUNDRY_API_KEY present, because that is
+        # exactly the state a misconfigured deployment is in and it must fail visibly at
+        # the request, not opaquely at import.
         env:
-          LLM_PROVIDER: anthropic
-          ANTHROPIC_API_KEY: "ci-placeholder-not-a-real-key"
+          LLM_PROVIDER: azure_foundry
+          AZURE_FOUNDRY_ENDPOINT: "https://ci-placeholder.openai.azure.com"
+          AZURE_FOUNDRY_API_KEY: "ci-placeholder-not-a-real-key"
+          AZURE_FOUNDRY_DEPLOYMENT: "ci-placeholder"
         run: |
           python3 - <<'PY'
           from fastapi.testclient import TestClient

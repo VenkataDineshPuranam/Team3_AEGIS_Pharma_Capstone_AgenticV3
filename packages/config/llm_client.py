@@ -426,7 +426,7 @@ def get_llm():
     """Provider selected by LLM_PROVIDER (.env.example). Raises KeyError with a clear
     message if the corresponding API key is absent -- callers should catch this the same
     way Phase 4's stub-vs-live test split treats a missing key: skip, don't fail."""
-    provider = os.environ.get("LLM_PROVIDER", "anthropic")
+    provider = os.environ.get("LLM_PROVIDER", "azure_foundry")
     if provider == "anthropic":
         return AnthropicLLM()
     if provider == "groq":

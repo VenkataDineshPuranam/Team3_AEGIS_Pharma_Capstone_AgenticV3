@@ -29,7 +29,9 @@
 #   ACA_API_APP             Container App name for the Orchestrator API
 #   ACA_WEB_APP             Container App name for the Control Center
 #   API_PUBLIC_URL          Public https URL of the API app -- needed at BUILD time, see below
-#   ANTHROPIC_API_KEY       Route A inference key (ADR-009)
+#   AZURE_FOUNDRY_ENDPOINT, AZURE_FOUNDRY_API_KEY, AZURE_FOUNDRY_DEPLOYMENT
+#                           Route A inference, ADR-009's actual deployment target as of
+#                           Stage 23 (packages/config/llm_client.py's AzureFoundryLLM)
 #   REDIS_URL, NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD   Backing services
 #   LANGSMITH_API_KEY       Optional; tracing is off if absent
 #
@@ -79,11 +81,14 @@ jobs:
           ACA_API_APP: ${{ secrets.ACA_API_APP }}
           ACA_WEB_APP: ${{ secrets.ACA_WEB_APP }}
           API_PUBLIC_URL: ${{ secrets.API_PUBLIC_URL }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          AZURE_FOUNDRY_ENDPOINT: ${{ secrets.AZURE_FOUNDRY_ENDPOINT }}
+          AZURE_FOUNDRY_API_KEY: ${{ secrets.AZURE_FOUNDRY_API_KEY }}
+          AZURE_FOUNDRY_DEPLOYMENT: ${{ secrets.AZURE_FOUNDRY_DEPLOYMENT }}
         run: |
           missing=""
           for name in AZURE_CREDENTIALS AZURE_RESOURCE_GROUP AZURE_CONTAINER_REGISTRY \
-                      ACA_API_APP ACA_WEB_APP API_PUBLIC_URL ANTHROPIC_API_KEY; do
+                      ACA_API_APP ACA_WEB_APP API_PUBLIC_URL \
+                      AZURE_FOUNDRY_ENDPOINT AZURE_FOUNDRY_API_KEY AZURE_FOUNDRY_DEPLOYMENT; do
             if [ -z "${!name}" ]; then missing="$missing $name"; fi
           done
 
@@ -217,7 +222,9 @@ jobs:
             --name "${{ secrets.ACA_API_APP }}" \
             --resource-group "${{ secrets.AZURE_RESOURCE_GROUP }}" \
             --secrets \
-              anthropic-api-key="${{ secrets.ANTHROPIC_API_KEY }}" \
+              azure-foundry-endpoint="${{ secrets.AZURE_FOUNDRY_ENDPOINT }}" \
+              azure-foundry-api-key="${{ secrets.AZURE_FOUNDRY_API_KEY }}" \
+              azure-foundry-deployment="${{ secrets.AZURE_FOUNDRY_DEPLOYMENT }}" \
               redis-url="${{ secrets.REDIS_URL }}" \
               neo4j-uri="${{ secrets.NEO4J_URI }}" \
               neo4j-user="${{ secrets.NEO4J_USER }}" \
@@ -229,8 +236,10 @@ jobs:
             --resource-group "${{ secrets.AZURE_RESOURCE_GROUP }}" \
             --image "${{ secrets.AZURE_CONTAINER_REGISTRY }}/aegis-api:${TAG}" \
             --set-env-vars \
-              LLM_PROVIDER=anthropic \
-              ANTHROPIC_API_KEY=secretref:anthropic-api-key \
+              LLM_PROVIDER=azure_foundry \
+              AZURE_FOUNDRY_ENDPOINT=secretref:azure-foundry-endpoint \
+              AZURE_FOUNDRY_API_KEY=secretref:azure-foundry-api-key \
+              AZURE_FOUNDRY_DEPLOYMENT=secretref:azure-foundry-deployment \
               REDIS_URL=secretref:redis-url \
               NEO4J_URI=secretref:neo4j-uri \
               NEO4J_USER=secretref:neo4j-user \

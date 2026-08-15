@@ -26,7 +26,7 @@ and a Next.js operator UI (`apps/web/`, the **AEGIS Control Center**).
 ./scripts/bootstrap.sh
 ```
 Creates a venv, installs backend + frontend deps, copies `.env.example` → `.env`, and (once
-you've filled in `NEO4J_URI`/`NEO4J_PASSWORD`/`ANTHROPIC_API_KEY`) seeds demo users and the
+you've filled in `NEO4J_URI`/`NEO4J_PASSWORD`/`AZURE_FOUNDRY_*`) seeds demo users and the
 starter knowledge graph. Re-run anytime; every step is idempotent.
 
 **Run it locally, manually:**
@@ -43,7 +43,7 @@ npm run build && npm start   # or `npm run dev` for hot reload
 
 **Or the whole stack in containers**, Neo4j and Redis included:
 ```sh
-cp .env.example .env   # fill in ANTHROPIC_API_KEY at minimum
+cp .env.example .env   # fill in AZURE_FOUNDRY_ENDPOINT/API_KEY/DEPLOYMENT at minimum
 docker compose up --build
 docker compose --profile seed run --rm seed   # first run only: demo users + starter KG
 ```

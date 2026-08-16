@@ -222,6 +222,18 @@ jobs:
         env:
           TAG: ${{ needs.build-and-push.outputs.tag }}
         run: |
+          # Container Apps does not inherit registry auth from docker/login-action above
+          # -- that credential only lives on the runner that built the image. Without this,
+          # `az containerapp update --image` provisions a revision pointing at an image the
+          # app's own pull identity cannot fetch, which fails at provisioning time with an
+          # UNAUTHORIZED error that says nothing about credentials being the cause.
+          az containerapp registry set \
+            --name "${{ secrets.ACA_API_APP }}" \
+            --resource-group "${{ secrets.AZURE_RESOURCE_GROUP }}" \
+            --server "${{ secrets.AZURE_CONTAINER_REGISTRY }}" \
+            --username "${{ secrets.ACR_USERNAME }}" \
+            --password "${{ secrets.ACR_PASSWORD }}"
+
           # Secrets are set as Container App secrets and referenced by env vars, so the
           # values are not visible in `az containerapp show` output or in the revision's
           # template. This is the ACA-native mechanism, not Key Vault -- see this file's
@@ -261,6 +273,13 @@ jobs:
         env:
           TAG: ${{ needs.build-and-push.outputs.tag }}
         run: |
+          az containerapp registry set \
+            --name "${{ secrets.ACA_WEB_APP }}" \
+            --resource-group "${{ secrets.AZURE_RESOURCE_GROUP }}" \
+            --server "${{ secrets.AZURE_CONTAINER_REGISTRY }}" \
+            --username "${{ secrets.ACR_USERNAME }}" \
+            --password "${{ secrets.ACR_PASSWORD }}"
+
           az containerapp update \
             --name "${{ secrets.ACA_WEB_APP }}" \
             --resource-group "${{ secrets.AZURE_RESOURCE_GROUP }}" \

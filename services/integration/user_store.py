@@ -156,8 +156,11 @@ def can_veto(role: str, workflow: str) -> bool:
 
 
 def get_connection(db_path: Path = DEFAULT_DB_PATH) -> sqlite3.Connection:
+    # check_same_thread=False -- see audit_store.get_connection's identical fix. Same
+    # module, same DB file, same risk if a caller ever holds this connection across a
+    # thread-dispatched call the way graph.py's audit_conn does.
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(db_path)
+    conn = sqlite3.connect(db_path, check_same_thread=False)
     conn.executescript(_SCHEMA)
     return conn
 

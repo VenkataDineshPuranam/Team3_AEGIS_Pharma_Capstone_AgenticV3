@@ -80,8 +80,16 @@ CREATE TABLE IF NOT EXISTS prohibited_action_blocked (
 
 
 def get_connection(db_path: Path = DEFAULT_DB_PATH) -> sqlite3.Connection:
+    # check_same_thread=False: graph.py builds one connection per request and closes over
+    # it from every node function (intake through finalize). LangGraph's runner can
+    # dispatch those node calls onto different worker threads within the same request,
+    # which trips Python's default same-thread guard even though access here is always
+    # sequential -- one node at a time, never concurrent -- which is exactly the case
+    # SQLite's own thread safety (serialized mode, the default build) already covers.
+    # Surfaced only under a real multi-threaded deployment (Stage 23); local/CI runs never
+    # exercised this path before.
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(db_path)
+    conn = sqlite3.connect(db_path, check_same_thread=False)
     conn.executescript(_SCHEMA)
     _migrate(conn)
     return conn

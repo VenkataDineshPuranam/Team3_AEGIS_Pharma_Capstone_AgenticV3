@@ -176,6 +176,13 @@ jobs:
         # source that produced it -- which is what makes the AI-BOM's prompt hashes worth
         # anything, since a hash of a prompt in a repo says nothing about the image
         # actually running unless the two are provably the same build.
+        #
+        # continue-on-error: GitHub's attestation API refuses user-owned private repos
+        # outright ("Feature not available ... make this repository public"), independent
+        # of anything in this workflow. The image is already built and pushed by this
+        # point -- losing the provenance attestation on a private repo is a real gap
+        # worth knowing about, not a reason to fail a deploy that otherwise succeeded.
+        continue-on-error: true
         uses: actions/attest-build-provenance@v2
         with:
           subject-name: ${{ secrets.AZURE_CONTAINER_REGISTRY }}/aegis-api
@@ -183,6 +190,7 @@ jobs:
           push-to-registry: true
 
       - name: Attach build provenance to the web image
+        continue-on-error: true
         uses: actions/attest-build-provenance@v2
         with:
           subject-name: ${{ secrets.AZURE_CONTAINER_REGISTRY }}/aegis-web

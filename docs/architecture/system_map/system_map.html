@@ -1,0 +1,686 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AEGIS Blueprint</title>
+<meta name="description" content="Interactive architecture map of the AEGIS Pharma governed multi-agent system -- every component and thirteen traced request flows.">
+<style>
+  :root {
+    --bg: #F3F5F7;
+    --bg-raised: #FFFFFF;
+    --bg-sunken: #EAEEF1;
+    --ink: #16202B;
+    --ink-dim: #55616D;
+    --ink-faint: #8B98A4;
+    --border: #D7DEE4;
+    --border-soft: #E4E9ED;
+    --accent: #C9791E;
+    --accent-ink: #4A2E0B;
+    --accent-soft: #F3DDBB;
+    --shadow: 0 8px 24px -12px rgba(22, 32, 43, 0.28);
+
+    --layer-client: #4C7CAE;
+    --layer-api: #3E8E7E;
+    --layer-workflow: #7A6BAE;
+    --layer-integration: #3D7391;
+    --layer-data: #B36A44;
+    --layer-governance: #6C8752;
+    --layer-cicd: #A15E82;
+
+    --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0D141C;
+      --bg-raised: #141D27;
+      --bg-sunken: #101822;
+      --ink: #E7EDF2;
+      --ink-dim: #97A6B3;
+      --ink-faint: #5E6C79;
+      --border: #263241;
+      --border-soft: #1C2732;
+      --accent: #E2A24C;
+      --accent-ink: #2C1B04;
+      --accent-soft: #3B2A10;
+      --shadow: 0 10px 30px -12px rgba(0, 0, 0, 0.55);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0D141C;
+    --bg-raised: #141D27;
+    --bg-sunken: #101822;
+    --ink: #E7EDF2;
+    --ink-dim: #97A6B3;
+    --ink-faint: #5E6C79;
+    --border: #263241;
+    --border-soft: #1C2732;
+    --accent: #E2A24C;
+    --accent-ink: #2C1B04;
+    --accent-soft: #3B2A10;
+    --shadow: 0 10px 30px -12px rgba(0, 0, 0, 0.55);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ---------- header ---------- */
+  header {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    padding: 0.85rem 1.25rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-raised);
+    flex-wrap: wrap;
+    row-gap: 0.6rem;
+  }
+  .title-block { display: flex; flex-direction: column; gap: 0.15rem; margin-right: 0.5rem; }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 600;
+  }
+  h1 {
+    margin: 0;
+    font-family: var(--mono);
+    font-size: 1.15rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  .legend {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    flex-wrap: wrap;
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: var(--ink-dim);
+  }
+  .legend-item { display: flex; align-items: center; gap: 0.4rem; white-space: nowrap; }
+  .swatch { width: 0.6rem; height: 0.6rem; border-radius: 2px; flex: none; }
+  .header-actions { margin-left: auto; display: flex; align-items: center; gap: 0.5rem; }
+  .btn {
+    font-family: var(--mono);
+    font-size: 0.74rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    padding: 0.4rem 0.7rem;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--bg-sunken);
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .btn:hover { border-color: var(--ink-faint); }
+  .btn:focus-visible, a:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .btn.flows-toggle { display: none; }
+
+  /* ---------- app grid ---------- */
+  .app {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    min-height: 0;
+  }
+  .canvas-wrap {
+    position: relative;
+    overflow: auto;
+    background:
+      linear-gradient(var(--border-soft) 1px, transparent 1px) 0 0 / 100% 42px,
+      var(--bg);
+    background-attachment: local;
+  }
+  .canvas-wrap svg { display: block; }
+
+  aside.flows {
+    border-left: 1px solid var(--border);
+    background: var(--bg-raised);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .flows-head {
+    padding: 0.9rem 1rem 0.7rem;
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .flows-head .eyebrow { display: block; margin-bottom: 0.3rem; }
+  .flows-head p {
+    margin: 0;
+    font-size: 0.8rem;
+    color: var(--ink-dim);
+    line-height: 1.45;
+  }
+  .flow-list {
+    list-style: none;
+    margin: 0;
+    padding: 0.5rem;
+    overflow-y: auto;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+  .flow-card {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.6rem 0.7rem;
+    cursor: pointer;
+    background: var(--bg-sunken);
+    transition: border-color 0.12s ease, background 0.12s ease;
+  }
+  .flow-card:hover { border-color: var(--ink-faint); }
+  .flow-card.active { border-color: var(--accent); background: var(--accent-soft); }
+  .flow-card .fname {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+  .flow-card .fcount {
+    font-family: var(--mono);
+    font-size: 0.66rem;
+    color: var(--ink-faint);
+    flex: none;
+  }
+  .flow-card.active .fcount { color: var(--accent-ink); }
+  .flow-card .fdesc {
+    margin: 0.3rem 0 0;
+    font-size: 0.76rem;
+    line-height: 1.45;
+    color: var(--ink-dim);
+  }
+  .flow-card.active .fdesc { color: var(--accent-ink); }
+  .flow-steps {
+    margin: 0.5rem 0 0;
+    padding: 0.5rem 0 0;
+    border-top: 1px dashed var(--border);
+    display: none;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+  }
+  .flow-card.active .flow-steps { display: flex; }
+  .step-chip {
+    font-family: var(--mono);
+    font-size: 0.66rem;
+    padding: 0.14rem 0.4rem;
+    border-radius: 999px;
+    background: var(--bg-raised);
+    border: 1px solid var(--accent);
+    color: var(--accent-ink);
+    white-space: nowrap;
+  }
+
+  /* ---------- SVG node / edge styling ---------- */
+  .node rect.box {
+    fill: var(--bg-raised);
+    stroke: var(--border);
+    stroke-width: 1.3;
+    transition: opacity 0.15s ease, stroke 0.15s ease, stroke-width 0.15s ease;
+  }
+  .node rect.tab { transition: opacity 0.15s ease; }
+  .node text { fill: var(--ink); font-family: var(--mono); pointer-events: none; }
+  .node text.sub { fill: var(--ink-faint); }
+  .node { cursor: pointer; opacity: 1; transition: opacity 0.15s ease; }
+  .node:hover rect.box { stroke: var(--ink-faint); }
+  .node.dim { opacity: 0.28; }
+  .node.active rect.box { stroke-width: 2.2; }
+  .node.active text { fill: var(--accent-ink); }
+  .badge circle { fill: var(--accent); }
+  .badge text { fill: var(--accent-ink); font-weight: 700; font-size: 10px; }
+
+  .edge path { fill: none; stroke: var(--ink-faint); stroke-width: 1.1; opacity: 0.55; transition: opacity 0.15s ease, stroke 0.15s ease, stroke-width 0.15s ease; }
+  .edge.dashed path { stroke-dasharray: 4 3; }
+  .edge.dim path { opacity: 0.08; }
+  .edge.active path { stroke: var(--accent); stroke-width: 2.2; opacity: 1; }
+  .edge-label {
+    font-family: var(--mono);
+    font-size: 9.5px;
+    fill: var(--accent-ink);
+    opacity: 0;
+    transition: opacity 0.15s ease;
+  }
+  .edge.active .edge-label { opacity: 1; }
+  .edge-label rect { fill: var(--accent-soft); }
+
+  .row-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    fill: var(--ink-faint);
+  }
+
+  /* ---------- tooltip ---------- */
+  #tooltip {
+    position: fixed;
+    max-width: 300px;
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    padding: 0.7rem 0.85rem;
+    font-size: 0.8rem;
+    line-height: 1.5;
+    color: var(--ink-dim);
+    z-index: 50;
+    display: none;
+    pointer-events: none;
+  }
+  #tooltip .t-title {
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: var(--ink);
+    margin: 0 0 0.15rem;
+  }
+  #tooltip .t-tag {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 0.64rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 0.1rem 0.4rem;
+    border-radius: 999px;
+    margin-bottom: 0.4rem;
+  }
+  #tooltip .t-tech {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    color: var(--ink-faint);
+    margin: 0.4rem 0 0;
+    word-break: break-word;
+  }
+
+  /* ---------- responsive ---------- */
+  .scrim {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(13, 20, 28, 0.45);
+    z-index: 39;
+  }
+  @media (max-width: 880px) {
+    .app { grid-template-columns: 1fr; }
+    aside.flows {
+      position: fixed;
+      inset: auto 0 0 0;
+      height: 72vh;
+      border-left: none;
+      border-top: 1px solid var(--border);
+      border-radius: 14px 14px 0 0;
+      box-shadow: var(--shadow);
+      transform: translateY(100%);
+      transition: transform 0.2s ease;
+      z-index: 40;
+    }
+    aside.flows.open { transform: translateY(0); }
+    .btn.flows-toggle { display: inline-flex; }
+    .scrim.open { display: block; }
+    .legend { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; scroll-behavior: auto !important; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="title-block">
+    <span class="eyebrow">AEGIS Pharma V3</span>
+    <h1>System Blueprint</h1>
+  </div>
+  <div class="legend" id="legend"></div>
+  <div class="header-actions">
+    <button class="btn" id="resetBtn" type="button">Show entire system</button>
+    <button class="btn flows-toggle" id="flowsToggle" type="button">Flows</button>
+  </div>
+</header>
+
+<div class="app">
+  <div class="canvas-wrap" id="canvasWrap">
+    <svg id="diagram" xmlns="http://www.w3.org/2000/svg"></svg>
+  </div>
+
+  <aside class="flows" id="flowsPanel">
+    <div class="flows-head">
+      <span class="eyebrow">Traced Flows</span>
+      <p>Click a flow to highlight its exact path through the system. Click a node in the diagram for details.</p>
+    </div>
+    <ul class="flow-list" id="flowList"></ul>
+  </aside>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<div id="tooltip" role="tooltip"></div>
+
+<script>
+const DATA = {"$schema": "aegis-pharma-v3-system-map/1.0", "generated_from": "Team3_AEGIS_Pharma_Capstone_AgenticV3", "description": "Machine-readable architecture map of the AEGIS Pharma V3 governed multi-agent system: client, API, the shared LangGraph workflow pipeline, integration/tool layer, external systems, governance artifacts, and CI/CD. Consumed by docs/architecture/system_map/system_map.html and intended for direct use by AI coding agents.", "layers": [{"id": "client", "label": "Client (Next.js Web UI)", "color": "#5B8DBE"}, {"id": "api", "label": "Orchestrator API (FastAPI)", "color": "#4C9C8C"}, {"id": "workflow", "label": "Governed Workflow Pipeline (LangGraph)", "color": "#8578B8"}, {"id": "integration", "label": "Integration / Tool Layer", "color": "#4E7A93"}, {"id": "data", "label": "External Systems", "color": "#C17A54"}, {"id": "governance", "label": "Governance Artifacts", "color": "#7C9463"}, {"id": "cicd", "label": "CI/CD & Deployment", "color": "#B27093"}], "nodes": [{"id": "client-shell", "label": "Web UI Shell", "layer": "client", "tech": "Next.js App Router, AppShell.tsx", "description": "Global page chrome: nav, operator bar, notification bell, health status. Every signed-in route renders inside it."}, {"id": "client-auth", "label": "Auth & Session", "layer": "client", "tech": "app/login/, lib/auth/session.ts", "description": "Login form and a tiny external store over localStorage (useSyncExternalStore) holding the session token/role, read directly by the API client for every request's Authorization header."}, {"id": "client-queue", "label": "Decision Queue & Run Detail", "layer": "client", "tech": "app/decisions/, app/runs/, ApprovalPanel.tsx", "description": "Lists pending HITL decisions, run history, and the approve/reject/escalate panel on a run's detail page."}, {"id": "client-assistant", "label": "Record Assistant", "layer": "client", "tech": "components/assistant/RecordAssistant.tsx", "description": "Multi-turn chat panel that explains a record in plain language. The model writes prose only; the record card and next-steps list are computed deterministically server-side."}, {"id": "api-auth", "label": "Auth API", "layer": "api", "tech": "POST /api/auth/login, /logout, GET /me, /roles", "description": "Credential-backed login (salted PBKDF2), server-side sessions, 8-hour expiry."}, {"id": "api-runs", "label": "Runs & Decide API", "layer": "api", "tech": "POST /api/runs, POST /api/runs/{id}/decide, GET /api/runs", "description": "Submits a new workflow run (builds/invokes the LangGraph) and resumes a paused run with a human decision. Every decide call is authorized server-side against the signed-in role."}, {"id": "api-queue", "label": "Queue API", "layer": "api", "tech": "GET /api/queue", "description": "Lists runs currently paused at hitl_interrupt, enriched with severity/timer state."}, {"id": "api-notify", "label": "Notifications API", "layer": "api", "tech": "GET /api/notifications", "description": "Unauthenticated read of recent HITL escalation events, powering the notification bell."}, {"id": "api-chat", "label": "Record Chat API", "layer": "api", "tech": "POST /api/runs/{id}/chat", "description": "Backs the Record Assistant: deterministic facts plus a guarded model-written answer."}, {"id": "api-health", "label": "Health API", "layer": "api", "tech": "GET /api/health, /api/health/detail", "description": "Liveness and per-dependency status (Neo4j, Redis, LLM provider, policy engine, audit store), computed without spending tokens."}, {"id": "wf-intake", "label": "Intake", "layer": "workflow", "tech": "graph.py node 1", "description": "First node. A refuse-at-intake condition short-circuits straight to Finalize with terminal_state=refused."}, {"id": "wf-policy", "label": "Policy Load", "layer": "workflow", "tech": "graph.py node 2", "description": "Loads the prohibition contract. Unreadable contract fails closed (ADR-005) straight to Finalize."}, {"id": "wf-retrieve", "label": "Retrieve Evidence", "layer": "workflow", "tech": "graph.py node 3", "description": "Calls the evidence.retrieve tool against Neo4j. A tool exception abstains straight to Finalize (dependency_unavailable)."}, {"id": "wf-gate", "label": "Evidence Gate", "layer": "workflow", "tech": "graph.py node 4", "description": "Sufficiency check. Insufficient evidence loops back to Retrieve once (G3's single scope-preserving broadening); still insufficient abstains to Finalize."}, {"id": "wf-domain", "label": "Domain Reconcile / Check", "layer": "workflow", "tech": "one of 6 domain tools, parameterized by workflow", "description": "The one node that differs per workflow: batch reconcile, PV duplicate-check + terminology normalize, supply option generation, clinical integrity check, research reconcile, or regulatory completeness check."}, {"id": "wf-synthesize", "label": "Synthesize (LLM)", "layer": "workflow", "tech": "graph.py node, 1st LLM call", "description": "Model drafts a decision-support summary with cited claims. An LLM exception abstains to Finalize with terminal_state=degraded_mode (ADR-007)."}, {"id": "wf-guard1", "label": "Guard (pre-critic)", "layer": "workflow", "tech": "prohibited_action_guard", "description": "Structural layer 3 (ADR-004): scans the draft against the prohibition contract before it ever reaches a second model call. A block routes straight to Finalize."}, {"id": "wf-critic", "label": "Critic Verify (LLM)", "layer": "workflow", "tech": "graph.py node, 2nd LLM call", "description": "A second, independent model call verifies the draft. Routes to Guard 2 on approval, back to Synthesize on a retryable reason code (capped at MAX_LLM_CALLS=6), or to Finalize on a non-retryable/prohibition-adjacent/repeated code."}, {"id": "wf-guard2", "label": "Guard (post-critic)", "layer": "workflow", "tech": "prohibited_action_guard, cache write", "description": "Second guard pass. A clear draft is written to the response cache here; a block routes to Finalize."}, {"id": "wf-hitlroute", "label": "HITL Route", "layer": "workflow", "tech": "hitl_route.py", "description": "Sets hitl_required, the eligible approver_roles, and hitl_status=pending, hitl_tier=T0."}, {"id": "wf-hitlinterrupt", "label": "HITL Interrupt", "layer": "workflow", "tech": "langgraph.types.interrupt()", "description": "The actual pause point. Execution suspends here until POST /api/runs/{id}/decide resumes it with a real decision, or a timer expiry resumes it with timed_out -- which never auto-approves (BC-12: timeout means no action, ever)."}, {"id": "wf-finalize", "label": "Finalize", "layer": "workflow", "tech": "graph.py final node", "description": "Every path in the graph ends here, and only here. Records denial-of-wallet usage and writes the one immutable agent_run audit record for this run."}, {"id": "tool-evidence-retrieve", "label": "evidence.retrieve tool", "layer": "integration", "tech": "services/integration/evidence_retrieve.py", "description": "Implements the evidence_retrieve.schema.json contract over Neo4j. Filters untrusted/superseded items inside the query itself (ADR-003/BC-2), not as a caller-side post-filter."}, {"id": "tool-domain-tools", "label": "Domain reconcile/check tools (x6)", "layer": "integration", "tech": "batch_reconcile.py, pv_duplicate_check.py, pv_normalize_terminology.py, supply_generate_options.py, clinical_integrity_check.py, research_reconcile.py, regulatory_completeness_check.py", "description": "One deterministic, non-LLM tool per workflow, each reading its fixture data from tests/fixtures/synthetic/ -- the real gap found and fixed during this deployment: the API image never copied this directory in."}, {"id": "tool-policy-engine", "label": "Policy Engine", "layer": "integration", "tech": "services/integration/policy_engine.py", "description": "Loads the prohibition contract from security/policies/. Raises PolicyEngineUnavailable rather than returning a permissive default (fail closed, ADR-005)."}, {"id": "tool-guard-action", "label": "Prohibited Action Guard", "layer": "integration", "tech": "services/integration/prohibited_action_guard.py", "description": "ADR-004 structural layer 3: the runtime guard both Guard nodes call. Makes prohibited actions unrepresentable at the point a draft is about to reach a human, not just discouraged by prompting."}, {"id": "tool-prompt-guard", "label": "Prompt Guard (PI/PG)", "layer": "integration", "tech": "services/integration/prompt_guard.py", "description": "Input and output scanning (ADR-004 layers 0 and 4) bracketing the structural layers. Used on the Record Assistant's chat path; known_identifiers prevents flagging a correct citation as fabricated."}, {"id": "tool-audit-store", "label": "Audit Store", "layer": "integration", "tech": "services/integration/audit_store.py, SQLite (WORM emulation)", "description": "Append-only: no function in this module can UPDATE or DELETE a row. Writes agent_run, human_override, and hitl_expired records. check_same_thread=False after the Stage 23 cross-thread fix."}, {"id": "tool-user-store", "label": "User Store", "layer": "integration", "tech": "services/integration/user_store.py, SQLite", "description": "Salted PBKDF2 password hashes, server-side sessions. Same connection-lifecycle fix as audit_store."}, {"id": "tool-response-cache", "label": "Response Cache", "layer": "integration", "tech": "services/integration/response_cache.py, Redis", "description": "Caches only CLEAR drafts (post both guards) keyed on workflow+subject+evidence_ids. Unreachable Redis degrades to a cache bypass, never a hard failure."}, {"id": "tool-hitl-watch", "label": "HITL Escalation Watch", "layer": "integration", "tech": "services/integration/hitl_escalation_watch.py", "description": "Background loop started from the FastAPI lifespan, polling every HITL_NOTIFIER_POLL_SECONDS. The first time a pending run crosses severity 3 (T2) or 4 (T3) it records the event once (idempotent) and triggers Notifier."}, {"id": "tool-notifier", "label": "Notifier", "layer": "integration", "tech": "services/integration/notifier.py, SMTP", "description": "Best-effort email on top of the always-recorded audit event. Deliberately plain SMTP, not an MCP tool call -- an MCP tool is reachable from an interactive session, not from an independent server process deciding between requests."}, {"id": "tool-dow-guard", "label": "Denial-of-Wallet Guard", "layer": "integration", "tech": "infra/policies/denial_of_wallet_guardrail.py", "description": "Per-run and per-window token/call ceilings, recorded at Finalize on every path through the graph."}, {"id": "ext-neo4j", "label": "Neo4j (AuraDB)", "layer": "data", "tech": "Bolt protocol, packages/domain/kg/client.py", "description": "The knowledge-graph backing evidence retrieval: 17 classes, 14 edge types (docs/architecture/ontology/kg_schema.md)."}, {"id": "ext-redis", "label": "Redis", "layer": "data", "tech": "packages/config/redis_client.py", "description": "Response cache store. Azure Cache for Redis in the ADR-009 deployment target; a plain redis-py client, explicitly not MCP-based."}, {"id": "ext-foundry", "label": "Azure AI Foundry (LLM)", "layer": "data", "tech": "packages/config/llm_client.py: AzureFoundryLLM", "description": "ADR-009's actual deployment target and the default LLM_PROVIDER as of Stage 23. Talks an OpenAI-compatible chat-completions route regardless of the deployed model's own family."}, {"id": "ext-smtp", "label": "SMTP (Gmail)", "layer": "data", "tech": "STARTTLS/587 or SMTP_SSL/465", "description": "Outbound transport for HITL escalation email. Requires a Gmail App Password, not the account password."}, {"id": "ext-langsmith", "label": "LangSmith", "layer": "data", "tech": "LANGSMITH_TRACING env flag", "description": "Optional per-node/tool-call tracing. Auto-instruments every LangGraph node once the tracing flag is set -- no code changes."}, {"id": "gov-policy-contract", "label": "Policy Contract", "layer": "governance", "tech": "security/policies/policy_contract.v1.json", "description": "The prohibition contract Policy Load reads. Its absence or corruption is a fail-closed condition, not a fallback."}, {"id": "gov-ai-sbom", "label": "AI-SBOM", "layer": "governance", "tech": "security/sbom/ai_sbom.json, CycloneDX 1.6 ML-BOM", "description": "Hashes every system prompt, the PI/PG ruleset, and governance artifacts. A prompt edit that weakens a control cannot reach deployment without appearing as a hash diff."}, {"id": "gov-tool-manifest", "label": "Tool Manifest", "layer": "governance", "tech": "services/integration/tool_manifest.py", "description": "Verifies tool contracts are unmodified and still read-only. Checked at CI and again at every container startup."}, {"id": "cicd-push", "label": "Git Push", "layer": "cicd", "tech": "final_app branch -> main", "description": "Every push to main triggers CI, and (on main/tags) CD."}, {"id": "cicd-ci", "label": "V3 CI", "layer": "cicd", "tech": ".github/workflows/ci.yml", "description": "governance (SBOM/AI-SBOM/tool-manifest verify) -> api (ruff, pytest -m 'not live') -> web (tsc, eslint, jest, next build) -> containers (build, no push) -> single required ci-passed gate."}, {"id": "cicd-cd", "label": "V3 CD", "layer": "cicd", "tech": ".github/workflows/cd.yml", "description": "Reuses ci.yml as a gate, then preflight (checks all required secrets, skips deploy cleanly if any are missing), build-and-push, deploy."}, {"id": "cicd-acr", "label": "Container Registry", "layer": "cicd", "tech": "Azure Container Registry", "description": "Holds aegis-api and aegis-web images, tagged by commit SHA and :latest."}, {"id": "cicd-aca", "label": "Azure Container Apps", "layer": "cicd", "tech": "ADR-009 runtime target", "description": "Runs both containers. Deploy registers ACR pull credentials on each app before updating its image -- omitting that step was the first real deploy's actual failure."}, {"id": "cicd-nightly", "label": "Nightly Red-Team", "layer": "cicd", "tech": ".github/workflows/nightly-redteam.yml, cron 03:00 UTC", "description": "Runs the live prompt-injection suite (pytest -m live) against a real model. A failure opens a GitHub issue rather than only going red, because the finding might be model drift, not a broken build."}], "edges": [{"id": "e-client-auth-login", "source": "client-auth", "target": "api-auth", "label": "POST /api/auth/login"}, {"id": "e-client-shell-health", "source": "client-shell", "target": "api-health", "label": "GET /api/health"}, {"id": "e-client-shell-notify", "source": "client-shell", "target": "api-notify", "label": "poll GET /api/notifications"}, {"id": "e-client-queue-list", "source": "client-queue", "target": "api-queue", "label": "GET /api/queue"}, {"id": "e-client-queue-submit", "source": "client-queue", "target": "api-runs", "label": "POST /api/runs"}, {"id": "e-client-queue-decide", "source": "client-queue", "target": "api-runs", "label": "POST /api/runs/{id}/decide"}, {"id": "e-client-assistant-chat", "source": "client-assistant", "target": "api-chat", "label": "POST /api/runs/{id}/chat"}, {"id": "e-api-runs-invoke", "source": "api-runs", "target": "wf-intake", "label": "graph.invoke() -- new run"}, {"id": "e-api-runs-resume", "source": "api-runs", "target": "wf-hitlinterrupt", "label": "resume with human decision"}, {"id": "e-api-auth-store", "source": "api-auth", "target": "tool-user-store", "label": "verify credentials"}, {"id": "e-api-queue-store", "source": "api-queue", "target": "tool-audit-store", "label": "read pending runs"}, {"id": "e-api-notify-store", "source": "api-notify", "target": "tool-audit-store", "label": "read hitl_escalation records"}, {"id": "e-api-chat-guard-in", "source": "api-chat", "target": "tool-prompt-guard", "label": "scan_input()"}, {"id": "e-api-chat-audit", "source": "api-chat", "target": "tool-audit-store", "label": "read run for context"}, {"id": "e-api-chat-llm", "source": "api-chat", "target": "ext-foundry", "label": "prose answer"}, {"id": "e-api-chat-guard-out", "source": "api-chat", "target": "tool-prompt-guard", "label": "scan_output()"}, {"id": "e-api-health-watch", "source": "api-health", "target": "tool-hitl-watch", "label": "runs inside the API's lifespan task"}, {"id": "e-wf-intake-policy", "source": "wf-intake", "target": "wf-policy", "label": ""}, {"id": "e-wf-intake-finalize", "source": "wf-intake", "target": "wf-finalize", "label": "refused (refuse-at-intake)", "dashed": true}, {"id": "e-wf-policy-retrieve", "source": "wf-policy", "target": "wf-retrieve", "label": ""}, {"id": "e-wf-policy-finalize", "source": "wf-policy", "target": "wf-finalize", "label": "refused (contract unreadable)", "dashed": true}, {"id": "e-wf-retrieve-gate", "source": "wf-retrieve", "target": "wf-gate", "label": ""}, {"id": "e-wf-retrieve-finalize", "source": "wf-retrieve", "target": "wf-finalize", "label": "abstained (dependency_unavailable)", "dashed": true}, {"id": "e-wf-gate-retrieve", "source": "wf-gate", "target": "wf-retrieve", "label": "broaden (once, G3)", "dashed": true}, {"id": "e-wf-gate-domain", "source": "wf-gate", "target": "wf-domain", "label": "sufficient"}, {"id": "e-wf-gate-finalize", "source": "wf-gate", "target": "wf-finalize", "label": "abstained (insufficient evidence)", "dashed": true}, {"id": "e-wf-domain-synth", "source": "wf-domain", "target": "wf-synthesize", "label": ""}, {"id": "e-wf-domain-finalize", "source": "wf-domain", "target": "wf-finalize", "label": "abstained (tool error)", "dashed": true}, {"id": "e-wf-synth-guard1", "source": "wf-synthesize", "target": "wf-guard1", "label": ""}, {"id": "e-wf-synth-finalize", "source": "wf-synthesize", "target": "wf-finalize", "label": "abstained (degraded_mode)", "dashed": true}, {"id": "e-wf-guard1-critic", "source": "wf-guard1", "target": "wf-critic", "label": "clear"}, {"id": "e-wf-guard1-finalize", "source": "wf-guard1", "target": "wf-finalize", "label": "blocked (prohibited action)", "dashed": true}, {"id": "e-wf-critic-guard2", "source": "wf-critic", "target": "wf-guard2", "label": "approve_for_human"}, {"id": "e-wf-critic-synth", "source": "wf-critic", "target": "wf-synthesize", "label": "retryable reason code", "dashed": true}, {"id": "e-wf-critic-finalize", "source": "wf-critic", "target": "wf-finalize", "label": "abstained (cap / prohibition-adjacent)", "dashed": true}, {"id": "e-wf-guard2-hitlroute", "source": "wf-guard2", "target": "wf-hitlroute", "label": "clear"}, {"id": "e-wf-guard2-finalize", "source": "wf-guard2", "target": "wf-finalize", "label": "blocked (prohibited action)", "dashed": true}, {"id": "e-wf-hitlroute-interrupt", "source": "wf-hitlroute", "target": "wf-hitlinterrupt", "label": ""}, {"id": "e-wf-interrupt-finalize", "source": "wf-hitlinterrupt", "target": "wf-finalize", "label": "human decision or timeout"}, {"id": "e-wf-retrieve-tool", "source": "wf-retrieve", "target": "tool-evidence-retrieve", "label": "calls"}, {"id": "e-tool-retrieve-neo4j", "source": "tool-evidence-retrieve", "target": "ext-neo4j", "label": "Cypher query"}, {"id": "e-wf-domain-tool", "source": "wf-domain", "target": "tool-domain-tools", "label": "calls"}, {"id": "e-wf-policy-tool", "source": "wf-policy", "target": "tool-policy-engine", "label": "calls"}, {"id": "e-tool-policy-contract", "source": "tool-policy-engine", "target": "gov-policy-contract", "label": "reads"}, {"id": "e-wf-guard1-tool", "source": "wf-guard1", "target": "tool-guard-action", "label": "calls"}, {"id": "e-wf-guard2-tool", "source": "wf-guard2", "target": "tool-guard-action", "label": "calls"}, {"id": "e-wf-guard2-cache", "source": "wf-guard2", "target": "tool-response-cache", "label": "write clear draft"}, {"id": "e-tool-cache-redis", "source": "tool-response-cache", "target": "ext-redis", "label": ""}, {"id": "e-wf-synth-llm", "source": "wf-synthesize", "target": "ext-foundry", "label": "1st LLM call"}, {"id": "e-wf-critic-llm", "source": "wf-critic", "target": "ext-foundry", "label": "2nd LLM call"}, {"id": "e-wf-interrupt-audit", "source": "wf-hitlinterrupt", "target": "tool-audit-store", "label": "human_override / hitl_expired"}, {"id": "e-wf-finalize-audit", "source": "wf-finalize", "target": "tool-audit-store", "label": "agent_run (WORM)"}, {"id": "e-wf-finalize-dow", "source": "wf-finalize", "target": "tool-dow-guard", "label": "record usage"}, {"id": "e-hitlwatch-audit", "source": "tool-hitl-watch", "target": "tool-audit-store", "label": "poll every 60s"}, {"id": "e-hitlwatch-notifier", "source": "tool-hitl-watch", "target": "tool-notifier", "label": "first crossing of T2/T3"}, {"id": "e-notifier-smtp", "source": "tool-notifier", "target": "ext-smtp", "label": "best-effort send"}, {"id": "e-cicd-push-ci", "source": "cicd-push", "target": "cicd-ci", "label": "on every push"}, {"id": "e-cicd-ci-cd", "source": "cicd-ci", "target": "cicd-cd", "label": "gate must pass"}, {"id": "e-cicd-ci-sbom", "source": "cicd-ci", "target": "gov-ai-sbom", "label": "verify_ai_sbom.py"}, {"id": "e-cicd-ci-manifest", "source": "cicd-ci", "target": "gov-tool-manifest", "label": "verify_manifest()"}, {"id": "e-cicd-cd-acr", "source": "cicd-cd", "target": "cicd-acr", "label": "build & push, SHA-tagged"}, {"id": "e-cicd-cd-aca", "source": "cicd-cd", "target": "cicd-aca", "label": "deploy"}, {"id": "e-cicd-acr-aca", "source": "cicd-acr", "target": "cicd-aca", "label": "image pull"}, {"id": "e-cicd-aca-sbom", "source": "cicd-aca", "target": "gov-ai-sbom", "label": "startup verify_sbom"}, {"id": "e-cicd-aca-manifest", "source": "cicd-aca", "target": "gov-tool-manifest", "label": "startup verify_manifest (fail closed)"}, {"id": "e-cicd-aca-api", "source": "cicd-aca", "target": "api-health", "label": "runs the API container"}, {"id": "e-cicd-aca-client", "source": "cicd-aca", "target": "client-shell", "label": "runs the web container"}, {"id": "e-cicd-nightly-synth", "source": "cicd-nightly", "target": "wf-synthesize", "label": "live red-team run"}, {"id": "e-cicd-nightly-llm", "source": "cicd-nightly", "target": "ext-foundry", "label": "real model call"}, {"id": "e-wf-synth-tracing", "source": "wf-synthesize", "target": "ext-langsmith", "label": "trace (optional)"}, {"id": "e-wf-critic-tracing", "source": "wf-critic", "target": "ext-langsmith", "label": "trace (optional)"}], "flows": [{"id": "flow-login", "name": "Login & Session", "description": "An operator signs in; the server issues a session token that every subsequent request authenticates with.", "steps": ["client-auth", "api-auth", "tool-user-store"], "edges": ["e-client-auth-login", "e-api-auth-store"]}, {"id": "flow-submit-run", "name": "Submit a Workflow Run", "description": "An operator submits a subject for review. The graph runs intake through the guarded draft and pauses at the HITL interrupt, waiting for a human.", "steps": ["client-queue", "api-runs", "wf-intake", "wf-policy", "wf-retrieve", "wf-gate", "wf-domain", "wf-synthesize", "wf-guard1", "wf-critic", "wf-guard2", "wf-hitlroute", "wf-hitlinterrupt"], "edges": ["e-client-queue-submit", "e-api-runs-invoke", "e-wf-intake-policy", "e-wf-policy-retrieve", "e-wf-retrieve-gate", "e-wf-gate-domain", "e-wf-domain-synth", "e-wf-synth-guard1", "e-wf-guard1-critic", "e-wf-critic-guard2", "e-wf-guard2-hitlroute", "e-wf-hitlroute-interrupt"]}, {"id": "flow-human-decision", "name": "Human Decision (Approve / Reject)", "description": "The eligible approver acts on a paused run. The interrupt resumes, the graph finalizes, and the decision is written to the append-only audit store -- the only path by which a run reaches a real outcome.", "steps": ["client-queue", "api-runs", "wf-hitlinterrupt", "wf-finalize", "tool-audit-store"], "edges": ["e-client-queue-decide", "e-api-runs-resume", "e-wf-interrupt-audit", "e-wf-interrupt-finalize", "e-wf-finalize-audit"]}, {"id": "flow-evidence-retrieval", "name": "Evidence Retrieval from the Knowledge Graph", "description": "The Retrieve node's only external dependency: a filtered Cypher query against Neo4j, with untrusted/superseded evidence excluded inside the query itself, not by the caller.", "steps": ["wf-retrieve", "tool-evidence-retrieve", "ext-neo4j"], "edges": ["e-wf-retrieve-tool", "e-tool-retrieve-neo4j"]}, {"id": "flow-llm-guarded-draft", "name": "LLM Synthesize & Critic (Guarded Draft)", "description": "Two independent model calls to Azure AI Foundry, bracketed by the same runtime guard on both sides -- the mechanism that makes a prohibited recommendation structurally unable to reach a human.", "steps": ["wf-synthesize", "ext-foundry", "wf-guard1", "tool-guard-action", "wf-critic", "wf-guard2", "tool-response-cache", "ext-redis"], "edges": ["e-wf-synth-llm", "e-wf-synth-guard1", "e-wf-guard1-tool", "e-wf-guard1-critic", "e-wf-critic-llm", "e-wf-critic-guard2", "e-wf-guard2-tool", "e-wf-guard2-cache", "e-tool-cache-redis"]}, {"id": "flow-guard-block", "name": "Prohibited-Action Block", "description": "A draft that trips the guard never reaches a human and never crashes -- it reaches a clean abstained terminal state through the same Finalize node every other path uses.", "steps": ["wf-guard1", "tool-guard-action", "wf-finalize", "tool-audit-store"], "edges": ["e-wf-guard1-tool", "e-wf-guard1-finalize", "e-wf-finalize-audit"]}, {"id": "flow-abstention", "name": "Insufficient-Evidence Abstention", "description": "The evidence gate allows exactly one scope-preserving broadening (G3) before abstaining -- the system says 'I don't know' rather than drafting from thin evidence.", "steps": ["wf-retrieve", "wf-gate", "wf-finalize"], "edges": ["e-wf-retrieve-gate", "e-wf-gate-retrieve", "e-wf-gate-finalize"]}, {"id": "flow-hitl-escalation", "name": "HITL Escalation & Notification", "description": "A background loop inside the API process notices a pending run has aged past a severity threshold, records it once (idempotent), and best-effort emails while the bell always lights up.", "steps": ["tool-hitl-watch", "tool-audit-store", "tool-notifier", "ext-smtp", "api-notify", "client-shell"], "edges": ["e-hitlwatch-audit", "e-hitlwatch-notifier", "e-notifier-smtp", "e-api-notify-store", "e-client-shell-notify"]}, {"id": "flow-record-assistant", "name": "Record Assistant Q&A", "description": "The model paraphrases; it never computes a fact or chooses an action. Input and output are both scanned before/after the model call.", "steps": ["client-assistant", "api-chat", "tool-prompt-guard", "tool-audit-store", "ext-foundry"], "edges": ["e-client-assistant-chat", "e-api-chat-guard-in", "e-api-chat-audit", "e-api-chat-llm", "e-api-chat-guard-out"]}, {"id": "flow-nightly-redteam", "name": "Nightly Prompt-Injection Red-Team", "description": "A scheduled job exercises the guard against a real, sometimes-resistant model every night, because a pattern-matching guard's coverage decays as models and attack phrasings drift.", "steps": ["cicd-nightly", "wf-synthesize", "ext-foundry", "wf-guard1", "tool-guard-action"], "edges": ["e-cicd-nightly-synth", "e-cicd-nightly-llm", "e-wf-synth-guard1", "e-wf-guard1-tool"]}, {"id": "flow-cicd-deploy", "name": "CI/CD Deploy Pipeline", "description": "A push to main must pass governance verification and the full test/build matrix before an image is even built, let alone deployed.", "steps": ["cicd-push", "cicd-ci", "gov-ai-sbom", "gov-tool-manifest", "cicd-cd", "cicd-acr", "cicd-aca"], "edges": ["e-cicd-push-ci", "e-cicd-ci-sbom", "e-cicd-ci-manifest", "e-cicd-ci-cd", "e-cicd-cd-acr", "e-cicd-cd-aca", "e-cicd-acr-aca"]}, {"id": "flow-startup-integrity", "name": "Container Startup Integrity Check", "description": "Both verifiers run again at every container start, not just in CI -- a tampered tool contract or a drifted dependency stops the container before it serves a single request.", "steps": ["cicd-aca", "gov-ai-sbom", "gov-tool-manifest", "api-health"], "edges": ["e-cicd-aca-sbom", "e-cicd-aca-manifest", "e-cicd-aca-api"]}, {"id": "flow-denial-of-wallet", "name": "Denial-of-Wallet Enforcement", "description": "Every path through the graph, whatever its outcome, records its token/call cost at Finalize against the same per-window ceiling.", "steps": ["wf-finalize", "tool-dow-guard"], "edges": ["e-wf-finalize-dow"]}]};
+
+/* ---------------------------------------------------------------------
+   Layout: one horizontal band per layer, nodes placed left-to-right in
+   the order they appear in DATA.nodes for that layer.
+------------------------------------------------------------------------*/
+const NODE_W = 180;
+const NODE_H1 = 46;   // one-line label
+const NODE_H2 = 62;   // two-line label
+const H_GAP = 30;
+const ROW_LABEL_W = 150;
+const PAD_X = 40;
+const PAD_TOP = 34;
+const BAND_PITCH = 132;
+const ARC_LIFT = 46;
+
+function wrapLabel(label, maxChars) {
+  const words = label.split(" ");
+  const lines = [];
+  let cur = "";
+  for (const w of words) {
+    const trial = cur ? cur + " " + w : w;
+    if (trial.length > maxChars && cur) { lines.push(cur); cur = w; }
+    else { cur = trial; }
+  }
+  if (cur) lines.push(cur);
+  return lines.slice(0, 2);
+}
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+const layerOrder = DATA.layers.map(l => l.id);
+const nodesByLayer = {};
+layerOrder.forEach(id => nodesByLayer[id] = []);
+DATA.nodes.forEach(n => nodesByLayer[n.layer].push(n));
+
+const layout = {}; // id -> {x,y,w,h,lines,row}
+let maxRowWidth = 0;
+layerOrder.forEach(layerId => {
+  const list = nodesByLayer[layerId];
+  let x = ROW_LABEL_W;
+  list.forEach(n => {
+    const lines = wrapLabel(n.label, 20);
+    const h = lines.length > 1 ? NODE_H2 : NODE_H1;
+    layout[n.id] = { x, w: NODE_W, h, lines, layer: layerId };
+    x += NODE_W + H_GAP;
+  });
+  maxRowWidth = Math.max(maxRowWidth, x);
+});
+
+const rowY = {};
+layerOrder.forEach((id, i) => { rowY[id] = PAD_TOP + i * BAND_PITCH; });
+Object.values(layout).forEach(l => { l.y = rowY[l.layer]; });
+
+const svgW = maxRowWidth + PAD_X;
+const svgH = PAD_TOP + layerOrder.length * BAND_PITCH + 40;
+
+const layerColor = {};
+DATA.layers.forEach(l => layerColor[l.id] = l.color);
+
+/* ---------------------------------------------------------------------
+   SVG building
+------------------------------------------------------------------------*/
+const svg = document.getElementById("diagram");
+svg.setAttribute("width", svgW);
+svg.setAttribute("height", svgH);
+svg.setAttribute("viewBox", `0 0 ${svgW} ${svgH}`);
+svg.setAttribute("role", "img");
+svg.setAttribute("aria-label", "Architecture diagram of the AEGIS Pharma system: client, API, the governed workflow pipeline, integration tools, external systems, governance artifacts, and CI/CD, connected by their real call paths.");
+
+function el(tag, attrs) {
+  const e = document.createElementNS("http://www.w3.org/2000/svg", tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  return e;
+}
+
+const defs = el("defs", {});
+[["arrow", "var(--ink-faint)"], ["arrow-accent", "var(--accent)"]].forEach(([id, color]) => {
+  const marker = el("marker", { id, viewBox: "0 0 10 10", refX: "8", refY: "5", markerWidth: "7", markerHeight: "7", orient: "auto-start-reverse" });
+  marker.appendChild(el("path", { d: "M0,0 L10,5 L0,10 Z", fill: color }));
+  defs.appendChild(marker);
+});
+svg.appendChild(defs);
+
+// row backgrounds + labels
+const rowsLayer = el("g", { class: "rows" });
+DATA.layers.forEach(l => {
+  const y = rowY[l.id];
+  const label = el("text", { class: "row-label", x: 4, y: y + 6 });
+  label.textContent = l.label.toUpperCase();
+  rowsLayer.appendChild(label);
+  const tick = el("rect", { x: 0, y: y - 2, width: 3, height: Math.max(...nodesByLayer[l.id].map(n => layout[n.id].h), NODE_H1), fill: l.color, opacity: 0.85, rx: 1.5 });
+  rowsLayer.appendChild(tick);
+});
+svg.appendChild(rowsLayer);
+
+const edgesLayer = el("g", { class: "edges" });
+const nodesLayer = el("g", { class: "nodes" });
+
+function anchor(id, side) {
+  const l = layout[id];
+  const cx = l.x + l.w / 2;
+  if (side === "left") return { x: l.x, y: l.y + l.h / 2 };
+  if (side === "right") return { x: l.x + l.w, y: l.y + l.h / 2 };
+  if (side === "top") return { x: cx, y: l.y };
+  return { x: cx, y: l.y + l.h };
+}
+
+function rowIndexOf(layerId) { return layerOrder.indexOf(layerId); }
+
+function edgePath(edge) {
+  const s = layout[edge.source], t = layout[edge.target];
+  const sameRow = s.layer === t.layer;
+  if (sameRow) {
+    const forward = t.x > s.x;
+    const adjacent = Math.abs(t.x - s.x) <= NODE_W + H_GAP + 2;
+    if (forward && adjacent && !edge.dashed) {
+      const a = anchor(edge.source, "right"), b = anchor(edge.target, "left");
+      return { d: `M${a.x},${a.y} L${b.x},${b.y}`, mid: { x: (a.x + b.x) / 2, y: a.y - 6 } };
+    }
+    // shortcut (forward, non-adjacent) arcs above; backward loop arcs below
+    const above = forward;
+    const a = anchor(edge.source, "top");
+    const b = anchor(edge.target, "top");
+    const liftY = above ? Math.min(a.y, b.y) - ARC_LIFT : Math.max(anchor(edge.source, "bottom").y, anchor(edge.target, "bottom").y) + ARC_LIFT;
+    const sa = above ? a : anchor(edge.source, "bottom");
+    const ta = above ? b : anchor(edge.target, "bottom");
+    const midX = (sa.x + ta.x) / 2;
+    return {
+      d: `M${sa.x},${sa.y} C${sa.x},${liftY} ${ta.x},${liftY} ${ta.x},${ta.y}`,
+      mid: { x: midX, y: liftY + (above ? 10 : -6) }
+    };
+  }
+  const sRow = rowIndexOf(s.layer), tRow = rowIndexOf(t.layer);
+  const down = tRow > sRow;
+  const a = anchor(edge.source, down ? "bottom" : "top");
+  const b = anchor(edge.target, down ? "top" : "bottom");
+  const midY = (a.y + b.y) / 2;
+  return {
+    d: `M${a.x},${a.y} C${a.x},${midY} ${b.x},${midY} ${b.x},${b.y}`,
+    mid: { x: (a.x + b.x) / 2, y: midY }
+  };
+}
+
+const edgeEls = {};
+DATA.edges.forEach(edge => {
+  const g = el("g", { class: "edge" + (edge.dashed ? " dashed" : ""), "data-id": edge.id, "data-source": edge.source, "data-target": edge.target });
+  const { d, mid } = edgePath(edge);
+  const path = el("path", { d, "marker-end": "url(#arrow)" });
+  g.appendChild(path);
+  if (edge.label) {
+    const lg = el("g", { class: "edge-label" });
+    const t = el("text", { x: mid.x, y: mid.y, "text-anchor": "middle" });
+    t.textContent = edge.label;
+    lg.appendChild(t);
+    g.appendChild(lg);
+  }
+  edgesLayer.appendChild(g);
+  edgeEls[edge.id] = { g, path, dashed: !!edge.dashed };
+});
+
+const nodeEls = {};
+DATA.nodes.forEach(n => {
+  const l = layout[n.id];
+  const g = el("g", { class: "node", "data-id": n.id, tabindex: "0" });
+  const box = el("rect", { class: "box", x: l.x, y: l.y, width: l.w, height: l.h, rx: 8 });
+  const tab = el("rect", { class: "tab", x: l.x, y: l.y, width: l.w, height: 4, rx: 2, fill: layerColor[n.layer] });
+  g.appendChild(box);
+  g.appendChild(tab);
+  l.lines.forEach((line, i) => {
+    const t = el("text", { x: l.x + 12, y: l.y + 20 + i * 15, "font-size": "12.5" });
+    t.textContent = line;
+    g.appendChild(t);
+  });
+  const badge = el("g", { class: "badge", style: "display:none" });
+  const bc = el("circle", { cx: l.x + l.w - 13, cy: l.y + 13, r: 10 });
+  const bt = el("text", { x: l.x + l.w - 13, y: l.y + 17, "text-anchor": "middle" });
+  badge.appendChild(bc); badge.appendChild(bt);
+  g.appendChild(badge);
+  nodesLayer.appendChild(g);
+  nodeEls[n.id] = { g, badge, badgeText: bt, box, l };
+
+  g.addEventListener("click", (ev) => { ev.stopPropagation(); showTooltip(n, g); });
+  g.addEventListener("mouseenter", () => showTooltip(n, g));
+  g.addEventListener("keydown", (ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); showTooltip(n, g); } });
+});
+
+svg.appendChild(edgesLayer);
+svg.appendChild(nodesLayer);
+
+/* ---------------------------------------------------------------------
+   Legend
+------------------------------------------------------------------------*/
+const legend = document.getElementById("legend");
+DATA.layers.forEach(l => {
+  const item = document.createElement("span");
+  item.className = "legend-item";
+  item.innerHTML = `<span class="swatch" style="background:${l.color}"></span>${l.label}`;
+  legend.appendChild(item);
+});
+
+/* ---------------------------------------------------------------------
+   Flow panel
+------------------------------------------------------------------------*/
+const flowList = document.getElementById("flowList");
+let activeFlow = null;
+
+DATA.flows.forEach(flow => {
+  const li = document.createElement("li");
+  li.className = "flow-card";
+  li.dataset.id = flow.id;
+  const stepsHtml = flow.steps.map(id => {
+    const n = DATA.nodes.find(x => x.id === id);
+    return `<span class="step-chip">${esc(n ? n.label : id)}</span>`;
+  }).join("");
+  li.innerHTML = `
+    <div class="fname"><span>${esc(flow.name)}</span><span class="fcount">${flow.steps.length} steps</span></div>
+    <p class="fdesc">${esc(flow.description)}</p>
+    <div class="flow-steps">${stepsHtml}</div>
+  `;
+  li.addEventListener("click", () => selectFlow(flow.id === activeFlow ? null : flow.id));
+  flowList.appendChild(li);
+});
+
+function selectFlow(flowId) {
+  activeFlow = flowId;
+  document.querySelectorAll(".flow-card").forEach(card => {
+    card.classList.toggle("active", card.dataset.id === flowId);
+  });
+
+  const flow = DATA.flows.find(f => f.id === flowId);
+  const activeNodes = new Set(flow ? flow.steps : []);
+  const activeEdges = new Set(flow ? flow.edges : []);
+
+  Object.entries(nodeEls).forEach(([id, ref]) => {
+    const isActive = flow ? activeNodes.has(id) : false;
+    ref.g.classList.toggle("dim", !!flow && !isActive);
+    ref.g.classList.toggle("active", isActive);
+    if (isActive) {
+      const order = flow.steps.indexOf(id) + 1;
+      ref.badgeText.textContent = order;
+      ref.badge.style.display = "block";
+    } else {
+      ref.badge.style.display = "none";
+    }
+  });
+
+  Object.entries(edgeEls).forEach(([id, ref]) => {
+    const isActive = flow ? activeEdges.has(id) : false;
+    ref.g.classList.toggle("dim", !!flow && !isActive);
+    ref.g.classList.toggle("active", isActive);
+    ref.path.setAttribute("marker-end", isActive ? "url(#arrow-accent)" : "url(#arrow)");
+  });
+
+  if (flow) {
+    const xs = flow.steps.map(id => layout[id].x);
+    const minX = Math.min(...xs) - 60;
+    const maxX = Math.max(...xs.map(x => x + NODE_W)) + 60;
+    const wrap = document.getElementById("canvasWrap");
+    const reduceMotion = typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (typeof wrap.scrollTo === "function") {
+      wrap.scrollTo({ left: Math.max(0, minX), behavior: reduceMotion ? "auto" : "smooth" });
+    } else {
+      wrap.scrollLeft = Math.max(0, minX);
+    }
+  }
+
+  if (window.innerWidth <= 880) closeFlowsPanel();
+}
+
+document.getElementById("resetBtn").addEventListener("click", () => selectFlow(null));
+
+/* ---------------------------------------------------------------------
+   Tooltip
+------------------------------------------------------------------------*/
+const tooltip = document.getElementById("tooltip");
+function showTooltip(node, g) {
+  const layer = DATA.layers.find(l => l.id === node.layer);
+  tooltip.innerHTML = `
+    <p class="t-title">${esc(node.label)}</p>
+    <span class="t-tag" style="background:${layer.color}22;color:${layer.color}">${esc(layer.label)}</span>
+    <div>${esc(node.description)}</div>
+    <p class="t-tech">${esc(node.tech)}</p>
+  `;
+  const rect = g.getBoundingClientRect();
+  tooltip.style.display = "block";
+  const tw = tooltip.offsetWidth, th = tooltip.offsetHeight;
+  let left = rect.left + rect.width / 2 - tw / 2;
+  let top = rect.bottom + 10;
+  left = Math.max(8, Math.min(left, window.innerWidth - tw - 8));
+  if (top + th > window.innerHeight - 8) top = rect.top - th - 10;
+  tooltip.style.left = left + "px";
+  tooltip.style.top = top + "px";
+}
+document.addEventListener("click", (ev) => {
+  if (!ev.target.closest(".node")) tooltip.style.display = "none";
+});
+document.getElementById("canvasWrap").addEventListener("scroll", () => { tooltip.style.display = "none"; });
+
+/* ---------------------------------------------------------------------
+   Mobile flows drawer
+------------------------------------------------------------------------*/
+const flowsPanel = document.getElementById("flowsPanel");
+const scrim = document.getElementById("scrim");
+function openFlowsPanel() { flowsPanel.classList.add("open"); scrim.classList.add("open"); }
+function closeFlowsPanel() { flowsPanel.classList.remove("open"); scrim.classList.remove("open"); }
+document.getElementById("flowsToggle").addEventListener("click", openFlowsPanel);
+scrim.addEventListener("click", closeFlowsPanel);
+</script>
+</body>
+</html>

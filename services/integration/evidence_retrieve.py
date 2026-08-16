@@ -12,9 +12,12 @@ This module is the `batch_review` binding only -- 20a's scope.
 """
 from __future__ import annotations
 
+import logging
 import time
 import uuid
 from dataclasses import dataclass, field
+
+logger = logging.getLogger(__name__)
 
 from packages.domain.evidence import EvidenceItem
 from packages.domain.kg.client import session
@@ -113,6 +116,12 @@ def retrieve(
                 for r in s.run(_COUNT_FILTERED, terms=terms, citable_statuses=list(_CITABLE_STATUSES))
             }
     except Exception as exc:  # noqa: BLE001 -- connection/driver errors all map to STORE_UNAVAILABLE
+        # graph.py's retrieve node catches ToolError and turns it into a bare
+        # "dependency_unavailable" abstention with no detail -- by design, a caller must
+        # never see internal error text (BC-2). But that means this log line is the ONLY
+        # place the real cause survives; every workflow shares this one function, so this
+        # is also the only place that needs it.
+        logger.exception("evidence_retrieve.retrieve failed for run_id=%s", run_id)
         raise ToolError("STORE_UNAVAILABLE", str(exc)) from exc
 
     latency_ms = int((time.monotonic() - start) * 1000)

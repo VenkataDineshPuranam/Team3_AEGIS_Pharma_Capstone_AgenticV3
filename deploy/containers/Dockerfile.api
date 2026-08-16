@@ -33,6 +33,17 @@ COPY evidence/ ./evidence/
 COPY knowledge/ ./knowledge/
 COPY conftest.py ./
 
+# tests/fixtures/synthetic/ is Stage 20a's real-data substitute (NAB-3) -- every reconcile/
+# check tool across all six workflows (batch_reconcile.py, pv_duplicate_check.py,
+# supply_generate_options.py, clinical_integrity_check.py, research_reconcile.py,
+# regulatory_completeness_check.py) reads its fixture from here at request time, not just
+# in tests. Omitting it (as this image did until now) doesn't fail loudly: retrieve()
+# still succeeds, so every run reaches reconcile, which raises ToolError trying to open a
+# fixture that was never copied in -- caught by graph.py and reported as the generic
+# "dependency_unavailable" abstention, indistinguishable from a real Neo4j/Redis outage
+# without reading server logs.
+COPY tests/fixtures/ ./tests/fixtures/
+
 # Non-root. The audit store (services/integration/audit_store.py) writes a SQLite file
 # under evidence/, so that path must be writable by this user -- in Azure Container Apps
 # the durable version of this is a mounted volume or the Blob WORM store ADR-009 names;

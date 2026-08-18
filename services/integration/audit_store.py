@@ -90,6 +90,12 @@ def get_connection(db_path: Path = DEFAULT_DB_PATH) -> sqlite3.Connection:
     # exercised this path before.
     db_path.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(db_path, check_same_thread=False)
+    # busy_timeout: the DB file lives on an Azure Files (SMB) mount for persistence across
+    # scale-to-zero cycles (Stage 24). SQLite's default busy_timeout is 0 -- any lock held
+    # by another connection at the instant of access fails immediately with "database is
+    # locked" instead of waiting, and SMB's round-trip lock latency makes that collision
+    # far more likely than on local disk. 5s covers this app's low-concurrency demo load.
+    conn.execute("PRAGMA busy_timeout = 5000")
     conn.executescript(_SCHEMA)
     _migrate(conn)
     return conn

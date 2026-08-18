@@ -170,6 +170,9 @@ def get_connection(db_path: Path = DEFAULT_DB_PATH) -> sqlite3.Connection:
     # thread-dispatched call the way graph.py's audit_conn does.
     db_path.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(db_path, check_same_thread=False)
+    # busy_timeout: see audit_store.get_connection's identical fix -- same DB file, same
+    # Azure Files (SMB) mount, same zero-default-timeout collision under network latency.
+    conn.execute("PRAGMA busy_timeout = 5000")
     conn.executescript(_SCHEMA)
     return conn
 

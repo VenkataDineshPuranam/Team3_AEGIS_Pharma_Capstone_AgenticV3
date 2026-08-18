@@ -33,6 +33,12 @@ COPY evidence/ ./evidence/
 COPY knowledge/ ./knowledge/
 COPY conftest.py ./
 
+# compliance_view.py (Stage 25, Super Admin's Compliance page) parses these live at
+# request time rather than hand-copying their content -- see its module docstring. Without
+# this COPY the endpoint 503s with "does not exist" even though the file works locally,
+# the same failure mode tests/fixtures/ had before it was added above.
+COPY docs/governance/compliance/ ./docs/governance/compliance/
+
 # tests/fixtures/synthetic/ is Stage 20a's real-data substitute (NAB-3) -- every reconcile/
 # check tool across all six workflows (batch_reconcile.py, pv_duplicate_check.py,
 # supply_generate_options.py, clinical_integrity_check.py, research_reconcile.py,

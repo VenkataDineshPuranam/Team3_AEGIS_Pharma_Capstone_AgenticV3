@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import os
 import secrets
 import sqlite3
 from dataclasses import dataclass
@@ -24,7 +25,10 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_DB_PATH = REPO_ROOT / "evidence" / "audit_store.sqlite3"  # same DB file as audit_store
+# AEGIS_DB_PATH -- see audit_store.py's identical override; same DB file, same reasoning.
+DEFAULT_DB_PATH = Path(
+    os.environ.get("AEGIS_DB_PATH", str(REPO_ROOT / "evidence" / "audit_store.sqlite3"))
+)  # same DB file as audit_store
 
 SESSION_LIFETIME = timedelta(hours=8)
 PBKDF2_ITERATIONS = 260_000

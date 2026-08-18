@@ -11,11 +11,17 @@ any response reaches the caller -- ADR-006.
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_DB_PATH = REPO_ROOT / "evidence" / "audit_store.sqlite3"
+# AEGIS_DB_PATH lets deployment mount persistent storage (e.g. Azure Files) at a dedicated
+# path instead of "evidence/" -- mounting a volume there would shadow the static files
+# already baked into that directory in the image (evidence/quality-gates/*, read by
+# eval_dashboard.py), replacing the whole directory with whatever's on the share. Local/CI
+# runs are unaffected: no env var set, same path as always.
+DEFAULT_DB_PATH = Path(os.environ.get("AEGIS_DB_PATH", str(REPO_ROOT / "evidence" / "audit_store.sqlite3")))
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS agent_run (

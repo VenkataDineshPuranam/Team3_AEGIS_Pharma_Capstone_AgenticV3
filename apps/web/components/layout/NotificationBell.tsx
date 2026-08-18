@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Badge } from "@/components/ui/Badge";
 import { useApiResource, useVisiblePolling } from "@/hooks/useApiResource";
 import { getNotifications, type NotificationItem, type Workflow } from "@/lib/api";
+import { cn } from "@/lib/cn";
 import { WORKFLOW_LABELS, formatDateTime } from "@/lib/format";
 
 /**
@@ -64,7 +65,7 @@ function getLastSeenServerSnapshot(): string | null {
   return null;
 }
 
-export function NotificationBell() {
+export function NotificationBell({ align = "right" }: { align?: "left" | "right" }) {
   const [open, setOpen] = useState(false);
   const lastSeen = useSyncExternalStore(subscribeLastSeen, readLastSeen, getLastSeenServerSnapshot);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -123,7 +124,10 @@ export function NotificationBell() {
         <div
           role="menu"
           aria-label="Escalation notifications"
-          className="absolute right-0 z-30 mt-2 w-80 rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--surface-raised)] shadow-[var(--shadow-md)]"
+          className={cn(
+            "absolute z-30 mt-2 w-80 rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--surface-raised)] shadow-[var(--shadow-md)]",
+            align === "left" ? "left-0" : "right-0",
+          )}
         >
           <div className="border-b border-[var(--border-subtle)] px-3.5 py-2.5">
             <p className="text-[13px] font-semibold text-[var(--text-primary)]">Escalations</p>

@@ -167,7 +167,12 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="hidden items-center gap-2.5 px-5 py-4 lg:flex">
           <Wordmark />
           <div className="ml-auto flex items-center gap-1">
-            <NotificationBell />
+            {/* align="left": this bell sits near the right edge of a narrow 256px
+                sidebar close to the screen's left edge -- the panel's default
+                right-anchored position (correct for the mobile header, far to the
+                right of a full-width bar) would overflow off the left of the viewport
+                here, which is exactly the misalignment this fixes. */}
+            <NotificationBell align="left" />
             <SignOutButton />
           </div>
         </div>

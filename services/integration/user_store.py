@@ -169,10 +169,10 @@ def get_connection(db_path: Path = DEFAULT_DB_PATH) -> sqlite3.Connection:
     # module, same DB file, same risk if a caller ever holds this connection across a
     # thread-dispatched call the way graph.py's audit_conn does.
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(db_path, check_same_thread=False)
-    # busy_timeout: see audit_store.get_connection's identical fix -- same DB file, same
-    # Azure Files (SMB) mount, same zero-default-timeout collision under network latency.
-    conn.execute("PRAGMA busy_timeout = 5000")
+    # nolock=1: see audit_store.get_connection's identical fix -- same DB file, same Azure
+    # Files (SMB) mount, where SQLite's locking calls aren't reliably honored. Safe here
+    # because Container Apps runs at most one replica of this app (maxReplicas=1).
+    conn = sqlite3.connect(f"file:{db_path.as_posix()}?nolock=1", uri=True, check_same_thread=False)
     conn.executescript(_SCHEMA)
     return conn
 

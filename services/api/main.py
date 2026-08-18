@@ -200,8 +200,18 @@ def _status_for(state: dict) -> str:
     return "abstained"  # defensive fallback -- should be unreachable given graph invariants
 
 
-def _queue_entry(e: pending_queue.PendingEntry) -> QueueEntry:
+def _queue_entry(e: pending_queue.PendingEntry, viewer_role: str | None = None) -> QueueEntry:
     timer = hitl_timer.compute(e.created_at, e.workflow)
+    remaining_legs = [leg for leg in (e.required_legs or []) if leg not in e.approved_legs]
+    if remaining_legs:
+        decidable_legs = [
+            leg for leg in remaining_legs
+            if user_store.approver_string_for(viewer_role or "", e.workflow, leg) is not None
+        ]
+        can_approve_reject = False  # single-action approve/reject only applies outside dual-leg
+    else:
+        decidable_legs = []
+        can_approve_reject = user_store.approver_string_for(viewer_role or "", e.workflow, None) is not None
     return QueueEntry(
         run_id=e.run_id, workflow=e.workflow, subject_id=e.subject_id,
         requester_role=e.requester_role, approver_roles=e.approver_roles,
@@ -212,6 +222,9 @@ def _queue_entry(e: pending_queue.PendingEntry) -> QueueEntry:
             tier=timer.tier, label=timer.label, severity=timer.severity,
             hours_elapsed=timer.hours_elapsed, hours_to_next_tier=timer.hours_to_next_tier,
         ),
+        viewer_can_approve_reject=can_approve_reject,
+        viewer_can_veto=user_store.can_veto(viewer_role or "", e.workflow),
+        viewer_decidable_legs=decidable_legs,
     )
 
 
@@ -328,7 +341,7 @@ def submit_run(req: SubmitRunRequest, session: user_store.Session = Depends(requ
 
 @app.get("/api/queue", response_model=list[QueueEntry])
 def get_queue(workflow: str | None = None, session: user_store.Session = Depends(require_user)):
-    return [_queue_entry(e) for e in pending_queue.list_all(workflow)]
+    return [_queue_entry(e, session.role) for e in pending_queue.list_all(workflow)]
 
 
 @app.post("/api/runs/{run_id}/decide", response_model=RunResult)
@@ -495,7 +508,7 @@ def get_run(run_id: str, session: user_store.Session = Depends(require_user)):
 
     return RunDetail(
         run_id=run_id,
-        pending=_queue_entry(pending) if pending else None,
+        pending=_queue_entry(pending, session.role) if pending else None,
         audit=AuditedRun(**audited) if audited else None,
         timeline=[AuditEvent(**e) for e in timeline],
         human_actions=overrides,

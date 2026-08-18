@@ -110,6 +110,91 @@ def test_run_detail_requires_a_session():
     assert client.get("/api/runs/R-definitely-not-a-real-run").status_code == 401
 
 
+# --- Stage 25: the queue tells a viewer whether THEY can decide a run -------------
+
+
+def test_queue_entry_hides_decide_eligibility_from_an_unauthorized_viewer():
+    """The bug this locks in: the frontend used to render Approve/Reject for ANY signed-in
+    role on ANY pending run, only to have decide_run 403 if they actually clicked one --
+    confusing, and a role with zero decide authority anywhere (e.g. Head of Preclinical
+    Research looking at a batch_review run) still saw live-looking buttons. The queue
+    entry must say, authoritatively, whether THIS viewer specifically could decide THIS
+    run -- computed the same way decide_run() itself decides (approver_string_for), not
+    guessed from approver_roles (a DISPLAY name that doesn't equal every login role
+    string -- e.g. pv_intake's approver_roles says "Global Head of Pharmacovigilance"
+    while the login role is "Safety physician")."""
+    import uuid
+
+    from services.api import pending_queue
+
+    run_id = f"R-eligibility-test-{uuid.uuid4().hex[:8]}"
+    pending_queue.add(
+        pending_queue.PendingEntry(
+            run_id=run_id, workflow="batch_review", subject_id="B-eligibility-test",
+            requester_role="EU Qualified Person", approver_roles=["EU Qualified Person"],
+            required_legs=None, approved_legs=[], draft_summary=None, draft_claims=[],
+        )
+    )
+    try:
+        conn = _user_store.get_connection()
+        try:
+            _user_store.create_user(
+                conn, "test_preclinical", "Test Preclinical", "Head of Preclinical Research", "pw-preclinical",
+            )
+            wrong_role_session = _user_store.login(conn, "test_preclinical", "pw-preclinical")
+        finally:
+            conn.close()
+        wrong_role_headers = {"Authorization": f"Bearer {wrong_role_session.token}"}
+
+        entries = client.get("/api/queue", headers=AUTH).json()  # AUTH = EU Qualified Person
+        mine = next(e for e in entries if e["run_id"] == run_id)
+        assert mine["viewer_can_approve_reject"] is True
+
+        entries_wrong_role = client.get("/api/queue", headers=wrong_role_headers).json()
+        theirs = next(e for e in entries_wrong_role if e["run_id"] == run_id)
+        assert theirs["viewer_can_approve_reject"] is False
+        assert theirs["viewer_can_veto"] is False
+    finally:
+        pending_queue.remove(run_id)
+
+
+def test_queue_entry_maps_login_role_to_approver_string_for_pv_intake():
+    """The exact mismatch named above: pv_intake's approver DISPLAY name differs from the
+    login role that actually holds that authority. A naive frontend check comparing the
+    login role string against approver_roles would wrongly hide the button from the very
+    role that's supposed to see it."""
+    import uuid
+
+    from services.api import pending_queue
+
+    run_id = f"R-eligibility-pv-{uuid.uuid4().hex[:8]}"
+    pending_queue.add(
+        pending_queue.PendingEntry(
+            run_id=run_id, workflow="pv_intake", subject_id="PV-eligibility-test",
+            requester_role="Safety physician", approver_roles=["Global Head of Pharmacovigilance"],
+            required_legs=None, approved_legs=[], draft_summary=None, draft_claims=[],
+        )
+    )
+    try:
+        conn = _user_store.get_connection()
+        try:
+            _user_store.create_user(conn, "test_safety_elig", "Test Safety", "Safety physician", "pw-safety")
+            session = _user_store.login(conn, "test_safety_elig", "pw-safety")
+        finally:
+            conn.close()
+        headers = {"Authorization": f"Bearer {session.token}"}
+
+        entries = client.get("/api/queue", headers=headers).json()
+        mine = next(e for e in entries if e["run_id"] == run_id)
+        # "Safety physician" (login role) != "Global Head of Pharmacovigilance" (display
+        # name in approver_roles) -- yet this role IS the real approver, per
+        # user_store.ROLE_CATALOG's approver_for mapping. Both decide AND veto authority.
+        assert mine["viewer_can_approve_reject"] is True
+        assert mine["viewer_can_veto"] is True
+    finally:
+        pending_queue.remove(run_id)
+
+
 # --- run history ------------------------------------------------------------------
 
 

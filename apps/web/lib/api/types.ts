@@ -200,6 +200,11 @@ export interface QueueEntry {
   domain_payload: DomainPayload | null;
   evidence_accounting: Record<string, unknown> | null;
   hitl_timer: HitlTimerInfo;
+  /** Computed server-side the same way decide_run() itself decides -- NOT derivable from
+   *  approver_roles (a display name that doesn't equal every login role string). */
+  viewer_can_approve_reject: boolean;
+  viewer_can_veto: boolean;
+  viewer_decidable_legs: string[];
 }
 
 export interface RunResult {

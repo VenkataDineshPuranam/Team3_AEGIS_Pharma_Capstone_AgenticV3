@@ -37,6 +37,13 @@ function batchEntry(overrides: Partial<QueueEntry> = {}): QueueEntry {
     domain_payload: null,
     evidence_accounting: null,
     hitl_timer: { tier: "T0", label: "On time", severity: 1, hours_elapsed: 0.1, hours_to_next_tier: 7.9 },
+    // Every existing test in this file signs in as "EU Qualified Person" and exercises
+    // the decide controls directly -- the eligibility gate itself (Stage 25) has its own
+    // dedicated tests below and at the API layer (test_api_read_endpoints.py), so these
+    // fixtures default to "eligible" to keep every pre-existing test's assumptions true.
+    viewer_can_approve_reject: true,
+    viewer_can_veto: true,
+    viewer_decidable_legs: ["planning", "quality"],
     ...overrides,
   };
 }
@@ -65,6 +72,45 @@ function renderPanel(entry: QueueEntry, onDecided = vi.fn()) {
 
 afterEach(() => {
   vi.clearAllMocks();
+});
+
+describe("ApprovalPanel -- decide eligibility (Stage 25)", () => {
+  it("hides Approve/Reject and explains why when the viewer cannot decide this run", () => {
+    renderPanel(
+      batchEntry({
+        approver_roles: ["EU Qualified Person"],
+        viewer_can_approve_reject: false,
+        viewer_can_veto: false,
+      }),
+    );
+
+    expect(screen.queryByRole("button", { name: "Approve" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Reject" })).not.toBeInTheDocument();
+    expect(screen.getByText(/you cannot decide this run/i)).toBeInTheDocument();
+  });
+
+  it("shows Approve/Reject when the viewer can decide this run", () => {
+    renderPanel(batchEntry({ viewer_can_approve_reject: true }));
+
+    expect(screen.getByRole("button", { name: "Approve" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Reject" })).toBeInTheDocument();
+  });
+
+  it("gates each dual-approval leg independently", () => {
+    // Only the quality leg is decidable by this viewer -- the planning leg should show
+    // an explanatory message instead of a clickable Approve/Reject pair.
+    renderPanel(batchEntry({
+      workflow: "supply_planning",
+      subject_id: "P-100",
+      approver_roles: ["Supply Chain VP", "EU Qualified Person"],
+      required_legs: ["planning", "quality"],
+      approved_legs: [],
+      viewer_decidable_legs: ["quality"],
+    }));
+
+    expect(screen.getByText("Not your leg to decide")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Approve quality" })).toBeInTheDocument();
+  });
 });
 
 describe("ApprovalPanel -- justification (G-10)", () => {

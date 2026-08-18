@@ -327,7 +327,7 @@ def submit_run(req: SubmitRunRequest, session: user_store.Session = Depends(requ
 
 
 @app.get("/api/queue", response_model=list[QueueEntry])
-def get_queue(workflow: str | None = None):
+def get_queue(workflow: str | None = None, session: user_store.Session = Depends(require_user)):
     return [_queue_entry(e) for e in pending_queue.list_all(workflow)]
 
 
@@ -431,6 +431,7 @@ def list_runs(
     search: str | None = None,
     limit: int = Query(default=25, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
+    session: user_store.Session = Depends(require_user),
 ):
     """Historical runs, from the append-only audit store. Newest first."""
     conn = audit_store.get_connection()
@@ -447,7 +448,7 @@ def list_runs(
 
 
 @app.get("/api/runs/filters")
-def run_filters():
+def run_filters(session: user_store.Session = Depends(require_user)):
     """Distinct values actually present in the audit store, so the History page's filters
     offer what exists rather than a hardcoded list that may not match the data."""
     conn = audit_store.get_connection()
@@ -461,7 +462,7 @@ def run_filters():
 
 
 @app.get("/api/runs/{run_id}", response_model=RunDetail)
-def get_run(run_id: str):
+def get_run(run_id: str, session: user_store.Session = Depends(require_user)):
     """One run, from both sources that can know about it: the in-memory pending registry
     (only while it is still paused in THIS process) and the audit store (once finalized).
 
@@ -532,13 +533,15 @@ def chat_about_run(
 
 
 @app.get("/api/notifications", response_model=list[NotificationItem])
-def list_notifications(limit: int = Query(default=20, ge=1, le=100)):
+def list_notifications(
+    limit: int = Query(default=20, ge=1, le=100), session: user_store.Session = Depends(require_user)
+):
     """Recent HITL escalation events -- the web app's notification bell. Read-only: this
     endpoint cannot fire an escalation, only report ones hitl_escalation_watch.py's
-    background loop already recorded. Authentication is intentionally not required here
-    (unlike every write and every record-specific read) because a login page bell would
-    be a contradiction; nothing this endpoint returns is more sensitive than what
-    `/api/queue` already exposes without auth in the underlying data it references.
+    background loop already recorded. Requires a session, same as every other
+    record-specific read here (`/api/queue`, `/api/runs`) -- the bell is only ever
+    rendered inside RequireAuth's tree (apps/web/components/layout/AppShell.tsx), never on
+    the login page, so there is no login-page-bell case to keep this one unauthenticated for.
     """
     conn = audit_store.get_connection()
     try:
@@ -560,7 +563,7 @@ def list_notifications(limit: int = Query(default=20, ge=1, le=100)):
 
 
 @app.get("/api/evidence", response_model=list[EvidenceCatalogItem])
-def list_evidence():
+def list_evidence(session: user_store.Session = Depends(require_user)):
     """The evidence corpus, INCLUDING non-citable items, each labelled with whether it may
     be relied upon. See services/integration/evidence_catalog.py for why showing them here
     does not weaken the rule that a run can never retrieve them."""
@@ -571,7 +574,7 @@ def list_evidence():
 
 
 @app.get("/api/evidence/stats")
-def evidence_stats():
+def evidence_stats(session: user_store.Session = Depends(require_user)):
     try:
         return evidence_catalog.catalog_stats()
     except evidence_catalog.CatalogUnavailable as exc:
@@ -579,7 +582,7 @@ def evidence_stats():
 
 
 @app.get("/api/governance", response_model=GovernanceSnapshot)
-def governance():
+def governance(session: user_store.Session = Depends(require_user)):
     return GovernanceSnapshot(**governance_view.snapshot())
 
 
@@ -603,7 +606,7 @@ def inject_coverage(session: user_store.Session = Depends(_require_super_admin))
 
 
 @app.get("/api/dashboard", response_model=DashboardResponse)
-def dashboard(workflow: str | None = None):
+def dashboard(workflow: str | None = None, session: user_store.Session = Depends(require_user)):
     from packages.observability.dashboard_data import (
         cache_hit_rate_panel,
         cost_panel,

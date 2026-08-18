@@ -39,6 +39,13 @@ COPY conftest.py ./
 # the same failure mode tests/fixtures/ had before it was added above.
 COPY docs/governance/compliance/ ./docs/governance/compliance/
 
+# eval_dashboard.py's eval_scorecard() runs the real eval-ai-cache harness in-process
+# (services/api/eval_dashboard.py's own docstring: "executed LIVE on every request").
+# `from run_eval_dataset import run_all` fails with ModuleNotFoundError without this --
+# same missing-directory failure mode as tests/fixtures/ and docs/governance/compliance/
+# above, just surfacing as a 500 instead of the abstention/503 those did.
+COPY eval-ai-cache/ ./eval-ai-cache/
+
 # tests/fixtures/synthetic/ is Stage 20a's real-data substitute (NAB-3) -- every reconcile/
 # check tool across all six workflows (batch_reconcile.py, pv_duplicate_check.py,
 # supply_generate_options.py, clinical_integrity_check.py, research_reconcile.py,

@@ -42,12 +42,6 @@ const NAV: NavItem[] = [
     icon: <IconGrid />,
   },
   {
-    href: "/guide",
-    label: "Getting Started",
-    description: "New here? Start with this",
-    icon: <IconCompass />,
-  },
-  {
     href: "/decisions",
     label: "Decision Queue",
     description: "Runs awaiting a human decision",
@@ -74,8 +68,8 @@ const NAV: NavItem[] = [
   },
   {
     href: "/governance",
-    label: "Governance",
-    description: "Controls, policies and boundaries",
+    label: "Getting Started & Governance",
+    description: "New here, or need the enforcement reference?",
     icon: <IconShield />,
   },
   {
@@ -152,6 +146,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </Link>
           )}
           <NotificationBell />
+          <SignOutButton />
         </div>
       </header>
 
@@ -167,8 +162,9 @@ export function AppShell({ children }: { children: ReactNode }) {
       >
         <div className="hidden items-center gap-2.5 px-5 py-4 lg:flex">
           <Wordmark />
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-1">
             <NotificationBell />
+            <SignOutButton />
           </div>
         </div>
 
@@ -224,6 +220,43 @@ export function AppShell({ children }: { children: ReactNode }) {
           rendered on /login -- there is no session to answer questions under. */}
       <AssistantLauncher />
     </div>
+  );
+}
+
+/**
+ * One-click sign out, reachable from the top of every screen. Not a replacement for
+ * OperatorBar's sidebar-footer identity control (which still shows session detail and
+ * expiry before confirming) -- this is the fast path for someone who already knows what
+ * they're doing and just wants out.
+ */
+function SignOutButton() {
+  const { signOut } = useAuth();
+  const [busy, setBusy] = useState(false);
+
+  async function handleClick() {
+    setBusy(true);
+    try {
+      await signOut();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      disabled={busy}
+      aria-label="Sign out"
+      title="Sign out"
+      className="flex size-8 items-center justify-center rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)] disabled:opacity-50"
+    >
+      <svg width={16} height={16} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M6 2H3.5A1.5 1.5 0 0 0 2 3.5v9A1.5 1.5 0 0 0 3.5 14H6" />
+        <path d="M10.5 11.5 14 8l-3.5-3.5" />
+        <path d="M14 8H6" />
+      </svg>
+    </button>
   );
 }
 
@@ -381,15 +414,6 @@ function IconPulse() {
   return (
     <svg {...iconProps()}>
       <path d="M1.5 8h3l1.5-4 2.5 8 1.5-4h3.5" />
-    </svg>
-  );
-}
-
-function IconCompass() {
-  return (
-    <svg {...iconProps()}>
-      <circle cx="8" cy="8" r="6.5" />
-      <path d="M10.2 5.8 8.9 8.9 5.8 10.2 7.1 7.1z" />
     </svg>
   );
 }

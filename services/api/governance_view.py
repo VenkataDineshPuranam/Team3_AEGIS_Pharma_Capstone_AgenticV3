@@ -117,13 +117,18 @@ def snapshot() -> dict:
             "counts as a miss, never a hit.",
         },
         "authentication": {
-            "status": "NOT IMPLEMENTED",
-            "detail": "This build has no authentication and no server-side authorization. Any "
-            "caller who can reach the API can submit a run and record a decision. The role shown "
-            "in this interface is a claimed, unverified label recorded as audit context -- it "
-            "grants nothing and is never consulted when deciding whether an action is permitted.",
-            "planned": "Microsoft Entra ID (ADR-009 deployment target). Until it exists, no "
-            "deployment of this application outside a trusted local environment is appropriate.",
+            "status": "IMPLEMENTED (synthetic accounts, not production SSO)",
+            "detail": "Every request that reads or writes a run requires a live, server-side "
+            "session (services/integration/user_store.py): salted PBKDF2-HMAC-SHA256 password "
+            "hashing, an 8-hour session expiry, and no client-cached authorization -- "
+            "services/api/auth.py::require_user resolves the bearer token fresh on every request. "
+            "The role attached to a session is not a claimed label: user_store.approver_string_for "
+            "is checked against it before any decide() request reaches a graph, and every "
+            "record-specific read endpoint (queue, run history, run detail, evidence, this "
+            "governance snapshot, notifications, dashboard) requires a session, not just decide().",
+            "planned": "Microsoft Entra ID (ADR-009 deployment target), to replace these eleven "
+            "synthetic demo accounts (docs/governance/demo_login_credentials.md) with real "
+            "organizational identity -- not to add a control that is currently missing.",
             "roles_referenced_by_the_domain": [
                 "EU Qualified Person",
                 "Global Head of Pharmacovigilance",

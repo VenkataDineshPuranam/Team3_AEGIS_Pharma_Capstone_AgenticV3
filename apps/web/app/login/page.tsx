@@ -89,7 +89,7 @@ function LoginForm() {
                 required
                 value={userId}
                 onChange={(e) => setUserId(e.target.value)}
-                placeholder="e.g. qp_eu_1"
+                placeholder="e.g. e.moreau"
                 className="mt-1.5 w-full rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--surface-raised)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] hover:border-[var(--border-strong)]"
               />
             </div>

@@ -6,22 +6,22 @@ uses (`evidence/audit_store.sqlite3`, `app_user`/`app_session` tables). No real 
 no real credentials — matches the project's synthetic-data-only posture applied to the
 login layer added in this stage.
 
-Passwords use `_` rather than `-` so a double-click selects the whole password in one go
-— browsers treat `-` as a word boundary for double-click text selection, `_` is not,
-which is also why every `user_id` below already used `_`.
+`user_id` follows the ordinary first-initial.lastname convention, matching a real
+directory rather than a role-slug test fixture. Roles themselves (right column) are the
+load-bearing strings -- unchanged, and matched verbatim by every authorization check.
 
 | User ID | Password | Display name | Role |
 |---|---|---|---|
-| `qp_eu_1` | `qp_eu_1_aegis` | Dinesh | EU Qualified Person |
-| `safety_physician_1` | `safety_phys_1_aegis` | Dr. Payal | Safety physician |
-| `supply_gov_1` | `supply_gov_1_aegis` | Mahesh | Supply governance |
-| `research_head_1` | `research_head_1_aegis` | Dr. Kishore | Head of Preclinical Research |
-| `clinical_monitor_1` | `clinical_mon_1_aegis` | Dr. Kiran | Clinical Trial Medical Monitor |
-| `regulatory_head_1` | `reg_head_1_aegis` | Anjali | Head of Regulatory Affairs |
-| `quality_reviewer_1` | `quality_rev_1_aegis` | Rajesh | Quality reviewer |
-| `ciso_dpo_1` | `ciso_dpo_1_aegis` | Sunita | CISO / DPO |
-| `auditor_1` | `auditor_1_aegis` | Arvind | Auditor |
-| `unblinding_auth_1` | `unblind_auth_1_aegis` | Dr. Nikhil | Unblinding authority |
+| `e.moreau` | `Moreau#2026EU` | Elise Moreau | EU Qualified Person |
+| `a.osei` | `Osei#2026Rx` | Dr. Amara Osei | Safety physician |
+| `m.feldman` | `Feldman#2026Sc` | Marcus Feldman | Supply governance |
+| `w.chen` | `Chen#2026Pre` | Dr. Wei Chen | Head of Preclinical Research |
+| `s.alvarez` | `Alvarez#2026Cl` | Dr. Sofia Alvarez | Clinical Trial Medical Monitor |
+| `p.nair` | `Nair#2026Reg` | Priya Nair | Head of Regulatory Affairs |
+| `t.berg` | `Berg#2026QA` | Thomas Berg | Quality reviewer |
+| `n.ilic` | `Ilic#2026Sec` | Naomi Ilic | CISO / DPO |
+| `d.cho` | `Cho#2026Aud` | Daniel Cho | Auditor |
+| `j.kessler` | `Kessler#2026Ub` | Dr. Julian Kessler | Unblinding authority |
 
 ## What each role can actually do
 

@@ -20,6 +20,10 @@ which is also why every `user_id` below already used `_`.
 | `regulatory_head_1` | `reg_head_1_aegis` | Anjali | Head of Regulatory Affairs |
 | `quality_reviewer_1` | `quality_rev_1_aegis` | Rajesh | Quality reviewer |
 | `ciso_dpo_1` | `ciso_dpo_1_aegis` | Sunita | CISO / DPO |
+
+The CISO / DPO account is the only role that may **run** Chaos Drill experiments
+(`/chaos-drill`, `POST /api/chaos-drill/experiments/{id}/run`). Every signed-in role may
+view the catalog and history.
 | `auditor_1` | `auditor_1_aegis` | Arvind | Auditor |
 | `unblinding_auth_1` | `unblind_auth_1_aegis` | Dr. Nikhil | Unblinding authority |
 

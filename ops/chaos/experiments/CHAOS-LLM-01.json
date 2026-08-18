@@ -1,0 +1,12 @@
+{
+  "id": "CHAOS-LLM-01",
+  "title": "LLM provider unreachable",
+  "adr_row": "LLM provider unreachable → abstain (degraded_mode)",
+  "ui_runnable": true,
+  "workflow": "batch_review",
+  "injector": "llm_raise",
+  "expected": {
+    "terminal_state": "abstained",
+    "abstention_reason": "degraded_mode"
+  }
+}

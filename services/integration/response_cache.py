@@ -48,7 +48,11 @@ def cache_key(workflow: str, subject_id: str, evidence_ids: list[str]) -> str:
 def _evidence_ids_still_citable(evidence_ids: list[str]) -> bool:
     """Re-checks CURRENT status in Neo4j -- the actual ADR-003 guardrail check. A cached
     entry built when K-006 was approved must miss once K-006 (or anything it cites)
-    transitions to superseded/untrusted, even though the cache entry itself never changed."""
+    transitions to superseded/untrusted, even though the cache entry itself never changed.
+
+    Neo4j unreachable / misconfigured → treat as not citable (cache miss). Never raise into
+    the graph (ADR-007): a store outage must not turn a cache lookup into a crashed run.
+    """
     if not evidence_ids:
         return False
     try:
@@ -59,7 +63,7 @@ def _evidence_ids_still_citable(evidence_ids: list[str]) -> bool:
                 ids=evidence_ids,
             )
             statuses = {r["id"]: r["status"] for r in result}
-    except Neo4jNotConfigured:
+    except Exception:  # noqa: BLE001 -- Neo4jNotConfigured, ServiceUnavailable, timeouts, …
         return False
     if set(statuses) != set(evidence_ids):
         return False  # an id disappeared entirely -- treat as stale, not a hit

@@ -1,0 +1,12 @@
+{
+  "id": "CHAOS-HITL-01",
+  "title": "HITL timer expiry (no implicit approve)",
+  "adr_row": "HITL timeout → abstain; timeout is never an approval",
+  "ui_runnable": true,
+  "workflow": "batch_review",
+  "injector": "hitl_timeout",
+  "expected": {
+    "terminal_state": "abstained",
+    "abstention_reason": "hitl_timeout"
+  }
+}

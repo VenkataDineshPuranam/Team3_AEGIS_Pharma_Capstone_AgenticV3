@@ -398,3 +398,64 @@ export interface NotificationItem {
   subject_id: string | null;
   approver_roles: string[] | null;
 }
+
+// --- Chaos drills (ADR-007 lab injectors) --------------------------------------
+
+export interface ChaosDrillAssertion {
+  name: string;
+  passed: boolean;
+  detail: string;
+}
+
+export interface ChaosDrillLastResult {
+  drill_id: string;
+  passed: boolean;
+  overall_verdict: string;
+  run_at: string;
+  duration_ms: number;
+  outcome_summary: string;
+  observed: Record<string, unknown>;
+}
+
+export interface ChaosDrillExperiment {
+  id: string;
+  title: string;
+  adr_row: string;
+  ui_runnable: boolean;
+  workflow: string;
+  runbook: string | null;
+  last_result: ChaosDrillLastResult | null;
+}
+
+export interface ChaosDrillCatalog {
+  capabilities: { can_run: boolean };
+  experiments: ChaosDrillExperiment[];
+}
+
+export interface ChaosDrillResult {
+  drill_id: string;
+  experiment_id: string;
+  passed: boolean;
+  overall_verdict: string;
+  assertions: ChaosDrillAssertion[];
+  observed: Record<string, unknown>;
+  outcome_summary: string;
+  duration_ms: number;
+  run_at: string;
+  run_by_user_id: string;
+  run_by_display_name: string;
+  run_by_role: string;
+}
+
+export interface ChaosDrillSummary {
+  drill_id: string;
+  experiment_id: string;
+  run_at: string;
+  run_by_display_name: string;
+  run_by_role: string;
+  passed: boolean;
+  overall_verdict: string;
+  duration_ms: number;
+  outcome_summary: string;
+  observed: Record<string, unknown>;
+}

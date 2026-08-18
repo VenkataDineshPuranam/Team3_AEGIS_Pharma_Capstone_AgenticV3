@@ -1,0 +1,1192 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AEGIS V3 Blueprint</title>
+<meta name="description" content="The finalized V3 architecture: SCQA, nine accepted ADRs, the agentic design, and an end-to-end map of the running application.">
+<style>
+  :root {
+    /* Layer palette is the repo's own — system_map.json defines these seven. */
+    --L-client:     #4a7ba8;
+    --L-api:        #3d8578;
+    --L-workflow:   #6f62a6;
+    --L-integration:#3f677e;
+    --L-data:       #a86340;
+    --L-governance: #64794f;
+    --L-cicd:       #97587a;
+
+    --paper:     #edeff3;
+    --surface:   #fafbfc;
+    --surface-2: #e3e7ed;
+    --ink:       #141a22;
+    --ink-2:     #56616f;
+    --rule:      #d7dce4;
+    --rule-firm: #b6bfcc;
+    --accent:    #2e7d6e;
+    --accent-soft:#dcece8;
+    --warn:      #9a6410;
+    --warn-soft: #f2e9d7;
+    --stop:      #97402a;
+    --stop-soft: #f3e1db;
+
+    --display: "Century Gothic", "Futura", "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+    --body: "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", sans-serif;
+    --mono: ui-monospace, "Cascadia Mono", "SF Mono", Menlo, Consolas, monospace;
+
+    --shadow: 0 1px 2px rgba(20,26,34,.06), 0 8px 24px -14px rgba(20,26,34,.22);
+    --col: 1180px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --L-client:     #7fabd6;
+      --L-api:        #5fb9a8;
+      --L-workflow:   #a294dd;
+      --L-integration:#75a0bb;
+      --L-data:       #d9946c;
+      --L-governance: #9bb37e;
+      --L-cicd:       #cb8bad;
+
+      --paper:     #10151c;
+      --surface:   #171d26;
+      --surface-2: #202836;
+      --ink:       #e5eaf1;
+      --ink-2:     #94a1b3;
+      --rule:      #2a3341;
+      --rule-firm: #3c4859;
+      --accent:    #5cc0ad;
+      --accent-soft:#12302b;
+      --warn:      #d9a44e;
+      --warn-soft: #302512;
+      --stop:      #dd876a;
+      --stop-soft: #341d15;
+      --shadow: 0 1px 2px rgba(0,0,0,.45), 0 8px 24px -14px rgba(0,0,0,.8);
+    }
+  }
+  :root[data-theme="dark"] {
+    --L-client:     #7fabd6;
+    --L-api:        #5fb9a8;
+    --L-workflow:   #a294dd;
+    --L-integration:#75a0bb;
+    --L-data:       #d9946c;
+    --L-governance: #9bb37e;
+    --L-cicd:       #cb8bad;
+
+    --paper:     #10151c;
+    --surface:   #171d26;
+    --surface-2: #202836;
+    --ink:       #e5eaf1;
+    --ink-2:     #94a1b3;
+    --rule:      #2a3341;
+    --rule-firm: #3c4859;
+    --accent:    #5cc0ad;
+    --accent-soft:#12302b;
+    --warn:      #d9a44e;
+    --warn-soft: #302512;
+    --stop:      #dd876a;
+    --stop-soft: #341d15;
+    --shadow: 0 1px 2px rgba(0,0,0,.45), 0 8px 24px -14px rgba(0,0,0,.8);
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none !important; animation: none !important; } }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font-family: var(--body); font-size: 16px; line-height: 1.55; overflow-x: hidden;
+  }
+  .wrap { max-width: var(--col); margin: 0 auto; padding: 0 28px; }
+  @media (max-width: 620px) { .wrap { padding: 0 18px; } }
+
+  /* masthead */
+  .mast { background: var(--surface); border-bottom: 1px solid var(--rule); }
+  .mast-in { padding: 52px 0 38px; }
+  .kicker {
+    font-family: var(--mono); font-size: 11px; letter-spacing: .16em; text-transform: uppercase;
+    color: var(--ink-2); margin: 0 0 16px;
+  }
+  h1 {
+    font-family: var(--display); font-weight: 700; font-size: clamp(36px, 6vw, 62px);
+    line-height: 1.02; letter-spacing: -.02em; margin: 0 0 18px; text-wrap: balance;
+  }
+  .sub { font-size: clamp(16px, 2vw, 19px); color: var(--ink-2); max-width: 64ch; margin: 0 0 10px; }
+  .sub strong { color: var(--ink); font-weight: 600; }
+
+  .facts { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1px; background: var(--rule); border-top: 1px solid var(--rule); }
+  @media (max-width: 900px) { .facts { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 560px) { .facts { grid-template-columns: repeat(2, 1fr); } }
+  .fact { background: var(--surface); padding: 18px 20px; }
+  .fact b { display: block; font-family: var(--display); font-size: 30px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+  .fact span { display: block; font-size: 12px; color: var(--ink-2); margin-top: 7px; }
+
+  /* nav */
+  .nav { position: sticky; top: 0; z-index: 30; background: var(--paper); border-bottom: 1px solid var(--rule-firm); }
+  .nav ul { list-style: none; display: flex; gap: 4px; margin: 0; padding: 0; overflow-x: auto; }
+  .nav a {
+    display: block; padding: 14px 13px; font-size: 13.5px; font-weight: 500;
+    color: var(--ink-2); text-decoration: none; white-space: nowrap;
+    border-bottom: 2px solid transparent; margin-bottom: -1px;
+  }
+  .nav a:hover { color: var(--ink); }
+  .nav a.on { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+  .nav a:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
+
+  section { padding: 56px 0 12px; scroll-margin-top: 58px; }
+  h2 {
+    font-family: var(--display); font-weight: 700; font-size: clamp(26px, 3.6vw, 36px);
+    line-height: 1.1; letter-spacing: -.015em; margin: 0 0 12px; text-wrap: balance;
+  }
+  h3 {
+    font-family: var(--body); font-weight: 600; font-size: 12.5px; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--ink-2); margin: 40px 0 14px;
+    padding-bottom: 8px; border-bottom: 1px solid var(--rule);
+  }
+  p { margin: 0 0 14px; max-width: 74ch; }
+  .lede { font-size: 17.5px; color: var(--ink-2); max-width: 68ch; margin-bottom: 24px; }
+  code, .m { font-family: var(--mono); font-size: .88em; }
+  code { background: var(--surface-2); padding: 1px 5px; border-radius: 3px; }
+  a { color: var(--accent); text-underline-offset: 2px; }
+
+  /* figure */
+  figure { margin: 24px 0; }
+  .figbox { border: 1px solid var(--rule); border-radius: 5px; background: var(--surface); padding: 20px; overflow-x: auto; box-shadow: var(--shadow); }
+  .figbox svg { display: block; max-width: 100%; height: auto; }
+  .figbox.hero svg { min-width: 1000px; }
+  figcaption { font-size: 12.5px; color: var(--ink-2); margin-top: 10px; max-width: 76ch; }
+  .svg-t  { font-family: var(--body); font-size: 11px; fill: var(--ink); }
+  .svg-s  { font-family: var(--body); font-size: 9px;  fill: var(--ink-2); }
+  .svg-h  { font-family: var(--body); font-size: 11.5px; font-weight: 600; fill: var(--ink); }
+  .svg-m  { font-family: var(--mono); font-size: 9.5px; letter-spacing: .09em; }
+  .svg-b  { font-family: var(--display); font-size: 13px; font-weight: 700; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 20px; margin: 14px 0 0; font-size: 12.5px; color: var(--ink-2); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .sw { width: 11px; height: 11px; border-radius: 2px; display: inline-block; }
+
+  /* cards */
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 18px 0; }
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 18px 0; }
+  .grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 18px 0; }
+  @media (max-width: 900px) { .grid3, .grid4 { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 640px) { .grid2, .grid3, .grid4 { grid-template-columns: 1fr; } }
+
+  .card { background: var(--surface); border: 1px solid var(--rule); border-radius: 4px; padding: 17px 19px; box-shadow: var(--shadow); }
+  .card h4 { font-family: var(--body); font-weight: 600; font-size: 15px; margin: 0 0 8px; }
+  .card p:last-child { margin-bottom: 0; }
+  .card ul { margin: 0; padding-left: 18px; }
+  .card li { font-size: 14.5px; margin-bottom: 6px; }
+  .card li:last-child { margin-bottom: 0; }
+
+  /* ADR */
+  .adr { border-left: 3px solid var(--accent); }
+  .adr .no { font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em; color: var(--ink-2); }
+  .adr h4 { margin: 5px 0 9px; font-size: 15.5px; line-height: 1.3; }
+  .adr .dec { font-size: 14.5px; margin: 0 0 9px; }
+  .adr .meta { font-size: 12.5px; color: var(--ink-2); border-top: 1px solid var(--rule); padding-top: 9px; margin: 0; }
+
+  .tag {
+    display: inline-block; font-family: var(--mono); font-size: 10px; letter-spacing: .08em;
+    text-transform: uppercase; padding: 3px 8px; border-radius: 2px;
+  }
+  .t-ok   { background: var(--accent-soft); color: var(--accent); }
+  .t-warn { background: var(--warn-soft); color: var(--warn); }
+  .t-stop { background: var(--stop-soft); color: var(--stop); }
+  .t-mute { background: var(--surface-2); color: var(--ink-2); }
+
+  /* scqa */
+  .scqa { display: grid; grid-template-columns: 108px 1fr; gap: 0; margin: 20px 0; border: 1px solid var(--rule); border-radius: 4px; overflow: hidden; background: var(--surface); }
+  @media (max-width: 620px) { .scqa { grid-template-columns: 1fr; } }
+  .scqa > div { padding: 18px 20px; border-bottom: 1px solid var(--rule); }
+  .scqa > div:nth-last-child(-n+2) { border-bottom: 0; }
+  .scqa .k {
+    background: var(--surface-2); font-family: var(--display); font-weight: 700;
+    font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2);
+  }
+  .scqa .v p:last-child { margin-bottom: 0; }
+  .scqa .v { font-size: 15px; }
+
+  /* tables */
+  .scroll { overflow-x: auto; margin: 18px 0; border: 1px solid var(--rule); border-radius: 4px; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; min-width: 620px; }
+  th {
+    text-align: left; font-size: 11px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase;
+    color: var(--ink-2); padding: 10px 14px; background: var(--surface-2);
+    border-bottom: 1px solid var(--rule-firm); white-space: nowrap;
+  }
+  td { padding: 10px 14px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  tbody tr:last-child td { border-bottom: 0; }
+  td.n { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  .note {
+    border-left: 3px solid var(--accent); background: var(--accent-soft);
+    padding: 13px 17px; border-radius: 0 3px 3px 0; margin: 18px 0; font-size: 14.5px;
+  }
+  .note strong { color: var(--accent); }
+  .caution {
+    border-left: 3px solid var(--warn); background: var(--warn-soft);
+    padding: 13px 17px; border-radius: 0 3px 3px 0; margin: 18px 0; font-size: 14.5px;
+  }
+  .caution strong { color: var(--warn); }
+
+  footer { border-top: 1px solid var(--rule); margin-top: 56px; padding: 26px 0 46px; font-size: 12.5px; color: var(--ink-2); }
+</style>
+</head>
+<body>
+
+<header class="mast">
+  <div class="wrap mast-in">
+    <p class="kicker">AEGIS-PHARMA · V3 · finalized architecture</p>
+    <h1>AEGIS V3 Blueprint</h1>
+    <p class="sub">
+      A governed, observable, multi-agent decision-support system for six pharmaceutical
+      workflows. <strong>Six LangGraph graphs from one template, two LLM calls per run, nine
+      deterministic control nodes, and no path by which generated text reaches a caller without
+      passing a guard, a critic, the guard again, and a named human.</strong>
+    </p>
+    <p class="sub">
+      This page states the frame the system was built to answer, the nine decisions that shaped
+      it, the agentic design those decisions produced, and a map of the whole running
+      application end to end.
+    </p>
+  </div>
+  <div class="facts">
+    <div class="fact"><b>6</b><span>Governed workflows, one graph each</span></div>
+    <div class="fact"><b>9</b><span>ADRs, all accepted, no open sub-decisions</span></div>
+    <div class="fact"><b>4</b><span>Agents — 3 domain + 1 critic</span></div>
+    <div class="fact"><b>47</b><span>Mapped components across 7 layers</span></div>
+    <div class="fact"><b>0</b><span>Write-capable tools anywhere in the system</span></div>
+  </div>
+</header>
+
+<nav class="nav" aria-label="Sections">
+  <div class="wrap">
+    <ul>
+      <li><a href="#map" class="on">End-to-end map</a></li>
+      <li><a href="#scqa">SCQA</a></li>
+      <li><a href="#adr">Decisions</a></li>
+      <li><a href="#agentic">Agentic architecture</a></li>
+      <li><a href="#spine">The governed spine</a></li>
+      <li><a href="#flows">Runtime flows</a></li>
+      <li><a href="#surface">Deployed surface</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main class="wrap">
+
+<!-- ==================== END TO END MAP ==================== -->
+<section id="map">
+  <h2>The whole application, end to end</h2>
+  <p class="lede">
+    Seven layers, forty-seven components. Read it downward: a request enters from the browser,
+    crosses the API boundary, runs the governed pipeline, reaches tools, and only then touches
+    an external system. Governance artifacts and the delivery pipeline sit underneath because
+    they constrain everything above them rather than participating in a request.
+  </p>
+
+  <figure>
+    <div class="figbox hero">
+      <svg viewBox="0 0 1240 742" role="img" aria-label="End-to-end architecture: client, API, governed workflow pipeline, integration tools, external systems, governance artifacts and the CI/CD pipeline.">
+        <defs>
+          <marker id="a1" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+            <path d="M0 0 L8 4 L0 8 z" fill="var(--rule-firm)"/>
+          </marker>
+        </defs>
+
+        <!-- ============ BAND 1 CLIENT ============ -->
+        <rect x="20" y="22" width="4" height="12" fill="var(--L-client)"/>
+        <text x="32" y="32" class="svg-m" fill="var(--L-client)">LAYER 1 — CLIENT · NEXT.JS APP ROUTER</text>
+        <g>
+          <rect x="20"  y="40" width="289" height="62" rx="4" fill="var(--surface-2)" stroke="var(--L-client)"/>
+          <text x="34" y="60" class="svg-h">Web UI Shell</text>
+          <text x="34" y="76" class="svg-s">AppShell — nav, operator bar, notification bell</text>
+          <text x="34" y="90" class="svg-s">Every signed-in route renders inside it</text>
+
+          <rect x="323" y="40" width="289" height="62" rx="4" fill="var(--surface-2)" stroke="var(--L-client)"/>
+          <text x="337" y="60" class="svg-h">Auth &amp; Session</text>
+          <text x="337" y="76" class="svg-s">app/login · lib/auth/session.ts</text>
+          <text x="337" y="90" class="svg-s">Token on every subsequent request</text>
+
+          <rect x="626" y="40" width="289" height="62" rx="4" fill="var(--surface-2)" stroke="var(--L-client)"/>
+          <text x="640" y="60" class="svg-h">Decision Queue &amp; Run Detail</text>
+          <text x="640" y="76" class="svg-s">app/decisions · app/runs · ApprovalPanel</text>
+          <text x="640" y="90" class="svg-s">Where a human approves or rejects</text>
+
+          <rect x="929" y="40" width="289" height="62" rx="4" fill="var(--surface-2)" stroke="var(--L-client)"/>
+          <text x="943" y="60" class="svg-h">Record Assistant</text>
+          <text x="943" y="76" class="svg-s">RecordAssistant.tsx</text>
+          <text x="943" y="90" class="svg-s">Paraphrases; never computes or decides</text>
+        </g>
+
+        <path d="M619 102 L619 130" stroke="var(--rule-firm)" stroke-width="1.5" marker-end="url(#a1)"/>
+
+        <!-- ============ BAND 2 API ============ -->
+        <rect x="20" y="120" width="4" height="12" fill="var(--L-api)"/>
+        <text x="32" y="130" class="svg-m" fill="var(--L-api)">LAYER 2 — ORCHESTRATOR API · FASTAPI · A BOUNDARY, NEVER A CONTROL</text>
+        <g>
+          <rect x="20"   y="138" width="190" height="62" rx="4" fill="var(--surface-2)" stroke="var(--L-api)"/>
+          <text x="32" y="158" class="svg-h">Auth API</text>
+          <text x="32" y="174" class="svg-s">/auth/login · logout</text>
+          <text x="32" y="188" class="svg-s">/auth/me · /auth/roles</text>
+
+          <rect x="222"  y="138" width="190" height="62" rx="4" fill="var(--surface-2)" stroke="var(--L-api)" stroke-width="2"/>
+          <text x="234" y="158" class="svg-h">Runs &amp; Decide API</text>
+          <text x="234" y="174" class="svg-s">POST /runs · POST /runs/</text>
+          <text x="234" y="188" class="svg-s">{id}/decide · GET /runs</text>
+
+          <rect x="424"  y="138" width="190" height="62" rx="4" fill="var(--surface-2)" stroke="var(--L-api)"/>
+          <text x="436" y="158" class="svg-h">Queue API</text>
+          <text x="436" y="174" class="svg-s">GET /api/queue</text>
+          <text x="436" y="188" class="svg-s">Pending human decisions</text>
+
+          <rect x="626"  y="138" width="190" height="62" rx="4" fill="var(--surface-2)" stroke="var(--L-api)"/>
+          <text x="638" y="158" class="svg-h">Notifications API</text>
+          <text x="638" y="174" class="svg-s">GET /api/notifications</text>
+          <text x="638" y="188" class="svg-s">Escalation bell</text>
+
+          <rect x="828"  y="138" width="190" height="62" rx="4" fill="var(--surface-2)" stroke="var(--L-api)"/>
+          <text x="840" y="158" class="svg-h">Record Chat API</text>
+          <text x="840" y="174" class="svg-s">POST /runs/{id}/chat</text>
+          <text x="840" y="188" class="svg-s">Guarded in and out</text>
+
+          <rect x="1030" y="138" width="190" height="62" rx="4" fill="var(--surface-2)" stroke="var(--L-api)"/>
+          <text x="1042" y="158" class="svg-h">Health API</text>
+          <text x="1042" y="174" class="svg-s">/api/health</text>
+          <text x="1042" y="188" class="svg-s">/api/health/detail</text>
+        </g>
+
+        <path d="M317 200 L317 228" stroke="var(--rule-firm)" stroke-width="1.5" marker-end="url(#a1)"/>
+
+        <!-- ============ BAND 3 WORKFLOW ============ -->
+        <rect x="20" y="218" width="4" height="12" fill="var(--L-workflow)"/>
+        <text x="32" y="228" class="svg-m" fill="var(--L-workflow)">LAYER 3 — GOVERNED PIPELINE · LANGGRAPH · ONE GRAPH PER WORKFLOW, SIX INSTANCES FROM ONE TEMPLATE</text>
+        <g>
+          <rect x="20"   y="236" width="92" height="62" rx="4" fill="var(--surface-2)" stroke="var(--L-workflow)"/>
+          <text x="28" y="253" class="svg-m" fill="var(--ink-2)">01</text>
+          <text x="28" y="270" class="svg-h">Intake</text>
+          <text x="28" y="286" class="svg-s">bind auth now</text>
+
+          <rect x="120"  y="236" width="92" height="62" rx="4" fill="var(--surface-2)" stroke="var(--L-workflow)"/>
+          <text x="128" y="253" class="svg-m" fill="var(--ink-2)">02</text>
+          <text x="128" y="270" class="svg-h">Policy</text>
+          <text x="128" y="286" class="svg-s">fails closed</text>
+
+          <rect x="220"  y="236" width="92" height="62" rx="4" fill="var(--surface-2)" stroke="var(--L-workflow)"/>
+          <text x="228" y="253" class="svg-m" fill="var(--ink-2)">03</text>
+          <text x="228" y="270" class="svg-h">Retrieve</text>
+          <text x="228" y="286" class="svg-s">scoped ①</text>
+
+          <rect x="320"  y="236" width="92" height="62" rx="4" fill="var(--surface-2)" stroke="var(--L-workflow)"/>
+          <text x="328" y="253" class="svg-m" fill="var(--ink-2)">04</text>
+          <text x="328" y="270" class="svg-h">Gate</text>
+          <text x="328" y="286" class="svg-s">or abstain</text>
+
+          <rect x="420"  y="236" width="92" height="62" rx="4" fill="var(--surface-2)" stroke="var(--L-workflow)"/>
+          <text x="428" y="253" class="svg-m" fill="var(--ink-2)">05</text>
+          <text x="428" y="270" class="svg-h">Domain</text>
+          <text x="428" y="286" class="svg-s">structured</text>
+
+          <rect x="520"  y="236" width="92" height="62" rx="4" fill="var(--warn-soft)" stroke="var(--warn)" stroke-width="2"/>
+          <text x="528" y="253" class="svg-m" fill="var(--warn)">06 LLM</text>
+          <text x="528" y="270" class="svg-h">Synthesize</text>
+          <text x="528" y="286" class="svg-s">③</text>
+
+          <rect x="620"  y="236" width="92" height="62" rx="4" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="2"/>
+          <text x="628" y="253" class="svg-m" fill="var(--accent)">07</text>
+          <text x="628" y="270" class="svg-h">Guard</text>
+          <text x="628" y="286" class="svg-s">pre-critic</text>
+
+          <rect x="720"  y="236" width="92" height="62" rx="4" fill="var(--warn-soft)" stroke="var(--warn)" stroke-width="2"/>
+          <text x="728" y="253" class="svg-m" fill="var(--warn)">08 LLM</text>
+          <text x="728" y="270" class="svg-h">Critic</text>
+          <text x="728" y="286" class="svg-s">③</text>
+
+          <rect x="820"  y="236" width="92" height="62" rx="4" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="2"/>
+          <text x="828" y="253" class="svg-m" fill="var(--accent)">09</text>
+          <text x="828" y="270" class="svg-h">Guard</text>
+          <text x="828" y="286" class="svg-s">post-critic ②</text>
+
+          <rect x="920"  y="236" width="92" height="62" rx="4" fill="var(--surface-2)" stroke="var(--L-workflow)"/>
+          <text x="928" y="253" class="svg-m" fill="var(--ink-2)">10</text>
+          <text x="928" y="270" class="svg-h">Route</text>
+          <text x="928" y="286" class="svg-s">approver</text>
+
+          <rect x="1020" y="236" width="92" height="62" rx="4" fill="var(--surface-2)" stroke="var(--L-workflow)"/>
+          <text x="1028" y="253" class="svg-m" fill="var(--ink-2)">11</text>
+          <text x="1028" y="270" class="svg-h">HITL</text>
+          <text x="1028" y="286" class="svg-s">interrupt</text>
+
+          <rect x="1120" y="236" width="92" height="62" rx="4" fill="var(--surface-2)" stroke="var(--L-workflow)"/>
+          <text x="1128" y="253" class="svg-m" fill="var(--ink-2)">12</text>
+          <text x="1128" y="270" class="svg-h">Finalize</text>
+          <text x="1128" y="286" class="svg-s">audit first</text>
+        </g>
+
+        <g stroke="var(--rule-firm)" stroke-width="1.2" fill="none">
+          <path d="M266 298 L266 316 L70 316 L70 334" marker-end="url(#a1)"/>
+          <path d="M166 298 L166 322 L288 322 L288 334" marker-end="url(#a1)"/>
+          <path d="M466 298 L466 328 L179 328 L179 334" marker-end="url(#a1)"/>
+          <path d="M666 298 L666 316 L397 316 L397 334" marker-end="url(#a1)"/>
+          <path d="M866 298 L866 322 L833 322 L833 334" marker-end="url(#a1)"/>
+          <path d="M1166 298 L1166 328 L615 328 L615 334" marker-end="url(#a1)"/>
+          <path d="M1176 298 L1176 320 L1160 320 L1160 334" marker-end="url(#a1)"/>
+        </g>
+
+        <!-- ============ BAND 4 INTEGRATION ============ -->
+        <rect x="20" y="316" width="4" height="12" fill="var(--L-integration)"/>
+        <text x="700" y="326" class="svg-m" fill="var(--L-integration)">LAYER 4 — INTEGRATION / TOOL LAYER · ALL READ-ONLY BY CONSTRUCTION</text>
+        <g>
+          <rect x="20"   y="334" width="100" height="62" rx="4" fill="var(--surface-2)" stroke="var(--L-integration)"/>
+          <text x="28" y="352" class="svg-h">evidence</text>
+          <text x="28" y="366" class="svg-h">.retrieve</text>
+          <text x="28" y="384" class="svg-s">status filter ①</text>
+
+          <rect x="129"  y="334" width="100" height="62" rx="4" fill="var(--surface-2)" stroke="var(--L-integration)"/>
+          <text x="137" y="352" class="svg-h">Domain</text>
+          <text x="137" y="366" class="svg-h">tools ×6</text>
+          <text x="137" y="384" class="svg-s">one per workflow</text>
+
+          <rect x="238"  y="334" width="100" height="62" rx="4" fill="var(--surface-2)" stroke="var(--L-integration)"/>
+          <text x="246" y="352" class="svg-h">Policy</text>
+          <text x="246" y="366" class="svg-h">Engine</text>
+          <text x="246" y="384" class="svg-s">versioned</text>
+
+          <rect x="347"  y="334" width="100" height="62" rx="4" fill="var(--accent-soft)" stroke="var(--accent)"/>
+          <text x="355" y="352" class="svg-h">Prohibited</text>
+          <text x="355" y="366" class="svg-h">Action Guard</text>
+          <text x="355" y="384" class="svg-s">runs twice</text>
+
+          <rect x="456"  y="334" width="100" height="62" rx="4" fill="var(--accent-soft)" stroke="var(--accent)"/>
+          <text x="464" y="352" class="svg-h">Prompt</text>
+          <text x="464" y="366" class="svg-h">Guard PI/PG</text>
+          <text x="464" y="384" class="svg-s">13 in · 3 out</text>
+
+          <rect x="565"  y="334" width="100" height="62" rx="4" fill="var(--surface-2)" stroke="var(--L-integration)"/>
+          <text x="573" y="352" class="svg-h">Audit</text>
+          <text x="573" y="366" class="svg-h">Store</text>
+          <text x="573" y="384" class="svg-s">append-only</text>
+
+          <rect x="674"  y="334" width="100" height="62" rx="4" fill="var(--surface-2)" stroke="var(--L-integration)"/>
+          <text x="682" y="352" class="svg-h">User</text>
+          <text x="682" y="366" class="svg-h">Store</text>
+          <text x="682" y="384" class="svg-s">roles</text>
+
+          <rect x="783"  y="334" width="100" height="62" rx="4" fill="var(--surface-2)" stroke="var(--L-integration)"/>
+          <text x="791" y="352" class="svg-h">Response</text>
+          <text x="791" y="366" class="svg-h">Cache</text>
+          <text x="791" y="384" class="svg-s">②</text>
+
+          <rect x="892"  y="334" width="100" height="62" rx="4" fill="var(--surface-2)" stroke="var(--L-integration)"/>
+          <text x="900" y="352" class="svg-h">HITL</text>
+          <text x="900" y="366" class="svg-h">Esc. Watch</text>
+          <text x="900" y="384" class="svg-s">idempotent</text>
+
+          <rect x="1001" y="334" width="100" height="62" rx="4" fill="var(--surface-2)" stroke="var(--L-integration)"/>
+          <text x="1009" y="352" class="svg-h">Notifier</text>
+          <text x="1009" y="384" class="svg-s">best-effort ④</text>
+
+          <rect x="1110" y="334" width="100" height="62" rx="4" fill="var(--surface-2)" stroke="var(--L-integration)"/>
+          <text x="1118" y="352" class="svg-h">Denial-of-</text>
+          <text x="1118" y="366" class="svg-h">Wallet Guard</text>
+          <text x="1118" y="384" class="svg-s">per window</text>
+        </g>
+
+        <g stroke="var(--rule-firm)" stroke-width="1.2" fill="none">
+          <path d="M70 396 L70 418 L134 418 L134 432" marker-end="url(#a1)"/>
+          <path d="M833 396 L833 424 L377 424 L377 432" marker-end="url(#a1)"/>
+          <path d="M1051 396 L1051 418 L863 418 L863 432" marker-end="url(#a1)"/>
+        </g>
+
+        <!-- ============ BAND 5 EXTERNAL ============ -->
+        <rect x="20" y="414" width="4" height="12" fill="var(--L-data)"/>
+        <text x="900" y="424" class="svg-m" fill="var(--L-data)">LAYER 5 — EXTERNAL SYSTEMS</text>
+        <g>
+          <rect x="20"   y="432" width="228" height="62" rx="4" fill="var(--surface-2)" stroke="var(--L-data)"/>
+          <text x="34" y="452" class="svg-h">① Neo4j — AuraDB</text>
+          <text x="34" y="468" class="svg-s">Knowledge graph · Bolt</text>
+          <text x="34" y="482" class="svg-s">17 node types · 14 edge types</text>
+
+          <rect x="263"  y="432" width="228" height="62" rx="4" fill="var(--surface-2)" stroke="var(--L-data)"/>
+          <text x="277" y="452" class="svg-h">② Redis</text>
+          <text x="277" y="468" class="svg-s">Response cache</text>
+          <text x="277" y="482" class="svg-s">never served as-if-fresh</text>
+
+          <rect x="506"  y="432" width="228" height="62" rx="4" fill="var(--surface-2)" stroke="var(--L-data)" stroke-width="2"/>
+          <text x="520" y="452" class="svg-h">③ Azure AI Foundry</text>
+          <text x="520" y="468" class="svg-s">LLM inference — ADR-009 Route A</text>
+          <text x="520" y="482" class="svg-s">synth + critic, called directly — no line drawn</text>
+
+          <rect x="749"  y="432" width="228" height="62" rx="4" fill="var(--surface-2)" stroke="var(--L-data)"/>
+          <text x="763" y="452" class="svg-h">④ SMTP</text>
+          <text x="763" y="468" class="svg-s">Escalation mail</text>
+          <text x="763" y="482" class="svg-s">bell lights regardless</text>
+
+          <rect x="992"  y="432" width="228" height="62" rx="4" fill="var(--surface-2)" stroke="var(--L-data)"/>
+          <text x="1006" y="452" class="svg-h">LangSmith</text>
+          <text x="1006" y="468" class="svg-s">Tracing · additive only</text>
+          <text x="1006" y="482" class="svg-s">never load-bearing</text>
+        </g>
+
+        <!-- ============ BAND 6 GOVERNANCE ============ -->
+        <rect x="20" y="512" width="4" height="12" fill="var(--L-governance)"/>
+        <text x="32" y="522" class="svg-m" fill="var(--L-governance)">LAYER 6 — GOVERNANCE ARTIFACTS · CONSTRAIN EVERY LAYER ABOVE; VERIFIED IN CI AND AGAIN AT CONTAINER START</text>
+        <g>
+          <rect x="20"  y="530" width="389" height="62" rx="4" fill="var(--surface-2)" stroke="var(--L-governance)"/>
+          <text x="34" y="550" class="svg-h">Policy Contract — policy_contract.v1.json</text>
+          <text x="34" y="566" class="svg-s">Prohibited-action lists, per workflow. Loaded at node 02;</text>
+          <text x="34" y="580" class="svg-s">unreachable means the request is refused, not defaulted.</text>
+
+          <rect x="425" y="530" width="389" height="62" rx="4" fill="var(--surface-2)" stroke="var(--L-governance)"/>
+          <text x="439" y="550" class="svg-h">AI-BOM — ai_sbom.json, CycloneDX 1.6</text>
+          <text x="439" y="566" class="svg-s">Hashes the 13 system prompts, both models, the guard</text>
+          <text x="439" y="580" class="svg-s">ruleset, the policy contract and the tool manifest.</text>
+
+          <rect x="830" y="530" width="389" height="62" rx="4" fill="var(--surface-2)" stroke="var(--L-governance)"/>
+          <text x="844" y="550" class="svg-h">Tool Manifest — tool_manifest.json</text>
+          <text x="844" y="566" class="svg-s">Declares every tool and what it may do. Zero entries</text>
+          <text x="844" y="580" class="svg-s">declare a write capability — checked, not asserted.</text>
+        </g>
+
+        <!-- ============ BAND 7 CI/CD ============ -->
+        <rect x="20" y="610" width="4" height="12" fill="var(--L-cicd)"/>
+        <text x="32" y="620" class="svg-m" fill="var(--L-cicd)">LAYER 7 — DELIVERY</text>
+        <g>
+          <rect x="20"   y="628" width="190" height="62" rx="4" fill="var(--surface-2)" stroke="var(--L-cicd)"/>
+          <text x="32" y="648" class="svg-h">Git push</text>
+          <text x="32" y="664" class="svg-s">final_app → main</text>
+
+          <rect x="222"  y="628" width="190" height="62" rx="4" fill="var(--surface-2)" stroke="var(--L-cicd)"/>
+          <text x="234" y="648" class="svg-h">V3 CI</text>
+          <text x="234" y="664" class="svg-s">tests, lint, governance</text>
+          <text x="234" y="678" class="svg-s">verify before build</text>
+
+          <rect x="424"  y="628" width="190" height="62" rx="4" fill="var(--surface-2)" stroke="var(--L-cicd)"/>
+          <text x="436" y="648" class="svg-h">V3 CD</text>
+          <text x="436" y="664" class="svg-s">build, push, deploy</text>
+
+          <rect x="626"  y="628" width="190" height="62" rx="4" fill="var(--surface-2)" stroke="var(--L-cicd)"/>
+          <text x="638" y="648" class="svg-h">Container Registry</text>
+          <text x="638" y="664" class="svg-s">Azure ACR</text>
+
+          <rect x="828"  y="628" width="190" height="62" rx="4" fill="var(--surface-2)" stroke="var(--L-cicd)" stroke-width="2"/>
+          <text x="840" y="648" class="svg-h">Azure Container Apps</text>
+          <text x="840" y="664" class="svg-s">ADR-009 runtime target</text>
+          <text x="840" y="678" class="svg-s">re-verifies BOM at start</text>
+
+          <rect x="1030" y="628" width="190" height="62" rx="4" fill="var(--surface-2)" stroke="var(--L-cicd)"/>
+          <text x="1042" y="648" class="svg-h">Nightly red-team</text>
+          <text x="1042" y="664" class="svg-s">03:00 UTC, live model</text>
+          <text x="1042" y="678" class="svg-s">opens an issue on a miss</text>
+        </g>
+        <g stroke="var(--rule-firm)" stroke-width="1.2" fill="none" marker-end="url(#a1)">
+          <path d="M210 659 L218 659"/><path d="M412 659 L420 659"/>
+          <path d="M614 659 L622 659"/><path d="M816 659 L824 659"/>
+        </g>
+
+        <text x="20" y="710" class="svg-s">① evidence.retrieve is the only path to Neo4j  ·  ② cache write happens after the post-critic guard, never before  ·  ④ mail is best-effort; the in-app bell is not</text>
+        <text x="20" y="726" class="svg-s">③ synth and critic call Foundry directly — no Layer-4 box for it, so no line is drawn. Record Chat API reaches Foundry too, on a separate request not shown here — see the flows below.</text>
+      </svg>
+    </div>
+    <figcaption>
+      Generated from <code>docs/architecture/system_map/system_map.json</code> — the repo's own
+      machine-readable map (47 nodes, 71 edges, 13 flows). Arrows show which tool each pipeline
+      node reaches; circled numerals mark the four crossings into an external system.
+    </figcaption>
+  </figure>
+
+  <div class="legend">
+    <span><i class="sw" style="background:var(--L-client)"></i> Client</span>
+    <span><i class="sw" style="background:var(--L-api)"></i> API</span>
+    <span><i class="sw" style="background:var(--L-workflow)"></i> Governed pipeline</span>
+    <span><i class="sw" style="background:var(--L-integration)"></i> Integration / tools</span>
+    <span><i class="sw" style="background:var(--L-data)"></i> External systems</span>
+    <span><i class="sw" style="background:var(--L-governance)"></i> Governance artifacts</span>
+    <span><i class="sw" style="background:var(--L-cicd)"></i> Delivery</span>
+  </div>
+
+  <div class="note">
+    <strong>Read the map for what is missing.</strong> There is no arrow from the pipeline to any
+    brownfield system of record, because no write-capable tool exists to draw one with. Every
+    external crossing is a read, a cache, a model call, or a notification.
+  </div>
+</section>
+
+<!-- ==================== SCQA ==================== -->
+<section id="scqa">
+  <h2>SCQA — the frame, as finalized</h2>
+  <p class="lede">
+    Narrative class <span class="m">decision-ready</span>. The Answer is capability-level by
+    design: it deliberately does not pick the agent count, the graph shape, or the tool names,
+    because those are downstream decisions that the governance and cost work had to shape first.
+  </p>
+
+  <div class="scqa">
+    <div class="k">Situation</div>
+    <div class="v">
+      <p>The predecessor is a complete, evidence-grounded capstone: 84 injects across 13
+      dimensions, 143 datasets, 32 knowledge and policy documents, and a 30-artefact rubric,
+      built around governed pharma decision-support workflows.</p>
+      <p>Its pattern is <strong>single-shot</strong> — one governed request in, one JSON-contracted
+      response out, graded by a deterministic harness. Well-governed and thoroughly evidenced, but
+      it exercises no multi-step reasoning, no tool use, no inter-agent handoff, no caching and no
+      runtime observability. It never needed to.</p>
+    </div>
+
+    <div class="k">Complication</div>
+    <div class="v">
+      <p>This system must become agentic while performing the <em>same</em> workflows under the
+      <em>same</em> non-negotiables — synthetic data only, full evidence provenance, and no agent
+      making a terminal safety decision. That is a compound problem on six axes at once:</p>
+      <p><strong>Technical</strong> — orchestration, tool contracts and shared state did not exist.
+      <strong>Governance</strong> — the hardest constraint is <em>more</em> fragile in a multi-agent
+      design, because authority can leak across a handoff in a way a single-shot app structurally
+      cannot exhibit. <strong>Cost</strong> — multi-agent designs multiply model calls per request.
+      <strong>Caching</strong> — a cache hit can silently serve an answer based on since-superseded
+      evidence. <strong>Compliance</strong> — EU AI Act and ISO 42001 obligations the predecessor
+      never carried. <strong>Infrastructure</strong> — a hosted tracing service versus a previously
+      offline framing.</p>
+    </div>
+
+    <div class="k">Question</div>
+    <div class="v">
+      <p>How should this system be re-architected as a governed, observable, multi-agent system
+      that preserves domain correctness and the prohibited-decision boundary while adding
+      orchestration, tool use, caching and observability — <strong>without inventing an
+      architecture before the domain, governance and cost constraints that must shape it are
+      established?</strong></p>
+    </div>
+
+    <div class="k">Answer</div>
+    <div class="v">
+      <p><strong>Proceed as an additive re-architecture, not a domain rewrite.</strong> Carry the
+      domain model, constraints and evaluation floor forward unchanged as the substrate, and layer
+      governed multi-agent capability on top — sequencing the work so governance and authority
+      boundaries, then cost and architecture constraints, are settled <em>before</em> any topology
+      or tool contract is locked, and before any application code is written.</p>
+      <p>Building the app last is not incidental process. It is the risk-reduction strategy, and it
+      is how this programme avoided the standard failure mode of agentic rebuilds: designing the
+      graph before the domain.</p>
+    </div>
+  </div>
+
+  <h3>What "good" was defined as, and where each measure stands</h3>
+  <div class="scroll">
+    <table>
+      <thead><tr><th>Measure</th><th>Target</th><th>State</th></tr></thead>
+      <tbody>
+        <tr><td>Prohibited-decision boundary violations</td><td class="n">Zero — non-negotiable</td><td><span class="tag t-ok">Held</span> across evals and a live red-team</td></tr>
+        <tr><td>Every governance boundary enforced independently of prompting</td><td>Hook or policy check, never instruction</td><td><span class="tag t-ok">Held</span> — 10 hook bindings, none prompt-dependent</td></tr>
+        <tr><td>Compliance work carries evidence, not assertion</td><td>Classification + control mapping exist</td><td><span class="tag t-ok">Done</span> — with the legal determination honestly left open</td></tr>
+        <tr><td>Token / cost per workflow run</td><td>Known and bounded before shipping</td><td><span class="tag t-warn">Unknown</span> — the Answer's weakest commitment</td></tr>
+        <tr><td>Eval pass rate on the inherited categories</td><td>No regressions</td><td><span class="tag t-warn">Baseline unset</span></td></tr>
+        <tr><td>Cache hit rate</td><td>Target set once measurable</td><td><span class="tag t-warn">Unknown</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="caution">
+    <strong>Stated plainly because the frame demands it.</strong> Three of the Answer's four
+    measurable outcomes are still Unknown. The safety commitments held; the economic ones were
+    never measured. The programme records this itself, as residual risk RR-1 — topology was locked
+    before the cost number existed — rather than presenting the sequencing as clean.
+  </div>
+</section>
+
+<!-- ==================== ADR ==================== -->
+<section id="adr">
+  <h2>Nine decisions, all accepted</h2>
+  <p class="lede">
+    No ADR rests on an unconfirmed assumption and none carries an open sub-decision. Both
+    evidence-acquisition blockers closed: the air-gap question was settled by sponsor decision,
+    and the accountable-approver question by taking roles verbatim from the stakeholder pack.
+  </p>
+
+  <div class="grid2">
+    <div class="card adr">
+      <div class="no">ADR-001 · FACT — SPONSOR DIRECTIVE</div>
+      <h4>Runtime stack: LangGraph, LangSmith, Redis</h4>
+      <p class="dec">LangGraph for stateful orchestration, checkpointing and human-in-the-loop
+      interrupts; LangSmith for tracing and evals; Redis for the response cache.</p>
+      <p class="meta">Direction-setting rather than waste-resolving, and flagged as such rather than
+      retrofitted with a rationale.</p>
+    </div>
+
+    <div class="card adr">
+      <div class="no">ADR-002 · FACT + VERIFIED CONSTRAINTS</div>
+      <h4>Built as an independent codebase</h4>
+      <p class="dec">The predecessor is a read-only evidence and reference source — cited for
+      domain facts, never imported as code.</p>
+      <p class="meta">Produced a standing working rule: verify a claim against the actual source,
+      never against a filename or a prior summary.</p>
+    </div>
+
+    <div class="card adr">
+      <div class="no">ADR-003 · FACT — VERIFIED AGAINST GRADER CODE</div>
+      <h4>Evidence authority is a deterministic gate</h4>
+      <p class="dec">Authority is a status lookup, never a model judgement. Both
+      <code>untrusted</code> <em>and</em> <code>superseded</code> are non-citable, filtered at the
+      retrieval boundary so they never enter a context window. Retrieved content may never alter
+      its own authority — embedded instructions are data, never directives.</p>
+      <p class="meta">This ADR <strong>corrected the domain model</strong>, which had said
+      superseded documents should be "flagged, not silently substituted." Reading the real grader
+      showed both statuses are hard exclusions.</p>
+    </div>
+
+    <div class="card adr">
+      <div class="no">ADR-004 · FACT + DERIVATION</div>
+      <h4>Prohibited actions are structurally unrepresentable</h4>
+      <p class="dec">Three independent layers, none of them a prompt instruction: the aggregate
+      schema has no disposition field; no tool exposes a write or disposition method; and a runtime
+      guard checks every candidate output.</p>
+      <p class="meta">"Runtime guard only" was explicitly rejected — a guard is a single point of
+      failure. The guard is the third layer, not the control.</p>
+    </div>
+
+    <div class="card adr">
+      <div class="no">ADR-005 · DERIVATION</div>
+      <h4>Governance is a separate container</h4>
+      <p class="dec">The policy engine deploys separately with an independently versioned policy
+      contract. Unreachable means the request is <strong>refused</strong> — no cached-policy
+      fallback, no warning-and-continue.</p>
+      <p class="meta">Deliberately not a shared kernel, so policy cannot be quietly weakened by a
+      core context's local convenience.</p>
+    </div>
+
+    <div class="card adr">
+      <div class="no">ADR-006 · DERIVATION + FACT</div>
+      <h4>Audit records live in an owned store</h4>
+      <p class="dec">Compliance <code>AgentRun</code> records go to a store this system owns.
+      Tracing stays in LangSmith and is <strong>additive, never load-bearing</strong> for compliance
+      or for request success.</p>
+      <p class="meta">The alternative couples a regulatory retention obligation to a third party's
+      SLA and retention policy.</p>
+    </div>
+
+    <div class="card adr">
+      <div class="no">ADR-007 · FACT — EAB-2 CLOSED</div>
+      <h4>Degraded-mode-safe, not offline-capable</h4>
+      <p class="dec">Every hosted dependency has a documented fallback that preserves correctness
+      while sacrificing capability. Model unreachable ⇒ abstain, never guess. Tracing unreachable ⇒
+      log locally, never block. Cache unreachable ⇒ no-cache, <strong>never serve stale
+      as-if-fresh</strong>. Tool server unreachable ⇒ abstain and escalate.</p>
+      <p class="meta">A real departure from an inherited non-negotiable, ratified by the sponsor
+      rather than quietly dropped. The air-gapped variant is recorded as a known limitation.</p>
+    </div>
+
+    <div class="card adr">
+      <div class="no">ADR-008 · DERIVATION</div>
+      <h4>One deployment, one graph per workflow</h4>
+      <p class="dec">Each workflow gets its own graph with its own domain agent, critic and HITL
+      interrupt. <strong>No graph may invoke another graph's agent.</strong> Shared capability is
+      reached as a service, never as an agent-to-agent call.</p>
+      <p class="meta">Accepted while the cost baseline was still Unknown — recorded as residual risk
+      RR-1 with a trigger that reopens it if the first real measurement lands badly.</p>
+    </div>
+
+    <div class="card adr" style="border-left-color: var(--warn)">
+      <div class="no">ADR-009 · FACT — ROUTE A CONFIRMED</div>
+      <h4>Azure is the target platform</h4>
+      <p class="dec">Container Apps for compute, Azure Cache for Redis, Blob Storage with WORM
+      immutability for audit, Key Vault for secrets, Entra ID for identity. Inference runs
+      <strong>Route A — the model hosted behind Azure AI Foundry</strong> rather than called
+      directly.</p>
+      <p class="meta">The ADR predicted that binding to Foundry would be "a config/client change
+      behind one interface, never a model or prompt-behavior change." Implementing it touched one
+      file and changed no prompt and no parser — the prediction held.</p>
+    </div>
+  </div>
+
+  <div class="note">
+    <strong>Two consequences that improved earlier decisions.</strong> Entra ID turns the named
+    approver roles into real group assignments, so "authorization checked at execution time"
+    becomes a platform property rather than an aspiration. And keeping OpenTelemetry as the
+    instrumentation layer leaves the trace backend swappable, which is what keeps ADR-006's
+    independence from a vendor honest.
+  </div>
+</section>
+
+<!-- ==================== AGENTIC ==================== -->
+<section id="agentic">
+  <h2>Agentic architecture</h2>
+  <p class="lede">
+    Four agents in the whole system. An agent node is one whose output depends on a model call;
+    everything else is deterministic. That distinction is load-bearing — only agent nodes can
+    produce unbounded text, so only agent nodes need an authority limit and a stop condition.
+    <strong>Deterministic nodes have contracts, not authority.</strong>
+  </p>
+
+  <div class="scroll">
+    <table>
+      <thead><tr><th>Agent</th><th>Bounded context</th><th>May</th><th>May not</th><th>Stop condition</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>Batch-Review</strong></td><td>Batch Review</td>
+          <td>Synthesize reconciled evidence into prose; flag deviations, gaps and conflicts</td>
+          <td>Rank, score or characterize batch disposition</td>
+          <td>Unresolved conflict · incomplete evidence · guard flag · budget cap</td>
+        </tr>
+        <tr>
+          <td><strong>PV-Intake</strong></td><td>PV Intake</td>
+          <td>Triage and prioritize signals; suggest terminology normalization with a confidence</td>
+          <td>Apply a normalization silently; decide causality, seriousness or reportability</td>
+          <td>100% escalation by construction; abstains on duplicate or clock ambiguity</td>
+        </tr>
+        <tr>
+          <td><strong>Supply-Planning</strong></td><td>Supply Planning</td>
+          <td>Rank and explain options <em>within</em> a set the deterministic filter already produced</td>
+          <td>Widen the candidate set; allocate, reserve or ship</td>
+          <td>100% escalation; abstains on an empty or unbounded set</td>
+        </tr>
+        <tr>
+          <td><strong>Critic / Verifier</strong></td><td>Governance &amp; Oversight</td>
+          <td>Approve-for-human-review, or reject with a reason code from a closed enum</td>
+          <td>Retrieve anything, call a domain tool, or edit domain output</td>
+          <td>Two rejections with the same reason code ⇒ stop and escalate</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="caution">
+    <strong>What this roster does and doesn't cover.</strong> This table is
+    <code>agent_roster.md</code> verbatim — Stage 10, written when three workflows existed.
+    Three more (<code>research_review</code>, <code>clinical_integrity</code>,
+    <code>regulatory_completeness</code>) were added later, and their graph code
+    (<code>services/api/research_graph.py</code> and siblings) instantiates the identical
+    twelve-node template confirmed in the section below — same guard-critic-guard shape, same
+    node names. But the roster document itself was never extended with a named, authority-scoped
+    entry for those three domain agents. Stated as what it is: the pattern held, the paperwork
+    didn't catch up — not a claim that three more agents were invented here.
+  </div>
+
+  <h3>Router–executor–critic, deliberately not planner–executor–critic</h3>
+  <div class="grid2">
+    <div class="card">
+      <h4>Why there is no planner agent</h4>
+      <ul>
+        <li><strong>There is nothing to plan.</strong> Each workflow's sequence is fixed and written
+        down. The variability is in content, not in order — a planner would be a model re-deriving
+        a constant.</li>
+        <li><strong>A planner is a new authority surface.</strong> An agent that chooses which tools
+        to call, in what order, can in principle choose an order that skips a gate. Deterministic
+        routing makes that unrepresentable rather than unlikely.</li>
+        <li><strong>It is pure token waste</strong> — an extra call plus state re-serialization on
+        every run, for a plan that never changes.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4>The cost of that choice, stated</h4>
+      <ul>
+        <li>The graph is <strong>less adaptive</strong>. A genuinely novel request shape cannot be
+        handled by re-planning.</li>
+        <li>It hits <code>abstain</code> and a human instead.</li>
+        <li>For a decision-support system whose safe default is abstention, that is the correct
+        failure direction — but it does mean the system abstains on cases a more autonomous design
+        might have handled.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>Critic scope — complementary to the deterministic gates, never overlapping</h3>
+  <p>
+    A critic re-checking what a schema already enforces is designed-in token waste on every run.
+    The rule: <strong>if a check can be expressed as a lookup, a type, or a pattern match, the
+    Critic does not perform it.</strong> The Critic exists only for checks that require reading the
+    argument.
+  </p>
+  <div class="scroll">
+    <table>
+      <thead><tr><th>Check</th><th>Owner</th><th>Kind</th></tr></thead>
+      <tbody>
+        <tr><td>Is a prohibited action representable at all?</td><td>Aggregate schema</td><td><span class="tag t-ok">Type system — cannot fail at runtime</span></td></tr>
+        <tr><td>Was prohibited language generated?</td><td><code>prohibited_action_guard</code></td><td><span class="tag t-ok">Deterministic, closed pattern set</span></td></tr>
+        <tr><td>Is any non-citable evidence present?</td><td>Retrieval boundary + evidence gate</td><td><span class="tag t-ok">Status lookup</span></td></tr>
+        <tr><td>Does output conform to the contract?</td><td>Schema validation</td><td><span class="tag t-ok">Deterministic</span></td></tr>
+        <tr><td>Does every claim carry a citation that resolves to evidence actually in state?</td><td><strong>Critic</strong></td><td><span class="tag t-warn">Requires reading the prose</span></td></tr>
+        <tr><td>Is each claim supported by its cited evidence, without exceeding it?</td><td><strong>Critic</strong></td><td><span class="tag t-warn">Judgement</span></td></tr>
+        <tr><td>Was abstention used where the evidence is insufficient?</td><td><strong>Critic</strong></td><td><span class="tag t-warn">Judgement</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Cross-workflow reuse — shared as a template, never at runtime</h3>
+  <div class="grid4">
+    <div class="card">
+      <h4>Governed spine</h4>
+      <p style="font-size:14px;color:var(--ink-2);margin:0">Shared as a <strong>template</strong>. Identical structure, instantiated six times.</p>
+    </div>
+    <div class="card">
+      <h4>Prohibited-action guard</h4>
+      <p style="font-size:14px;color:var(--ink-2);margin:0">Shared <strong>code</strong>, per-workflow prohibition contract injected. One workflow's list must never load into another's graph.</p>
+    </div>
+    <div class="card">
+      <h4>Critic / Verifier</h4>
+      <p style="font-size:14px;color:var(--ink-2);margin:0">Shared <strong>implementation</strong>, one instance per graph. Reasons only over the common output contract, so it needs no workflow vocabulary.</p>
+    </div>
+    <div class="card">
+      <h4>Domain agent nodes</h4>
+      <p style="font-size:14px;color:var(--ink-2);margin:0"><strong>Not shared.</strong> One per context — a generalist agent was explicitly rejected at the domain-design stage.</p>
+    </div>
+  </div>
+
+  <h3>Retry legitimacy — a closed enum, not a counter</h3>
+  <p>
+    A retry is only legitimate if it carries a diagnosis. The Critic must return a reason code from
+    a closed set, and that code must differ from every prior code in the run. One code has no retry
+    edge at all.
+  </p>
+  <div class="grid3">
+    <div class="card"><h4><code>MISSING_CITATION</code></h4><p style="font-size:14px;color:var(--ink-2);margin:0">A claim carries no citation.</p></div>
+    <div class="card"><h4><code>CITATION_UNRESOLVED</code></h4><p style="font-size:14px;color:var(--ink-2);margin:0">A citation points at nothing in state.</p></div>
+    <div class="card"><h4><code>CLAIM_EXCEEDS_EVIDENCE</code></h4><p style="font-size:14px;color:var(--ink-2);margin:0">The claim says more than the source does.</p></div>
+    <div class="card"><h4><code>ABSTENTION_EXPECTED</code></h4><p style="font-size:14px;color:var(--ink-2);margin:0">Evidence was thin; the draft answered anyway.</p></div>
+    <div class="card"><h4><code>CONTRACT_VIOLATION</code></h4><p style="font-size:14px;color:var(--ink-2);margin:0">Output does not conform to the schema.</p></div>
+    <div class="card" style="border-color: var(--stop)">
+      <h4><code>PROHIBITION_ADJACENT</code></h4>
+      <p style="font-size:14px;color:var(--stop);margin:0"><strong>No retry edge exists.</strong> Checked first, unconditionally, before any other routing.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== SPINE ==================== -->
+<section id="spine">
+  <h2>The governed spine</h2>
+  <p class="lede">
+    Twelve nodes. Two of them call a model; nine are deterministic; the rest are terminal.
+    <strong>That ratio is the design</strong> — every control in this system is deterministic, and
+    no control is implemented by a model.
+  </p>
+
+  <figure>
+    <div class="figbox">
+      <svg viewBox="0 0 880 400" role="img" aria-label="The governed spine with its terminal exits and the routing conditions between nodes.">
+        <defs>
+          <marker id="a2" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+            <path d="M0 0 L7 3.5 L0 7 z" fill="var(--rule-firm)"/>
+          </marker>
+        </defs>
+        <text x="14" y="18" class="svg-m" fill="var(--ink-2)">HAPPY PATH — LEFT TO RIGHT, TOP TO BOTTOM</text>
+
+        <rect x="14"  y="30" width="128" height="46" rx="4" fill="var(--surface-2)" stroke="var(--L-workflow)"/>
+        <text x="26" y="49" class="svg-h">01 intake</text>
+        <text x="26" y="66" class="svg-s">binds current authorization</text>
+
+        <rect x="166" y="30" width="128" height="46" rx="4" fill="var(--surface-2)" stroke="var(--L-workflow)"/>
+        <text x="178" y="49" class="svg-h">02 policy_load</text>
+        <text x="178" y="66" class="svg-s">unreachable ⇒ refuse</text>
+
+        <rect x="318" y="30" width="128" height="46" rx="4" fill="var(--surface-2)" stroke="var(--L-workflow)"/>
+        <text x="330" y="49" class="svg-h">03 retrieve</text>
+        <text x="330" y="66" class="svg-s">scoped, status-filtered</text>
+
+        <rect x="470" y="30" width="128" height="46" rx="4" fill="var(--surface-2)" stroke="var(--L-workflow)"/>
+        <text x="482" y="49" class="svg-h">04 evidence_gate</text>
+        <text x="482" y="66" class="svg-s">one broadening, then stop</text>
+
+        <rect x="622" y="30" width="128" height="46" rx="4" fill="var(--surface-2)" stroke="var(--L-workflow)"/>
+        <text x="634" y="49" class="svg-h">05 domain tool</text>
+        <text x="634" y="66" class="svg-s">structured, rule-based</text>
+
+        <rect x="774" y="30" width="92" height="46" rx="4" fill="var(--warn-soft)" stroke="var(--warn)" stroke-width="2"/>
+        <text x="786" y="49" class="svg-h">06 synth</text>
+        <text x="786" y="66" class="svg-s" fill="var(--warn)">LLM</text>
+
+        <g stroke="var(--rule-firm)" stroke-width="1.4" marker-end="url(#a2)">
+          <path d="M142 53 L162 53"/><path d="M294 53 L314 53"/>
+          <path d="M446 53 L466 53"/><path d="M598 53 L618 53"/><path d="M750 53 L770 53"/>
+        </g>
+        <path d="M820 76 L820 92 L78 92 L78 112" stroke="var(--rule-firm)" stroke-width="1.4" fill="none" marker-end="url(#a2)"/>
+
+        <rect x="14"  y="118" width="128" height="46" rx="4" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="2"/>
+        <text x="26" y="137" class="svg-h">07 guard</text>
+        <text x="26" y="154" class="svg-s">pre-critic</text>
+
+        <rect x="166" y="118" width="128" height="46" rx="4" fill="var(--warn-soft)" stroke="var(--warn)" stroke-width="2"/>
+        <text x="178" y="137" class="svg-h">08 critic_verify</text>
+        <text x="178" y="154" class="svg-s" fill="var(--warn)">LLM</text>
+
+        <rect x="318" y="118" width="128" height="46" rx="4" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="2"/>
+        <text x="330" y="137" class="svg-h">09 guard</text>
+        <text x="330" y="154" class="svg-s">post-critic</text>
+
+        <rect x="470" y="118" width="128" height="46" rx="4" fill="var(--surface-2)" stroke="var(--L-workflow)"/>
+        <text x="482" y="137" class="svg-h">10 hitl_route</text>
+        <text x="482" y="154" class="svg-s">resolve approver role</text>
+
+        <rect x="622" y="118" width="128" height="46" rx="4" fill="var(--surface-2)" stroke="var(--L-workflow)"/>
+        <text x="634" y="137" class="svg-h">11 hitl_interrupt</text>
+        <text x="634" y="154" class="svg-s">timeout ⇒ no action</text>
+
+        <rect x="774" y="118" width="92" height="46" rx="4" fill="var(--surface-2)" stroke="var(--L-workflow)"/>
+        <text x="786" y="137" class="svg-h">12 finalize</text>
+        <text x="786" y="154" class="svg-s">audit first</text>
+
+        <g stroke="var(--rule-firm)" stroke-width="1.4" marker-end="url(#a2)">
+          <path d="M142 141 L162 141"/><path d="M294 141 L314 141"/>
+          <path d="M446 141 L466 141"/><path d="M598 141 L618 141"/><path d="M750 141 L770 141"/>
+        </g>
+
+        <line x1="14" y1="192" x2="866" y2="192" stroke="var(--rule)"/>
+        <text x="14" y="212" class="svg-m" fill="var(--ink-2)">TERMINAL EXITS — EVERY ONE OF THEM A VALID OUTCOME</text>
+
+        <rect x="14"  y="222" width="204" height="44" rx="4" fill="var(--surface-2)" stroke="var(--rule-firm)"/>
+        <text x="26" y="240" class="svg-h">abstain</text>
+        <text x="26" y="257" class="svg-s">records why. always valid</text>
+
+        <rect x="230" y="222" width="204" height="44" rx="4" fill="var(--surface-2)" stroke="var(--rule-firm)"/>
+        <text x="242" y="240" class="svg-h">blocked</text>
+        <text x="242" y="257" class="svg-s">draft quarantined, escalated</text>
+
+        <rect x="446" y="222" width="204" height="44" rx="4" fill="var(--surface-2)" stroke="var(--rule-firm)"/>
+        <text x="458" y="240" class="svg-h">refuse</text>
+        <text x="458" y="257" class="svg-s">no policy, no authorization</text>
+
+        <rect x="662" y="222" width="204" height="44" rx="4" fill="var(--stop-soft)" stroke="var(--stop)"/>
+        <text x="674" y="240" class="svg-h">gate defect — halt + alert</text>
+        <text x="674" y="257" class="svg-s">the filter failed; run untrustworthy</text>
+
+        <line x1="14" y1="292" x2="866" y2="292" stroke="var(--rule)"/>
+        <text x="14" y="314" class="svg-t">There is no edge from synthesize to finalize. Generated text cannot reach a caller without passing the guard,</text>
+        <text x="14" y="332" class="svg-t">the Critic, the guard again, and a human. There is no edge that skips the evidence gate.</text>
+        <text x="14" y="360" class="svg-b" fill="var(--accent)">2 LLM NODES · 9 DETERMINISTIC NODES · 4 TERMINAL STATES</text>
+        <text x="14" y="384" class="svg-s">The guard runs on both sides of the Critic because the Critic is itself a model, and its approve verdict is the transition that reaches a human.</text>
+      </svg>
+    </div>
+    <figcaption>The same twelve-node template is instantiated for all six workflows; only the domain tool at node 05 and the injected prohibition contract differ between them.</figcaption>
+  </figure>
+
+  <div class="note">
+    <strong>Read the graph for what it refuses to do.</strong> The absent edges carry more of the
+    design than the present ones. Synthesis is unreachable without sufficient, citable evidence;
+    a draft is unreachable by a human without two guard passes and a critic; and a response is
+    unreachable by a caller without an audit write.
+  </div>
+</section>
+
+<!-- ==================== FLOWS ==================== -->
+<section id="flows">
+  <h2>Thirteen runtime flows</h2>
+  <p class="lede">
+    Every path a request can take through the map above, from the repo's own flow definitions.
+  </p>
+  <div class="scroll">
+    <table>
+      <thead><tr><th>Flow</th><th>What happens</th><th>Path</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Login &amp; session</strong></td><td>An operator signs in; the server issues a token every later request authenticates with.</td><td class="m">client → auth API → user store</td></tr>
+        <tr><td><strong>Submit a run</strong></td><td>The graph runs intake through the guarded draft and pauses at the interrupt, waiting for a human.</td><td class="m">queue → runs API → nodes 01–11</td></tr>
+        <tr><td><strong>Human decision</strong></td><td>The eligible approver acts; the interrupt resumes and the decision is written to the append-only store. <em>The only path by which a run reaches a real outcome.</em></td><td class="m">queue → runs API → interrupt → finalize → audit</td></tr>
+        <tr><td><strong>Evidence retrieval</strong></td><td>A filtered Cypher query with untrusted and superseded evidence excluded <em>inside the query</em>, not by the caller.</td><td class="m">retrieve → evidence.retrieve → Neo4j</td></tr>
+        <tr><td><strong>Guarded draft</strong></td><td>Two independent model calls, bracketed by the same runtime guard on both sides.</td><td class="m">synth → Foundry → guard → critic → guard → cache</td></tr>
+        <tr><td><strong>Prohibited-action block</strong></td><td>A draft that trips the guard never reaches a human <em>and never crashes</em> — it reaches a clean abstained state through the same finalize node every other path uses.</td><td class="m">guard → guard tool → finalize → audit</td></tr>
+        <tr><td><strong>Insufficient-evidence abstention</strong></td><td>Exactly one scope-preserving broadening, then the system says "I don't know" rather than drafting from thin evidence.</td><td class="m">retrieve → gate → finalize</td></tr>
+        <tr><td><strong>HITL escalation</strong></td><td>A background loop notices a pending run has aged past a severity threshold, records it once, and best-effort emails — while the in-app bell always lights.</td><td class="m">watch → audit → notifier → SMTP → bell</td></tr>
+        <tr><td><strong>Record assistant Q&amp;A</strong></td><td>The model paraphrases; it never computes a fact or chooses an action. Input and output are both scanned.</td><td class="m">assistant → chat API → prompt guard → Foundry</td></tr>
+        <tr><td><strong>Nightly red-team</strong></td><td>A scheduled job exercises the guard against a real, sometimes-resistant model every night, because a pattern-matcher's coverage decays as attack phrasings drift.</td><td class="m">cron → synth → Foundry → guard</td></tr>
+        <tr><td><strong>CI/CD deploy</strong></td><td>A push must pass governance verification and the full test matrix before an image is even built, let alone deployed.</td><td class="m">push → CI → AI-BOM → manifest → CD → ACR → ACA</td></tr>
+        <tr><td><strong>Startup integrity</strong></td><td>Both verifiers run again at every container start — a tampered tool contract stops the container before it serves one request.</td><td class="m">ACA → AI-BOM → manifest → health</td></tr>
+        <tr><td><strong>Denial-of-wallet</strong></td><td>Every path, whatever its outcome, records its token and call cost at finalize against the same per-window ceiling.</td><td class="m">finalize → wallet guard</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ==================== SURFACE ==================== -->
+<section id="surface">
+  <h2>The deployed surface</h2>
+
+  <div class="grid3">
+    <div class="card">
+      <h4>Six governed workflows</h4>
+      <ul>
+        <li><code>batch_review</code></li>
+        <li><code>pv_intake</code></li>
+        <li><code>supply_planning</code></li>
+        <li><code>research_review</code></li>
+        <li><code>clinical_integrity</code></li>
+        <li><code>regulatory_completeness</code></li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4>Eleven UI routes</h4>
+      <ul>
+        <li>Dashboard · Login</li>
+        <li>Workflows — submit a run</li>
+        <li>Decisions queue · detail</li>
+        <li>Runs history · detail</li>
+        <li>Evidence catalog</li>
+        <li>Governance · Coverage · Health</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4>Twenty API routes</h4>
+      <ul>
+        <li>4 auth · 6 runs and queue</li>
+        <li>1 record chat · 1 notifications</li>
+        <li>2 evidence · 1 governance</li>
+        <li>2 evals and coverage · 1 dashboard</li>
+        <li>2 health</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>What is deliberately absent</h3>
+  <div class="grid2">
+    <div class="card">
+      <h4>No write path to any system of record</h4>
+      <p style="margin:0;font-size:14.5px;color:var(--ink-2)">Eight tool contracts, zero write
+      methods. The tool manifest declares this and the AI-BOM hashes the manifest, so weakening it
+      fails the build and refuses the container start.</p>
+    </div>
+    <div class="card">
+      <h4>No cross-run agent memory</h4>
+      <p style="margin:0;font-size:14.5px;color:var(--ink-2)">A deliberate omission, which is why
+      context-poisoning across runs is marked not-applicable rather than mitigated. Reversing it
+      would reopen that threat.</p>
+    </div>
+    <div class="card">
+      <h4>No planner, and no cross-graph call</h4>
+      <p style="margin:0;font-size:14.5px;color:var(--ink-2)">Routing is a pure function of state.
+      A run holds a credential for its own bounded-context tool server and no other.</p>
+    </div>
+    <div class="card">
+      <h4>No control implemented by a model</h4>
+      <p style="margin:0;font-size:14.5px;color:var(--ink-2)">Every hook binding would behave
+      identically if the system prompt were deleted entirely — which is the actual test of "not
+      prompt-dependent," and a stronger claim than "the design intends this."</p>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>
+      Compiled from this repository at <code>7a47074</code>: the SCQA frame, the nine ADRs and
+      their decision index, the agent roster and graph design, and
+      <code>docs/architecture/system_map/system_map.json</code>. Component counts are taken from
+      the map and the source tree, not from prose.
+    </p>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var links = Array.prototype.slice.call(document.querySelectorAll('.nav a'));
+  var targets = links.map(function (a) { return document.querySelector(a.getAttribute('href')); });
+  if (!('IntersectionObserver' in window)) { return; }
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) {
+      if (!e.isIntersecting) { return; }
+      var i = targets.indexOf(e.target);
+      if (i < 0) { return; }
+      links.forEach(function (a, j) { a.classList.toggle('on', i === j); });
+    });
+  }, { rootMargin: '-55px 0px -70% 0px', threshold: 0 });
+  targets.forEach(function (t) { if (t) { io.observe(t); } });
+})();
+</script>
+
+</body>
+</html>

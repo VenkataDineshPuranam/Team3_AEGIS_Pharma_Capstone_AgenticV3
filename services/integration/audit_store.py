@@ -321,15 +321,22 @@ def list_agent_runs(
     search: str | None = None,
     limit: int = 50,
     offset: int = 0,
+    exclude_drills: bool = True,
 ) -> tuple[list[dict], int]:
     """Newest-first page of agent_run rows plus the total matching count (for pagination).
 
     `search` is a case-insensitive substring match over run_id and subject_id only --
     deliberately not a free-text search over every column, so a caller cannot use it to
     probe fields (trace_id, policy versions) it was not given a filter for.
+
+    `exclude_drills` (default True) omits chaos-drill graph runs whose run_id starts with
+    `DRILL-`. Those rows remain in the store and are listed from /api/chaos-drill/history;
+    Run History must not mix them with governed decisions.
     """
     clauses: list[str] = []
     params: list = []
+    if exclude_drills:
+        clauses.append("run_id NOT LIKE 'DRILL-%'")
     if workflow:
         clauses.append("workflow = ?")
         params.append(workflow)

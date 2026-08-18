@@ -1,0 +1,10 @@
+{
+  "id": "CHAOS-CKPT-01",
+  "title": "Checkpointer loss on API restart (ops)",
+  "adr_row": "MemorySaver is process-local — restart loses mid-HITL state",
+  "ui_runnable": false,
+  "workflow": "batch_review",
+  "injector": "ops_only",
+  "expected": {},
+  "runbook": "ops/chaos/runbooks/CHAOS-CKPT-01.md"
+}

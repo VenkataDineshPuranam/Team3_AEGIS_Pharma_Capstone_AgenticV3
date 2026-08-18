@@ -21,6 +21,9 @@ import type {
   SessionInfo,
   SupplyLeg,
   Workflow,
+  ChaosDrillCatalog,
+  ChaosDrillResult,
+  ChaosDrillSummary,
 } from "./types";
 import type { EvalScorecard, InjectCoverage } from "./coverage-types";
 
@@ -99,6 +102,22 @@ export const getInjectCoverage = (signal?: AbortSignal) =>
  */
 export const getNotifications = (limit?: number, signal?: AbortSignal) =>
   read<NotificationItem[]>(`/api/notifications${query({ limit })}`, signal);
+
+export const getChaosDrillExperiments = (signal?: AbortSignal) =>
+  read<ChaosDrillCatalog>(`/api/chaos-drill/experiments`, signal);
+
+export const getChaosDrillHistory = (limit?: number, signal?: AbortSignal) =>
+  read<ChaosDrillSummary[]>(`/api/chaos-drill/history${query({ limit })}`, signal);
+
+/**
+ * Run one ADR-007 lab injector. Uses mutate() (no retry) because each call writes a
+ * chaos_drill_run row and may write a DRILL-* agent_run row.
+ */
+export const runChaosDrillExperiment = (experimentId: string) =>
+  mutate<ChaosDrillResult>(
+    `/api/chaos-drill/experiments/${encodeURIComponent(experimentId)}/run`,
+    {},
+  );
 
 // --- writes ----------------------------------------------------------------
 

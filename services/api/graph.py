@@ -29,8 +29,29 @@ POLICY_VERSION = "v1"
 MAX_LLM_CALLS = 6  # G1, failure_and_loop_guards.md SS2
 
 
-def build_graph(llm: LLMNodes | None = None, batch_id: str = "B-001", checkpointer=None):
+def build_graph(
+    llm: LLMNodes | None = None,
+    batch_id: str = "B-001",
+    checkpointer=None,
+    *,
+    retrieve_fn=None,
+    reconcile_fn=None,
+    policy_fn=None,
+    cache_get=None,
+    cache_set=None,
+):
+    """Compile the batch_review graph.
+
+    Optional callables (chaos drills / tests only) default to the production imports.
+    Production `_get_graph` passes none of them. Cache overrides must mimic
+    `response_cache`: return None / no-op on outage — never raise into synthesize.
+    """
     llm = llm or StubLLM()
+    do_retrieve = retrieve_fn or tool_retrieve
+    do_reconcile = reconcile_fn or tool_reconcile
+    do_policy = policy_fn or get_prohibition_contract
+    do_cache_get = cache_get or response_cache.get
+    do_cache_set = cache_set or response_cache.set_cleared
     audit_conn = audit_store.get_connection()
     dow_guard = DenialOfWalletGuard()
 
@@ -56,14 +77,14 @@ def build_graph(llm: LLMNodes | None = None, batch_id: str = "B-001", checkpoint
 
     def policy_load(state: GovernedState) -> dict:
         try:
-            contract = get_prohibition_contract(POLICY_VERSION, state["workflow"])
+            contract = do_policy(POLICY_VERSION, state["workflow"])
         except PolicyEngineUnavailable:
             return {"policy_contract_version": None, "terminal_state": "refused", "abstention_reason": "fail_closed"}
         return {"policy_contract_version": POLICY_VERSION, "prohibition_contract": contract}
 
     def retrieve(state: GovernedState) -> dict:
         try:
-            result = tool_retrieve(
+            result = do_retrieve(
                 run_id=state["run_id"],
                 terms=["BATCH_RELEASE", "policy"],
                 policy_contract_version=state["policy_contract_version"],
@@ -90,7 +111,7 @@ def build_graph(llm: LLMNodes | None = None, batch_id: str = "B-001", checkpoint
     def reconcile(state: GovernedState) -> dict:
         evidence_ids = [e.evidence_id for e in state["evidence"]]
         try:
-            result = tool_reconcile(
+            result = do_reconcile(
                 run_id=state["run_id"], batch_id=batch_id,
                 evidence_ids=evidence_ids, policy_contract_version=state["policy_contract_version"],
             )
@@ -106,7 +127,7 @@ def build_graph(llm: LLMNodes | None = None, batch_id: str = "B-001", checkpoint
         # from guard2's "clear" path below). Stale-evidence check happens inside
         # response_cache.get itself (the ADR-003 correctness scenario), not here.
         evidence_ids = [e.evidence_id for e in state["evidence"]]
-        cached = response_cache.get(state["workflow"], batch_id, evidence_ids)
+        cached = do_cache_get(state["workflow"], batch_id, evidence_ids)
         if cached is not None:
             return {"draft_output": cached}  # zero llm_calls/tokens -- the whole point of a hit
         try:
@@ -147,7 +168,7 @@ def build_graph(llm: LLMNodes | None = None, batch_id: str = "B-001", checkpoint
         result = guard(state)
         if result.get("guard_verdict") == "clear":
             evidence_ids = [e.evidence_id for e in state["evidence"]]
-            response_cache.set_cleared(state["workflow"], batch_id, evidence_ids, state["draft_output"])
+            do_cache_set(state["workflow"], batch_id, evidence_ids, state["draft_output"])
         return result
 
     def critic_verify(state: GovernedState) -> dict:

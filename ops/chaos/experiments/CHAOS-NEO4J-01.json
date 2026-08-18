@@ -1,0 +1,12 @@
+{
+  "id": "CHAOS-NEO4J-01",
+  "title": "Evidence store (Neo4j) unavailable",
+  "adr_row": "MCP/evidence retrieve unreachable → abstain (dependency_unavailable)",
+  "ui_runnable": true,
+  "workflow": "batch_review",
+  "injector": "neo4j_unavailable",
+  "expected": {
+    "terminal_state": "abstained",
+    "abstention_reason": "dependency_unavailable"
+  }
+}

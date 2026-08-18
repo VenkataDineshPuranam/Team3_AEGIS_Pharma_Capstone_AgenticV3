@@ -1,0 +1,12 @@
+{
+  "id": "CHAOS-REDIS-01",
+  "title": "Redis response cache unreachable",
+  "adr_row": "Redis unreachable → no-cache mode; never serve stale as fresh",
+  "ui_runnable": true,
+  "workflow": "batch_review",
+  "injector": "redis_bypass",
+  "expected": {
+    "cache_bypassed": true,
+    "abstention_reason": "hitl_timeout"
+  }
+}

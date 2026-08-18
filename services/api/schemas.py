@@ -323,3 +323,69 @@ class NotificationItem(BaseModel):
     evaluated_at: str
     subject_id: str | None = None
     approver_roles: list[str] | None = None
+
+
+# --- Chaos drills (ADR-007 lab injectors) ------------------------------------
+
+
+class ChaosDrillAssertion(BaseModel):
+    name: str
+    passed: bool
+    detail: str
+
+
+class ChaosDrillLastResult(BaseModel):
+    drill_id: str
+    passed: bool
+    overall_verdict: str
+    run_at: str
+    duration_ms: int
+    outcome_summary: str = ""
+    observed: dict[str, Any] = {}
+
+
+class ChaosDrillExperiment(BaseModel):
+    id: str
+    title: str
+    adr_row: str
+    ui_runnable: bool
+    workflow: str
+    runbook: str | None = None
+    last_result: ChaosDrillLastResult | None = None
+
+
+class ChaosDrillCapabilities(BaseModel):
+    can_run: bool
+
+
+class ChaosDrillCatalog(BaseModel):
+    capabilities: ChaosDrillCapabilities
+    experiments: list[ChaosDrillExperiment]
+
+
+class ChaosDrillResult(BaseModel):
+    drill_id: str
+    experiment_id: str
+    passed: bool
+    overall_verdict: str
+    assertions: list[ChaosDrillAssertion]
+    observed: dict[str, Any]
+    outcome_summary: str = ""
+    duration_ms: int
+    run_at: str
+    run_by_user_id: str
+    run_by_display_name: str
+    run_by_role: str
+
+
+class ChaosDrillSummary(BaseModel):
+    drill_id: str
+    experiment_id: str
+    run_at: str
+    run_by_display_name: str
+    run_by_role: str
+    passed: bool
+    overall_verdict: str
+    duration_ms: int
+    outcome_summary: str = ""
+    observed: dict[str, Any] = {}

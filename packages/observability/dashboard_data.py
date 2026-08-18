@@ -8,9 +8,18 @@ present an aggregate that would misrepresent a workflow with no real data yet).
 """
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 
 from services.integration.audit_store import get_connection
+
+# USD per 1K tokens. Defaults match Azure AI Foundry's published gpt-4o rate (the model
+# this deployment actually runs -- see AzureFoundryLLM in packages/config/llm_client.py).
+# Env-overridable because Azure list prices change and can differ by region/agreement --
+# this is a configured estimate against list price, not a reconciled invoice figure, and
+# is labeled as such wherever it's displayed.
+PRICE_PER_1K_INPUT_USD = float(os.environ.get("LLM_PRICE_PER_1K_INPUT_USD", "0.0025"))
+PRICE_PER_1K_OUTPUT_USD = float(os.environ.get("LLM_PRICE_PER_1K_OUTPUT_USD", "0.01"))
 
 
 @dataclass(frozen=True)
@@ -18,12 +27,20 @@ class CostPanel:
     """dashboards.md SS1: 'Tokens/run (distribution + p95), cost/run vs. Stage 15 budget,
     per-node token breakdown.' Per-node breakdown is NOT computable from agent_run alone
     (it only has run-total tokens) -- that granularity lives in LangSmith traces, named
-    honestly as still-design-only below, not fabricated here."""
+    honestly as still-design-only below, not fabricated here.
+
+    cost_usd_* fields are a configured estimate (PRICE_PER_1K_*_USD x recorded tokens),
+    not a reconciled Azure invoice figure -- named that way in the API response too."""
 
     run_count: int
     mean_tokens_per_run: float | None
     p95_tokens_per_run: float | None
     mean_llm_calls_per_run: float | None
+    mean_cost_usd_per_run: float | None
+    p95_cost_usd_per_run: float | None
+    total_cost_usd: float | None
+    price_per_1k_input_usd: float
+    price_per_1k_output_usd: float
 
 
 @dataclass(frozen=True)
@@ -48,24 +65,38 @@ class TerminalStatePanel:
     by_abstention_reason: dict[str, int]
 
 
+def _run_cost_usd(tokens_in: int, tokens_out: int) -> float:
+    return (tokens_in / 1000) * PRICE_PER_1K_INPUT_USD + (tokens_out / 1000) * PRICE_PER_1K_OUTPUT_USD
+
+
 def cost_panel(workflow: str | None = None) -> CostPanel:
     conn = get_connection()
     where = "WHERE workflow = ? AND tokens_in IS NOT NULL" if workflow else "WHERE tokens_in IS NOT NULL"
     params = (workflow,) if workflow else ()
     rows = conn.execute(
-        f"SELECT tokens_in + tokens_out AS total_tokens, llm_calls FROM agent_run {where}", params
+        f"SELECT tokens_in, tokens_out, llm_calls FROM agent_run {where}", params
     ).fetchall()
     if not rows:
-        return CostPanel(run_count=0, mean_tokens_per_run=None, p95_tokens_per_run=None, mean_llm_calls_per_run=None)
+        return CostPanel(
+            run_count=0, mean_tokens_per_run=None, p95_tokens_per_run=None, mean_llm_calls_per_run=None,
+            mean_cost_usd_per_run=None, p95_cost_usd_per_run=None, total_cost_usd=None,
+            price_per_1k_input_usd=PRICE_PER_1K_INPUT_USD, price_per_1k_output_usd=PRICE_PER_1K_OUTPUT_USD,
+        )
 
-    totals = sorted(r[0] for r in rows)
-    calls = [r[1] for r in rows if r[1] is not None]
+    totals = sorted(r[0] + r[1] for r in rows)
+    costs = sorted(_run_cost_usd(r[0], r[1]) for r in rows)
+    calls = [r[2] for r in rows if r[2] is not None]
     p95_index = min(len(totals) - 1, int(len(totals) * 0.95))
     return CostPanel(
         run_count=len(rows),
         mean_tokens_per_run=sum(totals) / len(totals),
         p95_tokens_per_run=float(totals[p95_index]),
         mean_llm_calls_per_run=(sum(calls) / len(calls)) if calls else None,
+        mean_cost_usd_per_run=sum(costs) / len(costs),
+        p95_cost_usd_per_run=costs[p95_index],
+        total_cost_usd=sum(costs),
+        price_per_1k_input_usd=PRICE_PER_1K_INPUT_USD,
+        price_per_1k_output_usd=PRICE_PER_1K_OUTPUT_USD,
     )
 
 

@@ -7,6 +7,7 @@ import { cn } from "@/lib/cn";
 import { getQueue } from "@/lib/api";
 import { useApiResource, useVisiblePolling } from "@/hooks/useApiResource";
 import { AssistantLauncher } from "@/components/assistant/AssistantLauncher";
+import { useAuth } from "./AuthContext";
 import { NotificationBell } from "./NotificationBell";
 import { OperatorBar } from "./OperatorBar";
 
@@ -26,6 +27,11 @@ interface NavItem {
   icon: ReactNode;
   /** Shows the live pending count. */
   badge?: "queue";
+  /** Restricts this destination to a specific role. Omitted = visible to everyone. This
+   *  is a UX convenience only, same as RequireAuth's own docstring says about itself --
+   *  the API's own 403 (services/api/main.py::_require_super_admin) is what actually
+   *  enforces it. */
+  role?: string;
 }
 
 const NAV: NavItem[] = [
@@ -34,6 +40,12 @@ const NAV: NavItem[] = [
     label: "Overview",
     description: "System state at a glance",
     icon: <IconGrid />,
+  },
+  {
+    href: "/guide",
+    label: "Getting Started",
+    description: "New here? Start with this",
+    icon: <IconCompass />,
   },
   {
     href: "/decisions",
@@ -77,11 +89,21 @@ const NAV: NavItem[] = [
     label: "Evaluation & Security",
     description: "What has been verified, and what has not",
     icon: <IconCheckShield />,
+    role: "Super Admin",
+  },
+  {
+    href: "/compliance",
+    label: "Compliance",
+    description: "EU AI Act and ISO 42001 evidence",
+    icon: <IconScale />,
+    role: "Super Admin",
   },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const { session } = useAuth();
+  const nav = NAV.filter((item) => !item.role || item.role === session?.role);
   const [mobileOpen, setMobileOpen] = useState(false);
   // React's "adjust state during render" pattern rather than an effect: closing the
   // drawer on navigation is a pure function of the route changing, computed synchronously
@@ -151,7 +173,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
 
         <ul className="flex-1 space-y-0.5 overflow-y-auto px-2.5 py-2 lg:py-1">
-          {NAV.map((item) => {
+          {nav.map((item) => {
             const active =
               item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
             return (
@@ -359,6 +381,26 @@ function IconPulse() {
   return (
     <svg {...iconProps()}>
       <path d="M1.5 8h3l1.5-4 2.5 8 1.5-4h3.5" />
+    </svg>
+  );
+}
+
+function IconCompass() {
+  return (
+    <svg {...iconProps()}>
+      <circle cx="8" cy="8" r="6.5" />
+      <path d="M10.2 5.8 8.9 8.9 5.8 10.2 7.1 7.1z" />
+    </svg>
+  );
+}
+
+function IconScale() {
+  return (
+    <svg {...iconProps()}>
+      <path d="M8 2v11.5M5 13.5h6" />
+      <path d="M2 5.5h4.5M9.5 5.5H14" />
+      <path d="M2 5.5 0.5 9a1.5 1.5 0 0 0 3 0Z" />
+      <path d="M14 5.5 12.5 9a1.5 1.5 0 0 0 3 0Z" />
     </svg>
   );
 }

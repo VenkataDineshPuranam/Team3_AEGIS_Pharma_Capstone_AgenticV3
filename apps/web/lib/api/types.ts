@@ -39,6 +39,29 @@ export interface RoleCatalogEntry {
   must_never: string;
 }
 
+export interface DemoAccount {
+  user_id: string;
+  display_name: string;
+  role: string;
+}
+
+export interface ComplianceSnapshot {
+  eu_ai_act: {
+    status: string;
+    source: string;
+    boundary_pack_questions: Record<string, string>[];
+  };
+  iso42001: {
+    status: string;
+    source: string;
+    clause_mapping: Record<string, string>[];
+  };
+  gap_register: {
+    source: string;
+    gaps: Record<string, string>[];
+  };
+}
+
 export interface DraftClaim {
   text: string;
   cites: string[];
@@ -253,6 +276,11 @@ export interface DashboardResponse {
     mean_tokens_per_run: number | null;
     p95_tokens_per_run: number | null;
     mean_llm_calls_per_run: number | null;
+    mean_cost_usd_per_run: number | null;
+    p95_cost_usd_per_run: number | null;
+    total_cost_usd: number | null;
+    price_per_1k_input_usd: number;
+    price_per_1k_output_usd: number;
   };
   guardrail_trip: {
     run_count: number;

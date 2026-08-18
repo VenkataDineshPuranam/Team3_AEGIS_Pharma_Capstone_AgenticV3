@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { PageBody, PageHeader } from "@/components/layout/AppShell";
+import { useAuth } from "@/components/layout/AuthContext";
 import { Button } from "@/components/ui/Button";
 import { Card, CardBody, CardHeader, NotAvailable } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -13,12 +14,14 @@ import {
   getDashboard,
   getHealthDetail,
   getQueue,
+  getRoleCatalog,
   getRunHistory,
   type DependencyHealth,
 } from "@/lib/api";
 import {
   ABSTENTION_EXPLANATIONS,
   formatAge,
+  formatCurrency,
   formatDateTime,
   formatNumber,
   formatPercent,
@@ -36,11 +39,13 @@ import {
  */
 export default function OverviewPage() {
   const pollMs = useVisiblePolling(15_000);
+  const { session } = useAuth();
 
   const queue = useApiResource((s) => getQueue(undefined, s), [], { pollMs });
   const dashboard = useApiResource((s) => getDashboard(undefined, s), [], { pollMs: 30_000 });
   const health = useApiResource((s) => getHealthDetail(s), [], { pollMs: 60_000 });
   const recent = useApiResource((s) => getRunHistory({ limit: 8 }, s), [], { pollMs: 30_000 });
+  const roles = useApiResource((s) => getRoleCatalog(s), []);
 
   const pending = queue.data;
   const states = dashboard.data?.terminal_states;
@@ -49,11 +54,22 @@ export default function OverviewPage() {
       (d) => d.status === "unavailable" || d.status === "degraded",
     ) ?? [];
 
+  // The home page is the one screen every role lands on first, so its framing is the one
+  // place worth tailoring per role rather than showing the same generic sentence to
+  // everyone -- Super Admin genuinely uses this differently (system-wide oversight, no
+  // decide authority) than an approver role does (accountable for specific decisions).
+  const myRole = session ? roles.data?.[session.role] : undefined;
+  const headerDescription = session
+    ? session.role === "Super Admin"
+      ? `Signed in as ${session.display_name} — Super Admin. Full cross-workflow visibility for system oversight; this account cannot approve, reject, or veto anything (by design — see Governance).`
+      : `Signed in as ${session.display_name} — ${session.role}. ${myRole?.product_use ?? "Governed AI decision support across six regulated workflows."}`
+    : "Governed AI decision support across six regulated workflows. Every finding is evidence-backed, every terminal decision is made by an accountable human.";
+
   return (
     <>
       <PageHeader
-        title="Overview"
-        description="Governed AI decision support across six regulated workflows. Every finding is evidence-backed, every terminal decision is made by an accountable human."
+        title={session ? `Welcome back, ${session.display_name.split(" ").pop()}` : "Overview"}
+        description={headerDescription}
         actions={
           <Button variant="secondary" onClick={() => { queue.refresh(); dashboard.refresh(); }}>
             Refresh
@@ -62,6 +78,15 @@ export default function OverviewPage() {
       />
 
       <PageBody className="space-y-6">
+        {session?.role === "Super Admin" && (
+          <Notice tone="info" title="Super Admin: read-only, system-wide">
+            You can see every workflow below with nothing filtered out. This role has no
+            approve, reject, or veto authority anywhere in the system — see{" "}
+            <Link href="/compliance" className="underline underline-offset-2">Compliance</Link> and{" "}
+            <Link href="/coverage" className="underline underline-offset-2">Evaluation &amp; Security</Link>{" "}
+            for the two additional sections only Super Admin can see.
+          </Notice>
+        )}
         {unhealthy.length > 0 && (
           <Notice tone="warning" title="A dependency needs attention">
             {unhealthy.map((d) => d.name).join(", ")} —{" "}
@@ -395,6 +420,18 @@ export default function OverviewPage() {
                       value={formatNumber(dashboard.data.cost.run_count)}
                     />
                     <Row
+                      label="Mean cost / run"
+                      value={formatCurrency(dashboard.data.cost.mean_cost_usd_per_run)}
+                    />
+                    <Row
+                      label="p95 cost / run"
+                      value={formatCurrency(dashboard.data.cost.p95_cost_usd_per_run)}
+                    />
+                    <Row
+                      label="Total, all recorded runs"
+                      value={formatCurrency(dashboard.data.cost.total_cost_usd, 2)}
+                    />
+                    <Row
                       label="Mean tokens / run"
                       value={formatNumber(dashboard.data.cost.mean_tokens_per_run)}
                     />
@@ -411,8 +448,11 @@ export default function OverviewPage() {
                   <SkeletonText lines={4} />
                 )}
                 <p className="mt-4 border-t border-[var(--border-subtle)] pt-3 text-[11px] leading-relaxed text-[var(--text-tertiary)]">
-                  Per-node token breakdown is not computable from the audit store, which holds
-                  run totals only. That granularity lives in LangSmith traces.
+                  Cost is a configured estimate ({dashboard.data ? formatCurrency(dashboard.data.cost.price_per_1k_input_usd, 4) : "$0.0025"}/1K
+                  input, {dashboard.data ? formatCurrency(dashboard.data.cost.price_per_1k_output_usd, 4) : "$0.01"}/1K output tokens against
+                  recorded token counts) — not a reconciled Azure invoice figure. Per-node
+                  token breakdown is not computable from the audit store, which holds run
+                  totals only; that granularity lives in LangSmith traces.
                 </p>
               </CardBody>
             </Card>

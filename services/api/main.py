@@ -40,7 +40,14 @@ from langgraph.types import Command
 
 from packages.config.llm_client import get_llm
 from packages.domain.state import new_state
-from services.api import eval_dashboard, governance_view, health_probe, pending_queue, record_chat
+from services.api import (
+    compliance_view,
+    eval_dashboard,
+    governance_view,
+    health_probe,
+    pending_queue,
+    record_chat,
+)
 from services.api.auth import require_user
 from services.api.graph import build_graph
 from services.api.pv_graph import build_pv_graph
@@ -213,6 +220,19 @@ def _queue_entry(e: pending_queue.PendingEntry) -> QueueEntry:
 # ---------------------------------------------------------------------------
 
 
+@app.get("/api/auth/demo-accounts")
+def demo_accounts():
+    """Populates the login page's account picker. Returns user_id/display_name/role only
+    -- never a password, even though this is a documented synthetic demo environment
+    (docs/governance/demo_login_credentials.md), because a picker that types a password
+    into the DOM for you is a bad habit to demo even in a synthetic system."""
+    conn = user_store.get_connection()
+    try:
+        return user_store.list_users(conn)
+    finally:
+        conn.close()
+
+
 @app.post("/api/auth/login", response_model=SessionInfo)
 def login(req: LoginRequest):
     conn = user_store.get_connection()
@@ -254,6 +274,29 @@ def role_catalog():
         role: {"product_use": info["product_use"], "must_never": info["must_never"]}
         for role, info in user_store.ROLE_CATALOG.items()
     }
+
+
+def _require_super_admin(session: user_store.Session = Depends(require_user)) -> user_store.Session:
+    """Evaluation results, red-team inject coverage, and compliance evidence describe how
+    well-defended (or not) the system is -- exposing that to every logged-in role hands a
+    map of untested edges to anyone with a login, not just the person accountable for
+    system-wide oversight. Super Admin is the only role with no decide authority anywhere
+    (user_store.ROLE_CATALOG), so it's the natural place for a read-only,
+    everything-visible surface like this one."""
+    if session.role != "Super Admin":
+        raise HTTPException(403, "Only Super Admin may view this data.")
+    return session
+
+
+@app.get("/api/compliance")
+def compliance(session: user_store.Session = Depends(_require_super_admin)):
+    """EU AI Act risk classification + ISO 42001 control mapping + open gap register,
+    parsed live from docs/governance/compliance/*.md. Super Admin only -- see
+    _require_super_admin's docstring."""
+    try:
+        return compliance_view.snapshot()
+    except compliance_view.ComplianceDocsUnavailable as exc:
+        raise HTTPException(503, f"Compliance documentation unavailable: {exc}") from exc
 
 
 @app.post("/api/runs", response_model=RunResult)
@@ -541,7 +584,7 @@ def governance():
 
 
 @app.get("/api/evals/scorecard", response_model=EvalScorecard)
-def evals_scorecard():
+def evals_scorecard(session: user_store.Session = Depends(_require_super_admin)):
     """Runs the real eval-ai-cache harness in-process, live, on every request -- see
     eval_dashboard.py's module docstring for why this one is safe to compute per-request
     (pure grading logic against synthetic fixtures, ~25ms, no LLM/network calls) while
@@ -550,7 +593,7 @@ def evals_scorecard():
 
 
 @app.get("/api/coverage/injects", response_model=InjectCoverage)
-def inject_coverage():
+def inject_coverage(session: user_store.Session = Depends(_require_super_admin)):
     """The curated V1-inject-to-V2-reality coverage mapping. Read-only; there is no
     endpoint that can write to this file."""
     try:

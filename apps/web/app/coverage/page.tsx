@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { PageBody, PageHeader } from "@/components/layout/AppShell";
+import { RequireRole } from "@/components/layout/RequireRole";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
@@ -41,15 +42,28 @@ type StatusFilter = CoverageStatus | "all";
  *     whether a scenario is genuinely addressed requires understanding code, not a script.
  */
 export default function CoveragePage() {
+  return (
+    <RequireRole role="Super Admin">
+      <CoverageDashboard />
+    </RequireRole>
+  );
+}
+
+function CoverageDashboard() {
   const [tab, setTab] = useState<Tab>("injects");
   const injects = useApiResource((s) => getInjectCoverage(s), []);
   const evals = useApiResource((s) => getEvalScorecard(s), []);
+
+  const injectAddressed =
+    injects.data ? (injects.data.by_status.COVERED ?? 0) + (injects.data.by_status.PARTIAL ?? 0) : null;
+  const injectInScope = injects.data ? injects.data.total_injects - (injects.data.by_status.OUT_OF_SCOPE ?? 0) : null;
+  const injectGaps = injects.data?.by_status.NOT_COVERED ?? null;
 
   return (
     <>
       <PageHeader
         title="Evaluation & Security Coverage"
-        description="What has actually been verified, and what has not. Every status below cites a real file — nothing here is an estimate."
+        description="System-wide verification posture, visible only to Super Admin. Every status below cites a real file — nothing here is an estimate."
         actions={
           <Button
             variant="secondary"
@@ -62,7 +76,39 @@ export default function CoveragePage() {
           </Button>
         }
       />
-      <PageBody>
+      <PageBody className="space-y-6">
+        {/* --- system posture: one row combining both data sources -------- */}
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <StatTile
+            label="Eval pass rate"
+            value={evals.data ? formatPercent(evals.data.total_scenarios ? evals.data.passed / evals.data.total_scenarios : 0) : null}
+            tone={evals.data && evals.data.failed > 0 ? "blocked" : "ok"}
+            sub={evals.data ? `${evals.data.passed} / ${evals.data.total_scenarios} scenarios, executed live` : undefined}
+            unavailableReason="The eval harness could not be reached."
+          />
+          <StatTile
+            label="Inject coverage"
+            value={injectInScope != null && injectAddressed != null ? formatPercent(injectInScope ? injectAddressed / injectInScope : 0) : null}
+            tone="ok"
+            sub={injectInScope != null ? `${injectAddressed} / ${injectInScope} in-scope scenarios addressed` : undefined}
+            unavailableReason="Coverage data could not be reached."
+          />
+          <StatTile
+            label="Open eval failures"
+            value={evals.data?.failed ?? null}
+            tone={evals.data && evals.data.failed > 0 ? "blocked" : "neutral"}
+            sub="From the live harness run above"
+            unavailableReason="The eval harness could not be reached."
+          />
+          <StatTile
+            label="Open coverage gaps"
+            value={injectGaps}
+            tone={injectGaps ? "blocked" : "neutral"}
+            sub="In scope, nothing addresses it yet"
+            unavailableReason="Coverage data could not be reached."
+          />
+        </div>
+
         <Tabs<Tab>
           label="Coverage sections"
           value={tab}

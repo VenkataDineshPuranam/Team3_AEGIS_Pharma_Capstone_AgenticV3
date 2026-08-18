@@ -237,6 +237,12 @@ export function formatPercent(ratio: number | null | undefined, digits = 1): str
   return `${(ratio * 100).toFixed(digits)}%`;
 }
 
+/** USD, with enough precision to show a sub-cent per-run cost meaningfully. */
+export function formatCurrency(amount: number | null | undefined, digits = 4): string | null {
+  if (amount === null || amount === undefined || Number.isNaN(amount)) return null;
+  return `$${amount.toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits })}`;
+}
+
 /** Snake_case backend value -> human words, for labels with no curated mapping. */
 export function humanize(value: string): string {
   return value.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase());

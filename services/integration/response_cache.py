@@ -30,7 +30,7 @@ import json
 
 from packages.config.redis_client import get_client
 from packages.domain.evidence import Claim
-from packages.domain.kg.client import Neo4jNotConfigured, session
+from packages.domain.kg.client import session
 from packages.domain.state import DecisionSupportOutput
 
 _TTL_SECONDS = 3600  # volatile-lru eviction handles memory pressure; TTL is the fallback (redis_tuning.md SS4)

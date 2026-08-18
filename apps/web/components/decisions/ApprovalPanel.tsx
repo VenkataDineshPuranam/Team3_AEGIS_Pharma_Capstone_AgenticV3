@@ -10,6 +10,7 @@ import { useAuth } from "@/components/layout/AuthContext";
 import { HitlTimerBadge } from "@/components/decisions/HitlTimerBadge";
 import { ApiError, decideRun, type DecisionAction, type QueueEntry, type SupplyLeg } from "@/lib/api";
 import { WORKFLOW_BOUNDARY } from "@/lib/format";
+import { emitQueueChanged } from "@/lib/queueEvents";
 
 /** Mirrors services/api/schemas.py MIN_JUSTIFICATION_CHARS. Enforced by the API too. */
 const MIN_JUSTIFICATION = 12;
@@ -98,6 +99,7 @@ export function ApprovalPanel({
         leg: pending.leg ?? null,
       });
       setPending(null);
+      emitQueueChanged();
       onDecided();
     } catch (e) {
       // Deliberately no retry. The request may have been recorded; only the human can

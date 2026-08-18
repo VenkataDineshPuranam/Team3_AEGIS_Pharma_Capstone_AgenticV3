@@ -11,6 +11,7 @@ import { ErrorState, Notice } from "@/components/ui/States";
 import { WorkflowChip } from "@/components/domain/Chips";
 import { ApiError, submitRun, type Workflow } from "@/lib/api";
 import { WORKFLOW_BOUNDARY, WORKFLOW_LABELS, WORKFLOW_SUBJECT_LABEL } from "@/lib/format";
+import { emitQueueChanged } from "@/lib/queueEvents";
 
 // tests/fixtures/synthetic/* -- the only subject ids the backend can actually resolve in
 // this build. Listing exactly these rather than a free-text field keeps this page from
@@ -133,6 +134,7 @@ function StartRunForm({ workflow }: { workflow: Workflow }) {
         requester_role: session?.role || DEFAULT_ROLE[workflow],
       });
       setResult({ runId: r.run_id, pending: r.status === "pending_approval" });
+      if (r.status === "pending_approval") emitQueueChanged();
     } catch (err) {
       setError(err instanceof ApiError ? err : new ApiError(String(err), 0));
     } finally {

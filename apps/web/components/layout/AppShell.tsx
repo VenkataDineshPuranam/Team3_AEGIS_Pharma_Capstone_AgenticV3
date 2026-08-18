@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { cn } from "@/lib/cn";
 import { getQueue } from "@/lib/api";
 import { useApiResource, useVisiblePolling } from "@/hooks/useApiResource";
+import { subscribeQueueChanged } from "@/lib/queueEvents";
 import { AssistantLauncher } from "@/components/assistant/AssistantLauncher";
 import { useAuth } from "./AuthContext";
 import { NotificationBell } from "./NotificationBell";
@@ -110,9 +111,12 @@ export function AppShell({ children }: { children: ReactNode }) {
   }
 
   // The pending count is the one number worth carrying in the chrome: it is the reason an
-  // operator opens this application at all.
+  // operator opens this application at all. Polling alone means it can lag up to 15s
+  // behind a run just submitted or decided elsewhere in the app -- subscribing to
+  // queueEvents lets those actions say "refetch now" instead of waiting for the next tick.
   const pollMs = useVisiblePolling(15_000);
   const queue = useApiResource((signal) => getQueue(undefined, signal), [], { pollMs });
+  useEffect(() => subscribeQueueChanged(queue.refresh), [queue.refresh]);
   const pendingCount = queue.data?.length ?? null;
 
   return (

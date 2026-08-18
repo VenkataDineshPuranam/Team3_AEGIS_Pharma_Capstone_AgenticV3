@@ -125,6 +125,15 @@ ROLE_CATALOG: dict[str, dict] = {
         # supply_planning read endpoint by services.api.auth.visible_workflows().
         "excluded_workflows": {"supply_planning"},
     },
+    "Super Admin": {
+        "product_use": "Everything -- full cross-workflow visibility for system oversight",
+        "must_never": "Approve, reject, veto, or otherwise decide any workflow",
+        # Deliberately empty, same as Auditor/CISO/Quality reviewer: this system's whole
+        # governance model rests on no single role holding blanket decide authority (BC-12,
+        # segregation of duties). "Sees everything" is answered by the ABSENCE of an
+        # excluded_workflows entry below, not by adding approve/veto power here.
+        "approver_for": {},
+    },
 }
 
 

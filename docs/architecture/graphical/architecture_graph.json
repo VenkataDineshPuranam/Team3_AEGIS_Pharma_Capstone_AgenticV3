@@ -305,7 +305,7 @@
       "label": "user_store (SQLite)",
       "type": "store",
       "file": "services/integration/user_store.py",
-      "description": "10 synthetic role-backed accounts, PBKDF2-HMAC password hashes, server-side session rows with 8h expiry. Same SQLite file as audit_store. Holds ROLE_CATALOG mapping login roles to each graph's PRIMARY_APPROVER strings, and approver_string_for()/can_veto() used by decide_run's authorization check."
+      "description": "11 synthetic role-backed accounts, PBKDF2-HMAC password hashes, server-side session rows with 8h expiry. Same SQLite file as audit_store. Holds ROLE_CATALOG mapping login roles to each graph's PRIMARY_APPROVER strings, and approver_string_for()/can_veto() used by decide_run's authorization check."
     },
     {
       "id": "tool_seed_users",

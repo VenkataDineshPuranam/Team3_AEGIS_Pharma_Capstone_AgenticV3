@@ -1,4 +1,4 @@
-"""One-time (idempotent) seed of the ten synthetic demo accounts, one per ROLE_CATALOG
+"""One-time (idempotent) seed of the eleven synthetic demo accounts, one per ROLE_CATALOG
 entry in user_store.py. Run directly: `python3 -m services.integration.seed_users`.
 
 Passwords are synthetic and intentionally documented in
@@ -6,11 +6,12 @@ docs/governance/demo_login_credentials.md -- this is a capstone/demo environment
 real PHI/PII and no real people behind these accounts, the same posture the project
 already takes with every other fixture (see V1 CLAUDE.md's "Synthetic data only").
 
-user_id follows the ordinary enterprise first-initial.lastname convention rather than a
-role-slug -- so a login screen showing these accounts reads like a real org directory, not
-a list of test fixtures. Role strings themselves are UNCHANGED and load-bearing (matched
-verbatim by services/integration/user_store.py's ROLE_CATALOG and every approver_roles
-check downstream) -- only the person attached to each role changed.
+user_id is the person's own firstname.lastname -- so a login screen showing these accounts
+reads like a real org directory, not a list of test fixtures. Role strings themselves are
+UNCHANGED and load-bearing (matched verbatim by services/integration/user_store.py's
+ROLE_CATALOG and every approver_roles check downstream) -- only the person attached to
+each role changed. Super Admin is new: full cross-workflow read visibility, no decide
+authority on anything -- see the ROLE_CATALOG entry for why that boundary is deliberate.
 """
 from __future__ import annotations
 
@@ -18,16 +19,17 @@ from services.integration import user_store
 
 # (user_id, display_name, role, password)
 SEED_ACCOUNTS = [
-    ("e.moreau", "Elise Moreau", "EU Qualified Person", "Moreau#2026EU"),
-    ("a.osei", "Dr. Amara Osei", "Safety physician", "Osei#2026Rx"),
-    ("m.feldman", "Marcus Feldman", "Supply governance", "Feldman#2026Sc"),
-    ("w.chen", "Dr. Wei Chen", "Head of Preclinical Research", "Chen#2026Pre"),
-    ("s.alvarez", "Dr. Sofia Alvarez", "Clinical Trial Medical Monitor", "Alvarez#2026Cl"),
-    ("p.nair", "Priya Nair", "Head of Regulatory Affairs", "Nair#2026Reg"),
-    ("t.berg", "Thomas Berg", "Quality reviewer", "Berg#2026QA"),
-    ("n.ilic", "Naomi Ilic", "CISO / DPO", "Ilic#2026Sec"),
-    ("d.cho", "Daniel Cho", "Auditor", "Cho#2026Aud"),
-    ("j.kessler", "Dr. Julian Kessler", "Unblinding authority", "Kessler#2026Ub"),
+    ("james.whitfield", "James Whitfield", "EU Qualified Person", "Whitfield#2026EU"),
+    ("rachel.coleman", "Dr. Rachel Coleman", "Safety physician", "Coleman#2026Rx"),
+    ("michael.turner", "Michael Turner", "Supply governance", "Turner#2026Sc"),
+    ("david.bennett", "Dr. David Bennett", "Head of Preclinical Research", "Bennett#2026Pre"),
+    ("laura.simmons", "Dr. Laura Simmons", "Clinical Trial Medical Monitor", "Simmons#2026Cl"),
+    ("jennifer.hayes", "Jennifer Hayes", "Head of Regulatory Affairs", "Hayes#2026Reg"),
+    ("robert.doyle", "Robert Doyle", "Quality reviewer", "Doyle#2026QA"),
+    ("karen.mitchell", "Karen Mitchell", "CISO / DPO", "Mitchell#2026Sec"),
+    ("brian.foster", "Brian Foster", "Auditor", "Foster#2026Aud"),
+    ("steven.parker", "Dr. Steven Parker", "Unblinding authority", "Parker#2026Ub"),
+    ("patricia.grant", "Patricia Grant", "Super Admin", "Grant#2026Admin"),
 ]
 
 

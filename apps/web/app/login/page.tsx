@@ -5,7 +5,7 @@ import { Suspense, useEffect, useId, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { ErrorState } from "@/components/ui/States";
 import { useAuth } from "@/components/layout/AuthContext";
-import { ApiError } from "@/lib/api";
+import { ApiError, getDemoAccounts, type DemoAccount } from "@/lib/api";
 
 export default function LoginPage() {
   return (
@@ -23,14 +23,31 @@ function LoginForm() {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
+  const [accounts, setAccounts] = useState<DemoAccount[]>([]);
   const userIdInputId = useId();
   const passwordInputId = useId();
+  const accountSelectId = useId();
 
   const next = params.get("next") || "/";
 
   useEffect(() => {
     if (session) router.replace(next);
   }, [session, next, router]);
+
+  useEffect(() => {
+    let cancelled = false;
+    getDemoAccounts()
+      .then((list) => {
+        if (!cancelled) setAccounts(list);
+      })
+      .catch(() => {
+        // The account picker is a convenience, not a requirement -- if it can't load,
+        // the User ID field below still works exactly as it always has.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -75,6 +92,35 @@ function LoginForm() {
           </p>
 
           <form onSubmit={onSubmit} className="mt-5 space-y-4">
+            {accounts.length > 0 && (
+              <div>
+                <label
+                  htmlFor={accountSelectId}
+                  className="block text-[13px] font-medium text-[var(--text-primary)]"
+                >
+                  Who are you signing in as?
+                </label>
+                <select
+                  id={accountSelectId}
+                  value={userId}
+                  onChange={(e) => setUserId(e.target.value)}
+                  className="mt-1.5 w-full rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--surface-raised)] px-3 py-2 text-sm text-[var(--text-primary)] hover:border-[var(--border-strong)]"
+                >
+                  <option value="">Choose an account, or type a User ID below</option>
+                  {accounts.map((a) => (
+                    <option key={a.user_id} value={a.user_id}>
+                      {a.display_name} — {a.role}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1.5 text-[11px] leading-relaxed text-[var(--text-tertiary)]">
+                  Multiple people can be signed in at once, each with their own session —
+                  picking a name here only fills in the User ID field; you still need that
+                  person&apos;s password from docs/governance/demo_login_credentials.md.
+                </p>
+              </div>
+            )}
+
             <div>
               <label
                 htmlFor={userIdInputId}
@@ -89,7 +135,7 @@ function LoginForm() {
                 required
                 value={userId}
                 onChange={(e) => setUserId(e.target.value)}
-                placeholder="e.g. qp_eu_1"
+                placeholder="e.g. james.whitfield"
                 className="mt-1.5 w-full rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--surface-raised)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] hover:border-[var(--border-strong)]"
               />
             </div>

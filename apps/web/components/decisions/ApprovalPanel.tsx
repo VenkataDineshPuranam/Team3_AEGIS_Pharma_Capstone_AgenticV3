@@ -10,6 +10,7 @@ import { useAuth } from "@/components/layout/AuthContext";
 import { HitlTimerBadge } from "@/components/decisions/HitlTimerBadge";
 import { ApiError, decideRun, type DecisionAction, type QueueEntry, type SupplyLeg } from "@/lib/api";
 import { WORKFLOW_BOUNDARY } from "@/lib/format";
+import { emitQueueChanged } from "@/lib/queueEvents";
 
 /** Mirrors services/api/schemas.py MIN_JUSTIFICATION_CHARS. Enforced by the API too. */
 const MIN_JUSTIFICATION = 12;
@@ -98,6 +99,7 @@ export function ApprovalPanel({
         leg: pending.leg ?? null,
       });
       setPending(null);
+      emitQueueChanged();
       onDecided();
     } catch (e) {
       // Deliberately no retry. The request may have been recorded; only the human can
@@ -153,20 +155,31 @@ export function ApprovalPanel({
         {/* --- the controls -------------------------------------------- */}
         {isDual ? (
           <DualApprovalControls entry={entry} onOpen={open} busy={submitting} />
-        ) : (
+        ) : entry.viewer_can_approve_reject || entry.viewer_can_veto ? (
           <div className="flex flex-wrap gap-2">
-            <Button variant="primary" size="md" onClick={() => open("approved")}>
-              Approve
-            </Button>
-            <Button variant="danger" size="md" onClick={() => open("rejected")}>
-              Reject
-            </Button>
-            {isPV && (
+            {entry.viewer_can_approve_reject && (
+              <>
+                <Button variant="primary" size="md" onClick={() => open("approved")}>
+                  Approve
+                </Button>
+                <Button variant="danger" size="md" onClick={() => open("rejected")}>
+                  Reject
+                </Button>
+              </>
+            )}
+            {isPV && entry.viewer_can_veto && (
               <Button variant="danger-strong" size="md" onClick={() => open("veto")}>
                 Register veto
               </Button>
             )}
           </div>
+        ) : (
+          <Notice tone="info" title="You cannot decide this run">
+            The governed approver for this run is {entry.approver_roles.join(" and ") || "a different role"} —
+            your signed-in role ({role}) is not authorized to approve, reject, or veto it.
+            You can still read everything above; deciding it requires signing in as an
+            eligible role.
+          </Notice>
         )}
 
         {isPV && (
@@ -383,6 +396,7 @@ function DualApprovalControls({
     <div className="space-y-2">
       {legs.map((leg) => {
         const done = entry.approved_legs.includes(leg.key);
+        const canDecideThisLeg = entry.viewer_decidable_legs.includes(leg.key);
         return (
           <div
             key={leg.key}
@@ -393,7 +407,7 @@ function DualApprovalControls({
               <Badge tone="ok" size="sm">
                 Recorded
               </Badge>
-            ) : (
+            ) : canDecideThisLeg ? (
               <span className="flex gap-2">
                 <Button
                   variant="primary"
@@ -406,6 +420,8 @@ function DualApprovalControls({
                   Reject
                 </Button>
               </span>
+            ) : (
+              <span className="text-[12px] text-[var(--text-tertiary)]">Not your leg to decide</span>
             )}
           </div>
         );

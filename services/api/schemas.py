@@ -142,6 +142,16 @@ class QueueEntry(BaseModel):
     domain_payload: dict[str, Any] | None = None
     evidence_accounting: dict[str, Any] | None = None
     hitl_timer: HitlTimerInfo
+    # Stage 25 -- computed the same way decide_run() itself decides (user_store.
+    # approver_string_for / can_veto), NOT re-derived client-side, so the UI can disable
+    # controls the viewer would get a 403 for instead of showing them unconditionally to
+    # every signed-in role. approver_roles above is the DISPLAY name (e.g. "Global Head
+    # of Pharmacovigilance"), which does not equal the viewer's login role string (e.g.
+    # "Safety physician") for several roles -- that mismatch is exactly why this can't be
+    # computed on the frontend from approver_roles alone.
+    viewer_can_approve_reject: bool
+    viewer_can_veto: bool
+    viewer_decidable_legs: list[str]
 
 
 class AuditEvent(BaseModel):

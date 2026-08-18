@@ -5,8 +5,10 @@
  */
 import { mutate, mutatePublic, read } from "./client";
 import type {
+  ComplianceSnapshot,
   DashboardResponse,
   DecisionAction,
+  DemoAccount,
   EvidenceCatalogItem,
   EvidenceStats,
   GovernanceSnapshot,
@@ -49,6 +51,12 @@ export const logout = () => mutate<{ status: string }>("/api/auth/logout", {});
 
 export const getRoleCatalog = (signal?: AbortSignal) =>
   read<Record<string, RoleCatalogEntry>>("/api/auth/roles", signal);
+
+export const getDemoAccounts = (signal?: AbortSignal) =>
+  read<DemoAccount[]>("/api/auth/demo-accounts", signal);
+
+export const getCompliance = (signal?: AbortSignal) =>
+  read<ComplianceSnapshot>("/api/compliance", signal);
 
 // --- reads -----------------------------------------------------------------
 

@@ -40,7 +40,15 @@ from langgraph.types import Command
 
 from packages.config.llm_client import get_llm
 from packages.domain.state import new_state
-from services.api import chaos_drill, eval_dashboard, governance_view, health_probe, pending_queue, record_chat
+from services.api import (
+    chaos_drill,
+    compliance_view,
+    eval_dashboard,
+    governance_view,
+    health_probe,
+    pending_queue,
+    record_chat,
+)
 from services.api.auth import require_user
 from services.api.graph import build_graph
 from services.api.pv_graph import build_pv_graph
@@ -196,8 +204,18 @@ def _status_for(state: dict) -> str:
     return "abstained"  # defensive fallback -- should be unreachable given graph invariants
 
 
-def _queue_entry(e: pending_queue.PendingEntry) -> QueueEntry:
+def _queue_entry(e: pending_queue.PendingEntry, viewer_role: str | None = None) -> QueueEntry:
     timer = hitl_timer.compute(e.created_at, e.workflow)
+    remaining_legs = [leg for leg in (e.required_legs or []) if leg not in e.approved_legs]
+    if remaining_legs:
+        decidable_legs = [
+            leg for leg in remaining_legs
+            if user_store.approver_string_for(viewer_role or "", e.workflow, leg) is not None
+        ]
+        can_approve_reject = False  # single-action approve/reject only applies outside dual-leg
+    else:
+        decidable_legs = []
+        can_approve_reject = user_store.approver_string_for(viewer_role or "", e.workflow, None) is not None
     return QueueEntry(
         run_id=e.run_id, workflow=e.workflow, subject_id=e.subject_id,
         requester_role=e.requester_role, approver_roles=e.approver_roles,
@@ -208,12 +226,28 @@ def _queue_entry(e: pending_queue.PendingEntry) -> QueueEntry:
             tier=timer.tier, label=timer.label, severity=timer.severity,
             hours_elapsed=timer.hours_elapsed, hours_to_next_tier=timer.hours_to_next_tier,
         ),
+        viewer_can_approve_reject=can_approve_reject,
+        viewer_can_veto=user_store.can_veto(viewer_role or "", e.workflow),
+        viewer_decidable_legs=decidable_legs,
     )
 
 
 # ---------------------------------------------------------------------------
 # Auth (Stage 22)
 # ---------------------------------------------------------------------------
+
+
+@app.get("/api/auth/demo-accounts")
+def demo_accounts():
+    """Populates the login page's account picker. Returns user_id/display_name/role only
+    -- never a password, even though this is a documented synthetic demo environment
+    (docs/governance/demo_login_credentials.md), because a picker that types a password
+    into the DOM for you is a bad habit to demo even in a synthetic system."""
+    conn = user_store.get_connection()
+    try:
+        return user_store.list_users(conn)
+    finally:
+        conn.close()
 
 
 @app.post("/api/auth/login", response_model=SessionInfo)
@@ -259,6 +293,29 @@ def role_catalog():
     }
 
 
+def _require_super_admin(session: user_store.Session = Depends(require_user)) -> user_store.Session:
+    """Evaluation results, red-team inject coverage, and compliance evidence describe how
+    well-defended (or not) the system is -- exposing that to every logged-in role hands a
+    map of untested edges to anyone with a login, not just the person accountable for
+    system-wide oversight. Super Admin is the only role with no decide authority anywhere
+    (user_store.ROLE_CATALOG), so it's the natural place for a read-only,
+    everything-visible surface like this one."""
+    if session.role != "Super Admin":
+        raise HTTPException(403, "Only Super Admin may view this data.")
+    return session
+
+
+@app.get("/api/compliance")
+def compliance(session: user_store.Session = Depends(_require_super_admin)):
+    """EU AI Act risk classification + ISO 42001 control mapping + open gap register,
+    parsed live from docs/governance/compliance/*.md. Super Admin only -- see
+    _require_super_admin's docstring."""
+    try:
+        return compliance_view.snapshot()
+    except compliance_view.ComplianceDocsUnavailable as exc:
+        raise HTTPException(503, f"Compliance documentation unavailable: {exc}") from exc
+
+
 @app.post("/api/runs", response_model=RunResult)
 def submit_run(req: SubmitRunRequest, session: user_store.Session = Depends(require_user)):
     graph = _get_graph(req.workflow, req.subject_id)
@@ -287,8 +344,8 @@ def submit_run(req: SubmitRunRequest, session: user_store.Session = Depends(requ
 
 
 @app.get("/api/queue", response_model=list[QueueEntry])
-def get_queue(workflow: str | None = None):
-    return [_queue_entry(e) for e in pending_queue.list_all(workflow)]
+def get_queue(workflow: str | None = None, session: user_store.Session = Depends(require_user)):
+    return [_queue_entry(e, session.role) for e in pending_queue.list_all(workflow)]
 
 
 @app.post("/api/runs/{run_id}/decide", response_model=RunResult)
@@ -391,6 +448,7 @@ def list_runs(
     search: str | None = None,
     limit: int = Query(default=25, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
+    session: user_store.Session = Depends(require_user),
 ):
     """Historical runs, from the append-only audit store. Newest first."""
     conn = audit_store.get_connection()
@@ -408,7 +466,7 @@ def list_runs(
 
 
 @app.get("/api/runs/filters")
-def run_filters():
+def run_filters(session: user_store.Session = Depends(require_user)):
     """Distinct values actually present in the audit store, so the History page's filters
     offer what exists rather than a hardcoded list that may not match the data."""
     conn = audit_store.get_connection()
@@ -422,7 +480,7 @@ def run_filters():
 
 
 @app.get("/api/runs/{run_id}", response_model=RunDetail)
-def get_run(run_id: str):
+def get_run(run_id: str, session: user_store.Session = Depends(require_user)):
     """One run, from both sources that can know about it: the in-memory pending registry
     (only while it is still paused in THIS process) and the audit store (once finalized).
 
@@ -455,7 +513,7 @@ def get_run(run_id: str):
 
     return RunDetail(
         run_id=run_id,
-        pending=_queue_entry(pending) if pending else None,
+        pending=_queue_entry(pending, session.role) if pending else None,
         audit=AuditedRun(**audited) if audited else None,
         timeline=[AuditEvent(**e) for e in timeline],
         human_actions=overrides,
@@ -493,13 +551,15 @@ def chat_about_run(
 
 
 @app.get("/api/notifications", response_model=list[NotificationItem])
-def list_notifications(limit: int = Query(default=20, ge=1, le=100)):
+def list_notifications(
+    limit: int = Query(default=20, ge=1, le=100), session: user_store.Session = Depends(require_user)
+):
     """Recent HITL escalation events -- the web app's notification bell. Read-only: this
     endpoint cannot fire an escalation, only report ones hitl_escalation_watch.py's
-    background loop already recorded. Authentication is intentionally not required here
-    (unlike every write and every record-specific read) because a login page bell would
-    be a contradiction; nothing this endpoint returns is more sensitive than what
-    `/api/queue` already exposes without auth in the underlying data it references.
+    background loop already recorded. Requires a session, same as every other
+    record-specific read here (`/api/queue`, `/api/runs`) -- the bell is only ever
+    rendered inside RequireAuth's tree (apps/web/components/layout/AppShell.tsx), never on
+    the login page, so there is no login-page-bell case to keep this one unauthenticated for.
     """
     conn = audit_store.get_connection()
     try:
@@ -521,7 +581,7 @@ def list_notifications(limit: int = Query(default=20, ge=1, le=100)):
 
 
 @app.get("/api/evidence", response_model=list[EvidenceCatalogItem])
-def list_evidence():
+def list_evidence(session: user_store.Session = Depends(require_user)):
     """The evidence corpus, INCLUDING non-citable items, each labelled with whether it may
     be relied upon. See services/integration/evidence_catalog.py for why showing them here
     does not weaken the rule that a run can never retrieve them."""
@@ -532,7 +592,7 @@ def list_evidence():
 
 
 @app.get("/api/evidence/stats")
-def evidence_stats():
+def evidence_stats(session: user_store.Session = Depends(require_user)):
     try:
         return evidence_catalog.catalog_stats()
     except evidence_catalog.CatalogUnavailable as exc:
@@ -540,12 +600,12 @@ def evidence_stats():
 
 
 @app.get("/api/governance", response_model=GovernanceSnapshot)
-def governance():
+def governance(session: user_store.Session = Depends(require_user)):
     return GovernanceSnapshot(**governance_view.snapshot())
 
 
 @app.get("/api/evals/scorecard", response_model=EvalScorecard)
-def evals_scorecard():
+def evals_scorecard(session: user_store.Session = Depends(_require_super_admin)):
     """Runs the real eval-ai-cache harness in-process, live, on every request -- see
     eval_dashboard.py's module docstring for why this one is safe to compute per-request
     (pure grading logic against synthetic fixtures, ~25ms, no LLM/network calls) while
@@ -554,7 +614,7 @@ def evals_scorecard():
 
 
 @app.get("/api/coverage/injects", response_model=InjectCoverage)
-def inject_coverage():
+def inject_coverage(session: user_store.Session = Depends(_require_super_admin)):
     """The curated V1-inject-to-V2-reality coverage mapping. Read-only; there is no
     endpoint that can write to this file."""
     try:
@@ -564,7 +624,7 @@ def inject_coverage():
 
 
 @app.get("/api/dashboard", response_model=DashboardResponse)
-def dashboard(workflow: str | None = None):
+def dashboard(workflow: str | None = None, session: user_store.Session = Depends(require_user)):
     from packages.observability.dashboard_data import (
         cache_hit_rate_panel,
         cost_panel,

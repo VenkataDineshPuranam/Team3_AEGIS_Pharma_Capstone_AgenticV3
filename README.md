@@ -33,7 +33,7 @@ starter knowledge graph. Re-run anytime; every step is idempotent.
 ```sh
 # Backend — from the repo root
 pip install -r requirements-dev.txt          # runtime deps + pytest/ruff
-python3 -m services.integration.seed_users   # one-time: seeds the 10 demo accounts
+python3 -m services.integration.seed_users   # one-time: seeds the 11 demo accounts
 uvicorn services.api.main:app --port 8000
 
 # Frontend — from apps/web/
@@ -59,7 +59,7 @@ docker build -f deploy/containers/Dockerfile.web \
 `NEXT_PUBLIC_API_URL` is a **build** argument: Next.js inlines `NEXT_PUBLIC_*` into the
 client bundle during `next build`, so setting it at runtime does nothing.
 Open `http://localhost:3000` — every page except `/login` requires a signed-in session.
-Demo credentials for all ten roles are in
+Demo credentials for all eleven roles are in
 [`docs/governance/demo_login_credentials.md`](./docs/governance/demo_login_credentials.md)
 (synthetic accounts only, no real people).
 

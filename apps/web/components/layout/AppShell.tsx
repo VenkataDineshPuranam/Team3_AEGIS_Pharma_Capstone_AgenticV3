@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { cn } from "@/lib/cn";
 import { getQueue } from "@/lib/api";
 import { useApiResource, useVisiblePolling } from "@/hooks/useApiResource";
+import { subscribeQueueChanged } from "@/lib/queueEvents";
 import { AssistantLauncher } from "@/components/assistant/AssistantLauncher";
+import { useAuth } from "./AuthContext";
 import { NotificationBell } from "./NotificationBell";
 import { OperatorBar } from "./OperatorBar";
 
@@ -26,6 +28,11 @@ interface NavItem {
   icon: ReactNode;
   /** Shows the live pending count. */
   badge?: "queue";
+  /** Restricts this destination to a specific role. Omitted = visible to everyone. This
+   *  is a UX convenience only, same as RequireAuth's own docstring says about itself --
+   *  the API's own 403 (services/api/main.py::_require_super_admin) is what actually
+   *  enforces it. */
+  role?: string;
 }
 
 const NAV: NavItem[] = [
@@ -62,8 +69,8 @@ const NAV: NavItem[] = [
   },
   {
     href: "/governance",
-    label: "Governance",
-    description: "Controls, policies and boundaries",
+    label: "Getting Started & Governance",
+    description: "New here, or need the enforcement reference?",
     icon: <IconShield />,
   },
   {
@@ -83,11 +90,21 @@ const NAV: NavItem[] = [
     label: "Evaluation & Security",
     description: "What has been verified, and what has not",
     icon: <IconCheckShield />,
+    role: "Super Admin",
+  },
+  {
+    href: "/compliance",
+    label: "Compliance",
+    description: "EU AI Act and ISO 42001 evidence",
+    icon: <IconScale />,
+    role: "Super Admin",
   },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const { session } = useAuth();
+  const nav = NAV.filter((item) => !item.role || item.role === session?.role);
   const [mobileOpen, setMobileOpen] = useState(false);
   // React's "adjust state during render" pattern rather than an effect: closing the
   // drawer on navigation is a pure function of the route changing, computed synchronously
@@ -100,9 +117,12 @@ export function AppShell({ children }: { children: ReactNode }) {
   }
 
   // The pending count is the one number worth carrying in the chrome: it is the reason an
-  // operator opens this application at all.
+  // operator opens this application at all. Polling alone means it can lag up to 15s
+  // behind a run just submitted or decided elsewhere in the app -- subscribing to
+  // queueEvents lets those actions say "refetch now" instead of waiting for the next tick.
   const pollMs = useVisiblePolling(15_000);
   const queue = useApiResource((signal) => getQueue(undefined, signal), [], { pollMs });
+  useEffect(() => subscribeQueueChanged(queue.refresh), [queue.refresh]);
   const pendingCount = queue.data?.length ?? null;
 
   return (
@@ -136,6 +156,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </Link>
           )}
           <NotificationBell />
+          <SignOutButton />
         </div>
       </header>
 
@@ -151,13 +172,19 @@ export function AppShell({ children }: { children: ReactNode }) {
       >
         <div className="hidden items-center gap-2.5 px-5 py-4 lg:flex">
           <Wordmark />
-          <div className="ml-auto">
-            <NotificationBell />
+          <div className="ml-auto flex items-center gap-1">
+            {/* align="left": this bell sits near the right edge of a narrow 256px
+                sidebar close to the screen's left edge -- the panel's default
+                right-anchored position (correct for the mobile header, far to the
+                right of a full-width bar) would overflow off the left of the viewport
+                here, which is exactly the misalignment this fixes. */}
+            <NotificationBell align="left" />
+            <SignOutButton />
           </div>
         </div>
 
         <ul className="flex-1 space-y-0.5 overflow-y-auto px-2.5 py-2 lg:py-1">
-          {NAV.map((item) => {
+          {nav.map((item) => {
             const active =
               item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
             return (
@@ -208,6 +235,43 @@ export function AppShell({ children }: { children: ReactNode }) {
           rendered on /login -- there is no session to answer questions under. */}
       <AssistantLauncher />
     </div>
+  );
+}
+
+/**
+ * One-click sign out, reachable from the top of every screen. Not a replacement for
+ * OperatorBar's sidebar-footer identity control (which still shows session detail and
+ * expiry before confirming) -- this is the fast path for someone who already knows what
+ * they're doing and just wants out.
+ */
+function SignOutButton() {
+  const { signOut } = useAuth();
+  const [busy, setBusy] = useState(false);
+
+  async function handleClick() {
+    setBusy(true);
+    try {
+      await signOut();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      disabled={busy}
+      aria-label="Sign out"
+      title="Sign out"
+      className="flex size-8 items-center justify-center rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)] disabled:opacity-50"
+    >
+      <svg width={16} height={16} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M6 2H3.5A1.5 1.5 0 0 0 2 3.5v9A1.5 1.5 0 0 0 3.5 14H6" />
+        <path d="M10.5 11.5 14 8l-3.5-3.5" />
+        <path d="M14 8H6" />
+      </svg>
+    </button>
   );
 }
 
@@ -375,6 +439,17 @@ function IconChaos() {
       <circle cx="8" cy="8" r="5.5" />
       <path d="M8 4.5v3.5l2.5 1.5" />
       <path d="M3 3.5 4.5 5M13 3.5 11.5 5M3 12.5 4.5 11M13 12.5 11.5 11" />
+    </svg>
+  );
+}
+
+function IconScale() {
+  return (
+    <svg {...iconProps()}>
+      <path d="M8 2v11.5M5 13.5h6" />
+      <path d="M2 5.5h4.5M9.5 5.5H14" />
+      <path d="M2 5.5 0.5 9a1.5 1.5 0 0 0 3 0Z" />
+      <path d="M14 5.5 12.5 9a1.5 1.5 0 0 0 3 0Z" />
     </svg>
   );
 }

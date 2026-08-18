@@ -90,11 +90,116 @@ def test_veto_is_rejected_for_workflows_that_have_no_veto():
         assert r.status_code in (400, 404), workflow
 
 
+# --- Stage 25: every record-specific read requires a session ----------------------
+
+
+@pytest.mark.parametrize(
+    "path", ["/api/queue", "/api/runs", "/api/runs/filters", "/api/evidence",
+             "/api/evidence/stats", "/api/governance", "/api/dashboard", "/api/notifications"],
+)
+def test_record_specific_reads_require_a_session(path):
+    """Before Stage 25 these were reachable with no Authorization header at all -- not
+    merely unrestricted by role, genuinely unauthenticated. A caller with the API URL and
+    no login could read every run's evidence and findings. Fixed by requiring a session
+    (any role -- reads stay unrestricted by role, only decide() is), matching what the CD
+    smoke test already asserts for /api/runs/{id}/chat ('actually enforcing auth')."""
+    assert client.get(path).status_code == 401
+
+
+def test_run_detail_requires_a_session():
+    assert client.get("/api/runs/R-definitely-not-a-real-run").status_code == 401
+
+
+# --- Stage 25: the queue tells a viewer whether THEY can decide a run -------------
+
+
+def test_queue_entry_hides_decide_eligibility_from_an_unauthorized_viewer():
+    """The bug this locks in: the frontend used to render Approve/Reject for ANY signed-in
+    role on ANY pending run, only to have decide_run 403 if they actually clicked one --
+    confusing, and a role with zero decide authority anywhere (e.g. Head of Preclinical
+    Research looking at a batch_review run) still saw live-looking buttons. The queue
+    entry must say, authoritatively, whether THIS viewer specifically could decide THIS
+    run -- computed the same way decide_run() itself decides (approver_string_for), not
+    guessed from approver_roles (a DISPLAY name that doesn't equal every login role
+    string -- e.g. pv_intake's approver_roles says "Global Head of Pharmacovigilance"
+    while the login role is "Safety physician")."""
+    import uuid
+
+    from services.api import pending_queue
+
+    run_id = f"R-eligibility-test-{uuid.uuid4().hex[:8]}"
+    pending_queue.add(
+        pending_queue.PendingEntry(
+            run_id=run_id, workflow="batch_review", subject_id="B-eligibility-test",
+            requester_role="EU Qualified Person", approver_roles=["EU Qualified Person"],
+            required_legs=None, approved_legs=[], draft_summary=None, draft_claims=[],
+        )
+    )
+    try:
+        conn = _user_store.get_connection()
+        try:
+            _user_store.create_user(
+                conn, "test_preclinical", "Test Preclinical", "Head of Preclinical Research", "pw-preclinical",
+            )
+            wrong_role_session = _user_store.login(conn, "test_preclinical", "pw-preclinical")
+        finally:
+            conn.close()
+        wrong_role_headers = {"Authorization": f"Bearer {wrong_role_session.token}"}
+
+        entries = client.get("/api/queue", headers=AUTH).json()  # AUTH = EU Qualified Person
+        mine = next(e for e in entries if e["run_id"] == run_id)
+        assert mine["viewer_can_approve_reject"] is True
+
+        entries_wrong_role = client.get("/api/queue", headers=wrong_role_headers).json()
+        theirs = next(e for e in entries_wrong_role if e["run_id"] == run_id)
+        assert theirs["viewer_can_approve_reject"] is False
+        assert theirs["viewer_can_veto"] is False
+    finally:
+        pending_queue.remove(run_id)
+
+
+def test_queue_entry_maps_login_role_to_approver_string_for_pv_intake():
+    """The exact mismatch named above: pv_intake's approver DISPLAY name differs from the
+    login role that actually holds that authority. A naive frontend check comparing the
+    login role string against approver_roles would wrongly hide the button from the very
+    role that's supposed to see it."""
+    import uuid
+
+    from services.api import pending_queue
+
+    run_id = f"R-eligibility-pv-{uuid.uuid4().hex[:8]}"
+    pending_queue.add(
+        pending_queue.PendingEntry(
+            run_id=run_id, workflow="pv_intake", subject_id="PV-eligibility-test",
+            requester_role="Safety physician", approver_roles=["Global Head of Pharmacovigilance"],
+            required_legs=None, approved_legs=[], draft_summary=None, draft_claims=[],
+        )
+    )
+    try:
+        conn = _user_store.get_connection()
+        try:
+            _user_store.create_user(conn, "test_safety_elig", "Test Safety", "Safety physician", "pw-safety")
+            session = _user_store.login(conn, "test_safety_elig", "pw-safety")
+        finally:
+            conn.close()
+        headers = {"Authorization": f"Bearer {session.token}"}
+
+        entries = client.get("/api/queue", headers=headers).json()
+        mine = next(e for e in entries if e["run_id"] == run_id)
+        # "Safety physician" (login role) != "Global Head of Pharmacovigilance" (display
+        # name in approver_roles) -- yet this role IS the real approver, per
+        # user_store.ROLE_CATALOG's approver_for mapping. Both decide AND veto authority.
+        assert mine["viewer_can_approve_reject"] is True
+        assert mine["viewer_can_veto"] is True
+    finally:
+        pending_queue.remove(run_id)
+
+
 # --- run history ------------------------------------------------------------------
 
 
 def test_run_history_returns_a_page_with_a_real_total():
-    r = client.get("/api/runs", params={"limit": 5})
+    r = client.get("/api/runs", params={"limit": 5}, headers=_auth_headers())
     assert r.status_code == 200
     body = r.json()
     assert body["limit"] == 5
@@ -104,18 +209,18 @@ def test_run_history_returns_a_page_with_a_real_total():
 
 def test_run_history_limit_is_bounded():
     """An unbounded limit is a way to ask the API to read the whole store into memory."""
-    assert client.get("/api/runs", params={"limit": 100000}).status_code == 422
-    assert client.get("/api/runs", params={"limit": 0}).status_code == 422
-    assert client.get("/api/runs", params={"offset": -1}).status_code == 422
+    assert client.get("/api/runs", params={"limit": 100000}, headers=_auth_headers()).status_code == 422
+    assert client.get("/api/runs", params={"limit": 0}, headers=_auth_headers()).status_code == 422
+    assert client.get("/api/runs", params={"offset": -1}, headers=_auth_headers()).status_code == 422
 
 
 def test_run_history_filters_by_workflow():
-    body = client.get("/api/runs", params={"workflow": "pv_intake", "limit": 50}).json()
+    body = client.get("/api/runs", params={"workflow": "pv_intake", "limit": 50}, headers=_auth_headers()).json()
     assert all(item["workflow"] == "pv_intake" for item in body["items"])
 
 
 def test_run_filters_endpoint_reports_values_that_exist():
-    body = client.get("/api/runs/filters").json()
+    body = client.get("/api/runs/filters", headers=_auth_headers()).json()
     assert set(body) == {"workflow", "terminal_state", "requester_role", "abstention_reason"}
     assert all(isinstance(v, list) for v in body.values())
 
@@ -123,22 +228,22 @@ def test_run_filters_endpoint_reports_values_that_exist():
 def test_filters_route_is_not_shadowed_by_the_run_id_route():
     """/api/runs/filters and /api/runs/{run_id} share a prefix -- declaration order is
     what keeps 'filters' from being read as a run id."""
-    assert isinstance(client.get("/api/runs/filters").json(), dict)
+    assert isinstance(client.get("/api/runs/filters", headers=_auth_headers()).json(), dict)
 
 
 # --- run detail -------------------------------------------------------------------
 
 
 def test_unknown_run_detail_is_404():
-    assert client.get("/api/runs/R-definitely-not-a-real-run").status_code == 404
+    assert client.get("/api/runs/R-definitely-not-a-real-run", headers=_auth_headers()).status_code == 404
 
 
 def test_known_run_detail_reports_what_it_can_and_says_what_it_cannot():
-    page = client.get("/api/runs", params={"limit": 1}).json()
+    page = client.get("/api/runs", params={"limit": 1}, headers=_auth_headers()).json()
     if not page["items"]:
         pytest.skip("audit store is empty -- nothing to open")
     run_id = page["items"][0]["run_id"]
-    body = client.get(f"/api/runs/{run_id}").json()
+    body = client.get(f"/api/runs/{run_id}", headers=_auth_headers()).json()
 
     assert body["run_id"] == run_id
     assert body["audit"] is not None
@@ -150,9 +255,9 @@ def test_known_run_detail_reports_what_it_can_and_says_what_it_cannot():
 
 
 def test_timeline_events_are_ordered_and_typed():
-    page = client.get("/api/runs", params={"limit": 20}).json()
+    page = client.get("/api/runs", params={"limit": 20}, headers=_auth_headers()).json()
     for item in page["items"]:
-        timeline = client.get(f"/api/runs/{item['run_id']}").json()["timeline"]
+        timeline = client.get(f"/api/runs/{item['run_id']}", headers=_auth_headers()).json()["timeline"]
         if len(timeline) < 2:
             continue
         assert timeline == sorted(timeline, key=lambda e: e["at"])
@@ -167,7 +272,7 @@ def test_timeline_events_are_ordered_and_typed():
 def test_evidence_catalog_shows_non_citable_items_and_labels_them():
     """The Explorer must be able to show an untrusted or superseded document. Its value is
     in saying 'you cannot rely on this', which requires returning it."""
-    items = client.get("/api/evidence").json()
+    items = client.get("/api/evidence", headers=_auth_headers()).json()
     assert items
     by_status = {i["status"] for i in items}
     assert by_status - {"approved", "draft"}, "expected at least one non-citable item in the corpus"
@@ -178,7 +283,7 @@ def test_evidence_catalog_shows_non_citable_items_and_labels_them():
 @needs_kg
 def test_untrusted_and_superseded_are_never_reported_as_citable():
     """The single invariant this endpoint could plausibly break."""
-    for item in client.get("/api/evidence").json():
+    for item in client.get("/api/evidence", headers=_auth_headers()).json():
         if item["status"] in ("untrusted", "superseded"):
             assert item["citable"] is False
 
@@ -191,13 +296,13 @@ def test_catalog_citable_rule_agrees_with_what_retrieval_actually_enforces():
     a human but is not in the retrieval tool's citable set."""
     from services.integration.evidence_retrieve import _CITABLE_STATUSES
 
-    for item in client.get("/api/evidence").json():
+    for item in client.get("/api/evidence", headers=_auth_headers()).json():
         assert item["citable"] == (item["status"] in _CITABLE_STATUSES)
 
 
 @needs_kg
 def test_evidence_stats_are_counted_not_asserted():
-    stats = client.get("/api/evidence/stats").json()
+    stats = client.get("/api/evidence/stats", headers=_auth_headers()).json()
     assert stats["total"] == sum(stats["by_status"].values())
     assert stats["citable_total"] <= stats["total"]
 
@@ -206,28 +311,32 @@ def test_evidence_stats_are_counted_not_asserted():
 
 
 def test_governance_snapshot_reports_the_real_policy_contract():
-    body = client.get("/api/governance").json()
+    body = client.get("/api/governance", headers=_auth_headers()).json()
     assert body["policy_contract_version"] == "v1"
     batch = body["prohibited_actions"]["by_workflow"]["batch_review"]
     assert "release the batch" in batch["banned_terms"]
     assert "release_recommended" in batch["banned_field_names"]
 
 
-def test_governance_snapshot_states_that_authentication_does_not_exist():
-    """The one thing this page must never imply is a security control the build lacks."""
-    auth = client.get("/api/governance").json()["authentication"]
-    assert auth["status"] == "NOT IMPLEMENTED"
-    assert "grants nothing" in auth["detail"]
+def test_governance_snapshot_accurately_states_real_auth_exists():
+    """The inverse of this test's old name and old assertion: this page must never claim a
+    security control is MISSING when it is real and enforced (Stage 22/25) -- that's just
+    as dishonest as overclaiming one that doesn't exist, and it's what governance_view.py's
+    'authentication' block said until this stage, predating the real login system."""
+    auth = client.get("/api/governance", headers=_auth_headers()).json()["authentication"]
+    assert "IMPLEMENTED" in auth["status"]
+    assert "require_user" in auth["detail"]
+    assert "synthetic" in auth["planned"]
 
 
 def test_governance_reports_supply_dual_approval_as_two_required_legs():
-    roles = client.get("/api/governance").json()["approver_roles"]["supply_planning"]
+    roles = client.get("/api/governance", headers=_auth_headers()).json()["approver_roles"]["supply_planning"]
     assert roles["required_legs"] == ["planning", "quality"]
     assert "one leg approving is not approval" in roles["structure"]
 
 
 def test_governance_reports_the_pv_veto_as_non_overridable():
-    pv = client.get("/api/governance").json()["approver_roles"]["pv_intake"]
+    pv = client.get("/api/governance", headers=_auth_headers()).json()["approver_roles"]["pv_intake"]
     assert pv["veto_role"] == "Patient Safety Representative"
     assert "cannot be overridden" in pv["structure"]
 
@@ -235,7 +344,7 @@ def test_governance_reports_the_pv_veto_as_non_overridable():
 def test_governance_is_read_only():
     """No verb other than GET is exposed on a governance route."""
     for method in ("post", "put", "patch", "delete"):
-        assert getattr(client, method)("/api/governance").status_code == 405
+        assert getattr(client, method)("/api/governance", headers=_auth_headers()).status_code == 405
 
 
 # --- health -----------------------------------------------------------------------
@@ -276,11 +385,14 @@ def test_error_responses_do_not_expose_a_stack_trace():
 # --- notifications (Stage 23) -------------------------------------------------
 
 
-def test_notifications_is_unauthenticated_read_only_and_reports_recent_escalations():
-    """GET /api/notifications is the notification bell's source. Uses the escalation
-    watcher's real scan against the real, shared audit store (this file's own posture --
-    see the module docstring), a unique run_id so this test cannot collide with any
-    other test's rows or with a previous run of itself."""
+def test_notifications_requires_auth_and_reports_recent_escalations():
+    """GET /api/notifications is the notification bell's source, and (Stage 25) now
+    requires a session like every other record-specific read -- see main.py's
+    list_notifications docstring for why the earlier unauthenticated exception no
+    longer applies. Uses the escalation watcher's real scan against the real, shared
+    audit store (this file's own posture -- see the module docstring), a unique run_id
+    so this test cannot collide with any other test's rows or with a previous run of
+    itself."""
     import uuid
     from datetime import UTC, datetime, timedelta
 
@@ -300,7 +412,9 @@ def test_notifications_is_unauthenticated_read_only_and_reports_recent_escalatio
         fired = hitl_escalation_watch.scan_once()
         assert any(n.run_id == run_id for n in fired)
 
-        r = client.get("/api/notifications")
+        assert client.get("/api/notifications").status_code == 401
+
+        r = client.get("/api/notifications", headers=_auth_headers())
         assert r.status_code == 200
         rows = r.json()
         match = next(row for row in rows if row["run_id"] == run_id)
@@ -336,18 +450,18 @@ def test_notifications_reports_null_enrichment_for_a_run_no_longer_pending():
     hitl_escalation_watch.scan_once()
     pending_queue.remove(run_id)  # simulate: decided, or process restarted
 
-    rows = client.get("/api/notifications").json()
+    rows = client.get("/api/notifications", headers=_auth_headers()).json()
     match = next(row for row in rows if row["run_id"] == run_id)
     assert match["subject_id"] is None
     assert match["approver_roles"] is None
 
 
 def test_notifications_respects_the_limit_param():
-    r = client.get("/api/notifications?limit=1")
+    r = client.get("/api/notifications?limit=1", headers=_auth_headers())
     assert r.status_code == 200
     assert len(r.json()) <= 1
 
 
 def test_notifications_is_read_only():
     for method in ("post", "put", "patch", "delete"):
-        assert getattr(client, method)("/api/notifications").status_code == 405
+        assert getattr(client, method)("/api/notifications", headers=_auth_headers()).status_code == 405

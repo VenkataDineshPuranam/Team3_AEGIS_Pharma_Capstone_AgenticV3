@@ -182,7 +182,7 @@ Pydantic models mirror Claude’s field discipline (`ChaosDrillExperiment`, `Cha
 | Ops-only | Section without Run |
 | Client | `getChaosDrillExperiments`, `runChaosDrillExperiment`, `getChaosDrillHistory` via `read` / `mutate` |
 
-Demo login: `ciso_dpo_1` / `ciso_dpo_1_aegis`.
+Demo login: `karen.mitchell` / `Mitchell#2026Sec` (CISO / DPO).
 
 ---
 
@@ -219,7 +219,7 @@ Demo login: `ciso_dpo_1` / `ciso_dpo_1_aegis`.
 
 ## Demo acceptance
 
-1. Seed users → login `ciso_dpo_1`
+1. Seed users → login `karen.mitchell`
 2. Open `/chaos-drill` → run all five experiments → each **pass**
 3. `/runs` does **not** list `DRILL-*` rows; history on chaos page does
 4. Login as QP → see catalog + Notice, POST 403

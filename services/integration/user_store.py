@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import os
 import secrets
 import sqlite3
 from dataclasses import dataclass
@@ -24,7 +25,10 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_DB_PATH = REPO_ROOT / "evidence" / "audit_store.sqlite3"  # same DB file as audit_store
+# AEGIS_DB_PATH -- see audit_store.py's identical override; same DB file, same reasoning.
+DEFAULT_DB_PATH = Path(
+    os.environ.get("AEGIS_DB_PATH", str(REPO_ROOT / "evidence" / "audit_store.sqlite3"))
+)  # same DB file as audit_store
 
 SESSION_LIFETIME = timedelta(hours=8)
 PBKDF2_ITERATIONS = 260_000
@@ -125,6 +129,15 @@ ROLE_CATALOG: dict[str, dict] = {
         # supply_planning read endpoint by services.api.auth.visible_workflows().
         "excluded_workflows": {"supply_planning"},
     },
+    "Super Admin": {
+        "product_use": "Everything -- full cross-workflow visibility for system oversight",
+        "must_never": "Approve, reject, veto, or otherwise decide any workflow",
+        # Deliberately empty, same as Auditor/CISO/Quality reviewer: this system's whole
+        # governance model rests on no single role holding blanket decide authority (BC-12,
+        # segregation of duties). "Sees everything" is answered by the ABSENCE of an
+        # excluded_workflows entry below, not by adding approve/veto power here.
+        "approver_for": {},
+    },
 }
 
 
@@ -166,7 +179,10 @@ def get_connection(db_path: Path = DEFAULT_DB_PATH) -> sqlite3.Connection:
     # module, same DB file, same risk if a caller ever holds this connection across a
     # thread-dispatched call the way graph.py's audit_conn does.
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(db_path, check_same_thread=False)
+    # nolock=1: see audit_store.get_connection's identical fix -- same DB file, same Azure
+    # Files (SMB) mount, where SQLite's locking calls aren't reliably honored. Safe here
+    # because Container Apps runs at most one replica of this app (maxReplicas=1).
+    conn = sqlite3.connect(f"file:{db_path.as_posix()}?nolock=1", uri=True, check_same_thread=False)
     conn.executescript(_SCHEMA)
     return conn
 

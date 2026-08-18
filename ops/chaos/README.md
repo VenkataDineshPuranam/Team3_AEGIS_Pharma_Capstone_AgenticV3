@@ -39,6 +39,6 @@ See `ops/chaos/runbooks/`: `CHAOS-LLM-02`, `CHAOS-HITL-02`, `CHAOS-CKPT-01`.
 
 ## Proof surfaces
 
-- UI: `/chaos-drill` (login `ciso_dpo_1`)
+- UI: `/chaos-drill` (login `karen.mitchell` / `Mitchell#2026Sec`)
 - Tests: `tests/resilience/test_chaos_harness.py`, `tests/integration/test_chaos_drill_endpoint.py`
 - ADR: `docs/adr/ADR-007-degraded-mode-safe-not-offline-capable.md`

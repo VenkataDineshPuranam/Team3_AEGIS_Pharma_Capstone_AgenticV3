@@ -1,31 +1,33 @@
 # Demo login credentials — Stage 22
 
-Ten synthetic accounts, seeded by `services/integration/seed_users.py` (idempotent —
+Eleven synthetic accounts, seeded by `services/integration/seed_users.py` (idempotent —
 safe to re-run) into the same SQLite store `services/integration/audit_store.py` already
 uses (`evidence/audit_store.sqlite3`, `app_user`/`app_session` tables). No real people,
 no real credentials — matches the project's synthetic-data-only posture applied to the
 login layer added in this stage.
 
-Passwords use `_` rather than `-` so a double-click selects the whole password in one go
-— browsers treat `-` as a word boundary for double-click text selection, `_` is not,
-which is also why every `user_id` below already used `_`.
+`user_id` is the person's own firstname.lastname, matching a real directory rather than a
+role-slug test fixture. Roles themselves (right column) are the load-bearing strings --
+unchanged, and matched verbatim by every authorization check.
 
 | User ID | Password | Display name | Role |
 |---|---|---|---|
-| `qp_eu_1` | `qp_eu_1_aegis` | Dinesh | EU Qualified Person |
-| `safety_physician_1` | `safety_phys_1_aegis` | Dr. Payal | Safety physician |
-| `supply_gov_1` | `supply_gov_1_aegis` | Mahesh | Supply governance |
-| `research_head_1` | `research_head_1_aegis` | Dr. Kishore | Head of Preclinical Research |
-| `clinical_monitor_1` | `clinical_mon_1_aegis` | Dr. Kiran | Clinical Trial Medical Monitor |
-| `regulatory_head_1` | `reg_head_1_aegis` | Anjali | Head of Regulatory Affairs |
-| `quality_reviewer_1` | `quality_rev_1_aegis` | Rajesh | Quality reviewer |
-| `ciso_dpo_1` | `ciso_dpo_1_aegis` | Sunita | CISO / DPO |
+| `james.whitfield` | `Whitfield#2026EU` | James Whitfield | EU Qualified Person |
+| `rachel.coleman` | `Coleman#2026Rx` | Dr. Rachel Coleman | Safety physician |
+| `michael.turner` | `Turner#2026Sc` | Michael Turner | Supply governance |
+| `david.bennett` | `Bennett#2026Pre` | Dr. David Bennett | Head of Preclinical Research |
+| `laura.simmons` | `Simmons#2026Cl` | Dr. Laura Simmons | Clinical Trial Medical Monitor |
+| `jennifer.hayes` | `Hayes#2026Reg` | Jennifer Hayes | Head of Regulatory Affairs |
+| `robert.doyle` | `Doyle#2026QA` | Robert Doyle | Quality reviewer |
+| `karen.mitchell` | `Mitchell#2026Sec` | Karen Mitchell | CISO / DPO |
+| `brian.foster` | `Foster#2026Aud` | Brian Foster | Auditor |
+| `steven.parker` | `Parker#2026Ub` | Dr. Steven Parker | Unblinding authority |
+| `patricia.grant` | `Grant#2026Admin` | Patricia Grant | Super Admin |
 
-The CISO / DPO account is the only role that may **run** Chaos Drill experiments
+The CISO / DPO account (`karen.mitchell`) is the only role that may **run** Chaos Drill experiments
 (`/chaos-drill`, `POST /api/chaos-drill/experiments/{id}/run`). Every signed-in role may
-view the catalog and history.
-| `auditor_1` | `auditor_1_aegis` | Arvind | Auditor |
-| `unblinding_auth_1` | `unblind_auth_1_aegis` | Dr. Nikhil | Unblinding authority |
+view the catalog and history. Super Admin sees Compliance and Evaluation & Security; it
+cannot decide any workflow.
 
 ## What each role can actually do
 
@@ -48,6 +50,7 @@ source, so the UI cannot drift from what the backend enforces.
 | CISO / DPO | any workflow | none — read/oversight only | — | Consent / residency decisions |
 | Auditor | any workflow | none — read-only | — | Acknowledge anything |
 | Unblinding authority | any workflow | none — reviews `clinical_integrity` findings only | — | Unblind; never sees allocation (excluded from `supply_planning` reads — `user_store.visible_workflows`) |
+| Super Admin | any workflow | none — full read visibility, zero decide authority anywhere | — | Approve, reject, veto, or otherwise decide any workflow |
 
 Submitting a run (`POST /api/runs`) requires only a live session, not a specific role —
 any authenticated role may request any workflow, matching how a real requester (someone

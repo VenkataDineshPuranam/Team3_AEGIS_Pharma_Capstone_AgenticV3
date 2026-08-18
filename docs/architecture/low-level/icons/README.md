@@ -1,6 +1,6 @@
 # Diagram icons
 
-`used/` is the subset referenced by `aegis_low_level.html`.
+`used/` is the subset referenced by `aegis_low_level.html` and `docs/architecture/high-level/aegis_high_level.html`.
 
 | Source | Use |
 |---|---|

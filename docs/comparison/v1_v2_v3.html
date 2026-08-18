@@ -189,7 +189,7 @@ footer { border-top: 1px solid var(--rule); padding: 22px 0 40px; color: var(--i
 
   <div class="strip v1"><b>V1 — brownfield capstone</b><p>Workshop-Ready v2 challenge: 84 injects, 139 CSVs, 32 knowledge docs, defective <code>starter/</code> code. Team 3 work lives in <code>submission/</code>: 12 ADRs on paper, <code>submission/src/</code> is <code>contracts.py</code> + <code>policy_guard.py</code> + <code>__init__.py</code>, 35 tests, Next.js 15.5 mock cockpit (<code>USE_MOCK = true</code>). <code>demo.py</code> imports <code>workflow_batch</code> / <code>workflow_pv</code> / <code>workflow_supply</code> — those files are not in the tree.</p></div>
   <div class="strip v2"><b>V2 — agentic Control Center</b><p>Spec-driven 21-stage rebuild. FastAPI hosts six LangGraphs. Next.js 16 is wired to real APIs (login, queue, decide, coverage). Neo4j + Redis + SQLite. Nine ADRs accepted. Chaos folder is a three-line README. No docker-compose. Foundry is a commented <code>.env.example</code> line; <code>get_llm()</code> defaults to Anthropic.</p></div>
-  <div class="strip v3"><b>V3 — current tree (this repo)</b><p>Strict superset of V2 source — nothing V2 had was dropped. Adds <code>AzureFoundryLLM</code> (default provider), compose + <code>scripts/bootstrap.sh</code>, injectable ADR-007 chaos drills, SQLite thread-safety and Dockerfile fixture fixes, GitHub Pages, and the comparison / system-map / low-level architecture HTML.</p></div>
+  <div class="strip v3"><b>V3 — current tree (this repo)</b><p>Strict superset of V2 source — nothing V2 had was dropped. Adds <code>AzureFoundryLLM</code> (default provider), compose + <code>scripts/bootstrap.sh</code>, injectable ADR-007 chaos drills, SQLite thread-safety and Dockerfile fixture fixes, GitHub Pages, and the comparison / system-map / high-level / low-level architecture HTML.</p></div>
 
   <h3>Purpose and shape</h3>
   <div class="scroll">
@@ -213,7 +213,7 @@ footer { border-top: 1px solid var(--rule); padding: 22px 0 40px; color: var(--i
           <td class="dim">Layout</td>
           <td><code>app/</code> <code>case/</code> <code>data/</code> <code>knowledge/</code> <code>starter/</code> <code>submission/</code> — no <code>apps/</code> or <code>services/</code></td>
           <td><code>apps/web</code> <code>services/api</code> <code>services/integration</code> <code>packages/</code> <code>docs/</code> <code>tests/</code></td>
-          <td>Same as V2 + <code>docker-compose.yml</code> <code>scripts/bootstrap.sh</code> <code>ops/chaos/</code> <code>docs/chaos/</code> <code>docs/comparison/</code> <code>docs/architecture/low-level/</code> <code>docs/architecture/system_map/</code> <code>site/</code></td>
+          <td>Same as V2 + <code>docker-compose.yml</code> <code>scripts/bootstrap.sh</code> <code>ops/chaos/</code> <code>docs/chaos/</code> <code>docs/comparison/</code> <code>docs/architecture/high-level/</code> <code>docs/architecture/low-level/</code> <code>docs/architecture/agentic/aegis_agents.html</code> <code>docs/architecture/system_map/</code> <code>site/</code></td>
         </tr>
         <tr>
           <td class="dim">Monolith vs services</td>
@@ -595,7 +595,7 @@ footer { border-top: 1px solid var(--rule); padding: 22px 0 40px; color: var(--i
           <td class="dim">SDD / ADR pack</td>
           <td>12 ADRs on paper + 30 numbered artefacts. Phase 5 POC incomplete.</td>
           <td>9 accepted prod ADRs + 21-stage SDD. Some handoff files still say three workflows.</td>
-          <td>Same 9 ADRs. Chaos implements ADR-007; no ADR-010. Comparison / system-map / low-level HTML added.</td>
+          <td>Same 9 ADRs. Chaos implements ADR-007; no ADR-010. Comparison / system-map / high-level / low-level HTML added.</td>
         </tr>
         <tr>
           <td class="dim">Advisory-only (no brownfield write)</td>
@@ -751,7 +751,7 @@ footer { border-top: 1px solid var(--rule); padding: 22px 0 40px; color: var(--i
           <td class="dim">DDD / C4</td>
           <td>Filled templates. Implementation does not match C4 containers.</td>
           <td>Stable DDD + C4. Runtime collapses MCP/policy into the API process.</td>
-          <td>Same, plus Azure-style low-level HTML of the <em>running</em> layout</td>
+          <td>Same, plus C4 high-level HTML, Azure-style low-level HTML, and the agents-and-flow HTML of the six graphs</td>
         </tr>
         <tr>
           <td class="dim">SDD stages</td>
@@ -763,7 +763,7 @@ footer { border-top: 1px solid var(--rule); padding: 22px 0 40px; color: var(--i
           <td class="dim">Comparison HTML</td>
           <td>None</td>
           <td><code>architecture_explorer.html</code> + <code>repo-graph/architecture.html</code> (same files in V3). No three-repo ledger.</td>
-          <td>Those two plus <code>v2_vs_v3.html</code>, <code>v3_blueprint.html</code>, this file, <code>aegis_low_level.html</code>, <code>system_map.html</code></td>
+          <td>Those two plus <code>v2_vs_v3.html</code>, <code>v3_blueprint.html</code>, this file, <code>aegis_high_level.html</code>, <code>aegis_low_level.html</code>, <code>aegis_agents.html</code>, <code>system_map.html</code></td>
         </tr>
       </tbody>
     </table>
@@ -908,7 +908,9 @@ footer { border-top: 1px solid var(--rule); padding: 22px 0 40px; color: var(--i
         <tr><td class="dim"><code>tests/resilience/test_chaos_harness.py</code> + <code>tests/integration/test_chaos_drill_endpoint.py</code></td><td colspan="3">+2 Python test modules vs V2’s 39</td></tr>
         <tr><td class="dim"><code>docs/chaos/moonshot_plan.md</code></td><td colspan="3">Canonical hybrid chaos plan</td></tr>
         <tr><td class="dim"><code>docs/comparison/</code></td><td colspan="3"><code>v2_vs_v3.html</code>, <code>v3_blueprint.html</code>, this file</td></tr>
-        <tr><td class="dim"><code>docs/architecture/low-level/</code></td><td colspan="3">Azure-style running-architecture diagram</td></tr>
+        <tr><td class="dim"><code>docs/architecture/high-level/</code></td><td colspan="3">C4 context + containers of the running system</td></tr>
+        <tr><td class="dim"><code>docs/architecture/agentic/aegis_agents.html</code></td><td colspan="3">Roster + shared spine + HITL map of the six graphs</td></tr>
+        <tr><td class="dim"><code>docs/architecture/low-level/</code></td><td colspan="3">Azure-style running-architecture diagram (VNet / subnet)</td></tr>
         <tr><td class="dim"><code>docs/architecture/system_map/</code></td><td colspan="3">Interactive system map + JSON twin</td></tr>
         <tr><td class="dim"><code>site/index.html</code> + <code>.github/workflows/pages.yml</code></td><td colspan="3">Static landing published by Pages</td></tr>
       </tbody>

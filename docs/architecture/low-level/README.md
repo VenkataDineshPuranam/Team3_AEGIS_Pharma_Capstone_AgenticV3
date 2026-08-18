@@ -1,6 +1,6 @@
 # Low-level architecture
 
-Open [`aegis_low_level.html`](aegis_low_level.html) in a browser (needs the `icons/used/` files next to it).
+Open [`aegis_low_level.html`](aegis_low_level.html) in a browser (needs the `icons/used/` files next to it). For C4 context + containers of the same system, see the [high-level diagram](../high-level/aegis_high_level.html). For the six agents and the shared graph spine, see [agents and flow](../agentic/aegis_agents.html).
 
 Visio-style nested drawing (subscription → VNet → subnet) with **explicit arrows**:
 - thick black = HTTPS / ingest / Internet

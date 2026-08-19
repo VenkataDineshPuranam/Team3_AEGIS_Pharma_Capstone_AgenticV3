@@ -57,6 +57,13 @@ COPY eval-ai-cache/ ./eval-ai-cache/
 # without reading server logs.
 COPY tests/fixtures/ ./tests/fixtures/
 
+# chaos_harness.py's load_catalog() reads CHAOS-*.json experiment definitions from here at
+# request time (services/integration/chaos_harness.py's EXPERIMENTS_DIR), the same
+# read-live-at-runtime pattern as docs/governance/compliance/ and eval-ai-cache/ above.
+# Without this COPY the catalog endpoint doesn't fail loudly like the others -- it just
+# returns an empty experiments list, so Chaos Drill silently has nothing to run.
+COPY ops/chaos/experiments/ ./ops/chaos/experiments/
+
 # Non-root. The audit store (services/integration/audit_store.py) writes a SQLite file
 # under evidence/, so that path must be writable by this user -- in Azure Container Apps
 # the durable version of this is a mounted volume or the Blob WORM store ADR-009 names;

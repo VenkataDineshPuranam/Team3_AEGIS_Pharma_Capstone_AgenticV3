@@ -24,6 +24,11 @@ unchanged, and matched verbatim by every authorization check.
 | `steven.parker` | `Parker#2026Ub` | Dr. Steven Parker | Unblinding authority |
 | `patricia.grant` | `Grant#2026Admin` | Patricia Grant | Super Admin |
 
+The CISO / DPO account (`karen.mitchell`) is the only role that may **run** Chaos Drill experiments
+(`/chaos-drill`, `POST /api/chaos-drill/experiments/{id}/run`). Every signed-in role may
+view the catalog and history. Super Admin sees Compliance and Evaluation & Security; it
+cannot decide any workflow.
+
 ## What each role can actually do
 
 This is the enforcement table, not documentation of an intention — every row is checked

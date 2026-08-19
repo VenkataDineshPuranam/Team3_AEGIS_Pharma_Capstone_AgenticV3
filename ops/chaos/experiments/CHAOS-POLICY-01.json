@@ -1,0 +1,12 @@
+{
+  "id": "CHAOS-POLICY-01",
+  "title": "Policy engine unreachable",
+  "adr_row": "Policy Engine unreachable → fail closed (refuse)",
+  "ui_runnable": true,
+  "workflow": "batch_review",
+  "injector": "policy_fail_closed",
+  "expected": {
+    "terminal_state": "refused",
+    "abstention_reason": "fail_closed"
+  }
+}

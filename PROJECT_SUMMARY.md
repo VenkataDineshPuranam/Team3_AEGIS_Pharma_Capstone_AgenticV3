@@ -789,6 +789,14 @@ dependency), 4 for the endpoint, 9 for the bell (including a from-scratch jsdom
 `localStorage` polyfill, since this project's jsdom has none configured — discovered via
 a failing test, not assumed).
 
+## 6o. Chaos Drill — ADR-007 lab injectors (`/chaos-drill`)
+
+Hybrid moonshot: CISO/DPO runs named fail-closed injectors from the Control Center
+(LLM outage, Redis bypass, Neo4j unavailable, HITL timeout, policy fail-closed) without
+taking down shared infra. Graph DI on `build_graph` only; `DRILL-` run ids excluded from
+Run History; results in `chaos_drill_run`. See `docs/chaos/moonshot_plan.md` and
+`ops/chaos/README.md`.
+
 ## 7. Tech stack (ADR-001 + ADR-009 Azure)
 
 | Concern | Choice |

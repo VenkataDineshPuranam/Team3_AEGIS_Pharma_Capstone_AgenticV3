@@ -1,0 +1,956 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AEGIS-PHARMA V2 — Low-level architecture</title>
+<style>
+:root {
+  --paper: #eef2f6;
+  --ink: #1b242c;
+  --ink-2: #5a6874;
+  --azure: #0078d4;
+  --sans: "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font: 13px/1.45 var(--sans);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+header {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  padding: 8px 14px; background: #fff; border-bottom: 1px solid #c5d0da; z-index: 6;
+}
+.brand { display: flex; align-items: center; gap: 8px; }
+.brand h1 { margin: 0; font-size: 14px; font-weight: 650; }
+.brand p { margin: 0; font-size: 11px; color: var(--ink-2); }
+.spacer { flex: 1; }
+.tog, .btn {
+  border: 1px solid #c5d0da; background: #f7f9fb; color: var(--ink-2);
+  border-radius: 999px; padding: 5px 11px; font-size: 12px; cursor: pointer;
+}
+.tog.on { background: #e8f3fc; border-color: var(--azure); color: var(--azure); font-weight: 600; }
+.btn { border-radius: 8px; }
+.main { flex: 1; display: flex; min-height: 0; }
+.viewport { flex: 1; overflow: auto; background: #eef2f6; cursor: grab; }
+.viewport.grabbing { cursor: grabbing; }
+svg#arch { display: block; min-width: 2400px; height: auto; }
+svg#arch .res { cursor: pointer; }
+svg#arch .res:hover rect.hit { fill: rgba(0,120,212,.08); }
+svg#arch text { font-family: var(--sans); fill: #1b242c; }
+aside {
+  width: 300px; background: #fff; border-left: 1px solid #c5d0da;
+  padding: 14px; overflow: auto; flex: none;
+}
+aside h2 { margin: 0 0 4px; font-size: 15px; }
+aside .meta { font-size: 11px; color: var(--ink-2); font-family: ui-monospace, Consolas, monospace; }
+aside .body { font-size: 12.5px; margin-top: 10px; }
+aside .body p { margin: 0 0 8px; }
+aside ul { margin: 6px 0 0; padding-left: 16px; }
+aside .empty { color: #8a97a3; margin-top: 20px; }
+.tag {
+  display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: .04em;
+  padding: 2px 6px; border-radius: 4px; background: #eef3f7; color: #3d4e5c; margin-right: 4px;
+}
+.tag.chaos { background: #fdecea; color: #c23b22; }
+.tag.azure { background: #e8f3fc; color: #0078d4; }
+.tag.local { background: #eef6e8; color: #498205; }
+body.filter-chaos [data-chaos] { outline: 2px solid #c23b22; outline-offset: 2px; }
+body.filter-chaos g.res:not([data-chaos]) { opacity: .28; }
+body.filter-azure .local-only { opacity: .28; }
+body.filter-local .azure-only { opacity: .28; }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <img src="icons/used/subscription.svg" width="26" height="26" alt="">
+    <div>
+      <h1>AEGIS-PHARMA V2 — low-level architecture</h1>
+      <p>Official Azure Architecture Center icons + product logos. Validated against this repo.
+        <a href="../high-level/aegis_high_level.html" style="color:#0078d4;text-decoration:none">High-level (C4)</a>
+        · <a href="../agentic/aegis_agents.html" style="color:#0078d4;text-decoration:none">Agents and flow</a>
+        · Ctrl+wheel to zoom.</p>
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <button class="tog on" data-filter="all">All layers</button>
+  <button class="tog" data-filter="local">Local compose</button>
+  <button class="tog" data-filter="azure">Azure target</button>
+  <button class="tog" data-filter="chaos">Chaos injectors</button>
+  <button class="btn" id="resetView">Reset view</button>
+</header>
+
+<div class="main">
+<div class="viewport" id="vp">
+<svg id="arch" viewBox="0 0 2400 1480" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#111"/>
+    </marker>
+    <marker id="arrRev" viewBox="0 0 10 10" refX="1" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M10,0 L0,5 L10,10 z" fill="#111"/>
+    </marker>
+    <marker id="peer" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#7a8794"/>
+    </marker>
+    <marker id="peerRev" viewBox="0 0 10 10" refX="1" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M10,0 L0,5 L10,10 z" fill="#7a8794"/>
+    </marker>
+    <marker id="arrRed" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#c23b22"/>
+    </marker>
+    <marker id="arrBlue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#0078d4"/>
+    </marker>
+  </defs>
+
+  <!-- ===================== LEFT: operators (customer premises) ===================== -->
+  <g data-id="operators">
+    <rect x="16" y="70" width="228" height="700" fill="#fff" stroke="#5a6874" stroke-width="1.4"/>
+    <text x="28" y="92" font-size="12" font-weight="700">Named operators</text>
+    <text x="28" y="106" font-size="9" fill="#5a6874">Customer premises · HITL</text>
+    <g class="res" data-id="qp" transform="translate(36,124)">
+      <rect class="hit" x="-8" y="-4" width="188" height="52" fill="transparent" rx="3"/>
+      <image href="icons/used/users.svg" width="28" height="28"/>
+      <text x="36" y="14" font-size="11" font-weight="600">EU Qualified Person</text>
+      <text x="36" y="28" font-size="9" fill="#5a6874">batch_review · quality leg</text>
+    </g>
+    <g class="res" data-id="safety" transform="translate(36,180)">
+      <rect class="hit" x="-8" y="-4" width="188" height="52" fill="transparent"/>
+      <image href="icons/used/users.svg" width="28" height="28"/>
+      <text x="36" y="14" font-size="11" font-weight="600">Safety physician</text>
+      <text x="36" y="28" font-size="9" fill="#5a6874">pv_intake · veto</text>
+    </g>
+    <g class="res" data-id="supply" transform="translate(36,236)">
+      <rect class="hit" x="-8" y="-4" width="188" height="52" fill="transparent"/>
+      <image href="icons/used/users.svg" width="28" height="28"/>
+      <text x="36" y="14" font-size="11" font-weight="600">Supply governance</text>
+      <text x="36" y="28" font-size="9" fill="#5a6874">planning leg · VP</text>
+    </g>
+    <g class="res" data-id="research" transform="translate(36,292)">
+      <rect class="hit" x="-8" y="-4" width="188" height="52" fill="transparent"/>
+      <image href="icons/used/users.svg" width="28" height="28"/>
+      <text x="36" y="14" font-size="11" font-weight="600">Head of Preclinical</text>
+      <text x="36" y="28" font-size="9" fill="#5a6874">research_review</text>
+    </g>
+    <g class="res" data-id="clinical" transform="translate(36,348)">
+      <rect class="hit" x="-8" y="-4" width="188" height="52" fill="transparent"/>
+      <image href="icons/used/users.svg" width="28" height="28"/>
+      <text x="36" y="14" font-size="11" font-weight="600">Clinical Monitor</text>
+      <text x="36" y="28" font-size="9" fill="#5a6874">clinical_integrity</text>
+    </g>
+    <g class="res" data-id="reg" transform="translate(36,404)">
+      <rect class="hit" x="-8" y="-4" width="188" height="52" fill="transparent"/>
+      <image href="icons/used/users.svg" width="28" height="28"/>
+      <text x="36" y="14" font-size="11" font-weight="600">Head of RA</text>
+      <text x="36" y="28" font-size="9" fill="#5a6874">regulatory_completeness</text>
+    </g>
+    <g class="res" data-id="quality" transform="translate(36,460)">
+      <rect class="hit" x="-8" y="-4" width="188" height="52" fill="transparent"/>
+      <image href="icons/used/users.svg" width="28" height="28"/>
+      <text x="36" y="14" font-size="11" font-weight="600">Quality reviewer</text>
+      <text x="36" y="28" font-size="9" fill="#5a6874">oversight · no decide()</text>
+    </g>
+    <g class="res" data-id="ciso" data-chaos="harness" transform="translate(36,516)">
+      <rect class="hit" x="-8" y="-4" width="188" height="52" fill="transparent"/>
+      <image href="icons/used/roles.svg" width="28" height="28"/>
+      <text x="36" y="14" font-size="11" font-weight="600">CISO / DPO</text>
+      <text x="36" y="28" font-size="9" fill="#5a6874">chaos Run only</text>
+    </g>
+    <g class="res" data-id="auditor" transform="translate(36,572)">
+      <rect class="hit" x="-8" y="-4" width="188" height="52" fill="transparent"/>
+      <image href="icons/used/users.svg" width="28" height="28"/>
+      <text x="36" y="14" font-size="11" font-weight="600">Auditor</text>
+      <text x="36" y="28" font-size="9" fill="#5a6874">read-only</text>
+    </g>
+    <g class="res" data-id="unblind" transform="translate(36,628)">
+      <rect class="hit" x="-8" y="-4" width="188" height="52" fill="transparent"/>
+      <image href="icons/used/nsg.svg" width="28" height="28"/>
+      <text x="36" y="14" font-size="11" font-weight="600">Unblinding authority</text>
+      <text x="36" y="28" font-size="9" fill="#5a6874">blocked from supply</text>
+    </g>
+    <text x="28" y="750" font-size="9" fill="#5a6874">Entra groups at deploy</text>
+  </g>
+
+  <!-- Brownfield (back-office analogue) -->
+  <g class="local-only" data-id="brownfield">
+    <rect x="16" y="790" width="228" height="270" fill="#fff" stroke="#5a6874" stroke-width="1.4"/>
+    <text x="28" y="812" font-size="12" font-weight="700">Brownfield sources</text>
+    <text x="28" y="826" font-size="9" fill="#5a6874">read-only · no write path</text>
+    <g class="res" data-id="mfg" transform="translate(40,848)"><image href="icons/used/vm.svg" width="28" height="28"/><text x="14" y="44" font-size="8" text-anchor="middle">Mfg</text></g>
+    <g class="res" data-id="lab" transform="translate(92,848)"><image href="icons/used/sql.svg" width="28" height="28"/><text x="14" y="44" font-size="8" text-anchor="middle">Lab</text></g>
+    <g class="res" data-id="qms" transform="translate(144,848)"><image href="icons/used/storage.svg" width="28" height="28"/><text x="14" y="44" font-size="8" text-anchor="middle">Quality</text></g>
+    <g class="res" data-id="safety-sys" transform="translate(66,910)"><image href="icons/used/sql.svg" width="28" height="28"/><text x="14" y="44" font-size="8" text-anchor="middle">Safety</text></g>
+    <g class="res" data-id="supply-sys" transform="translate(118,910)"><image href="icons/used/vm.svg" width="28" height="28"/><text x="14" y="44" font-size="8" text-anchor="middle">Supply</text></g>
+    <image href="icons/used/firewall.svg" x="188" y="848" width="22" height="22"/>
+    <text x="28" y="1044" font-size="8" fill="#c23b22">NSG: deny all outbound writes</text>
+  </g>
+
+  <!-- ===================== AZURE / AEGIS BOUNDARY ===================== -->
+  <rect x="278" y="36" width="1688" height="1048" fill="none" stroke="#0078d4" stroke-width="2" stroke-dasharray="10 6" rx="2"/>
+  <text x="292" y="58" font-size="13" font-weight="700" fill="#0078d4">Microsoft Azure — AEGIS-PHARMA deployment boundary</text>
+  <text x="1100" y="58" font-size="10" fill="#5a6874">local compose substitutes inside the same boxes (ADR-009)</text>
+
+  <!-- ===== Control Center subscription ===== -->
+  <g data-id="control-center">
+    <rect x="292" y="72" width="392" height="988" fill="#fbfdff" stroke="#0078d4" stroke-width="1.6"/>
+    <image href="icons/used/subscription.svg" x="300" y="78" width="16" height="16"/>
+    <text x="322" y="91" font-size="12" font-weight="700">Control Center subscription</text>
+    <text x="322" y="105" font-size="9" fill="#5a6874">apps/web · Next.js · :3000</text>
+
+    <!-- Web VNet -->
+    <rect x="308" y="118" width="360" height="780" fill="none" stroke="#7a8794" stroke-width="1.3" stroke-dasharray="6 4"/>
+    <text x="320" y="136" font-size="11" font-weight="600" fill="#3d5a73">Web virtual network</text>
+
+    <!-- Presentation subnet -->
+    <rect x="322" y="148" width="332" height="300" fill="#fff" stroke="#9aa8b5"/>
+    <text x="334" y="166" font-size="10" font-weight="700" fill="#5a6874">PRESENTATION SUBNET</text>
+    <g class="res" data-id="web-app" transform="translate(348,180)">
+      <rect class="hit" x="-6" y="-4" width="72" height="78" fill="transparent"/>
+      <image href="icons/used/nextdotjs.svg" width="36" height="36" x="10"/>
+      <text x="28" y="52" font-size="9" font-weight="600" text-anchor="middle">AppShell</text>
+      <text x="28" y="64" font-size="8" fill="#5a6874" text-anchor="middle">layout</text>
+    </g>
+    <g class="res" data-id="page-queue" transform="translate(428,180)">
+      <image href="icons/used/nextdotjs.svg" width="36" height="36" x="10"/>
+      <text x="28" y="52" font-size="9" font-weight="600" text-anchor="middle">Queue</text>
+      <text x="28" y="64" font-size="8" fill="#5a6874" text-anchor="middle">/decisions</text>
+    </g>
+    <g class="res" data-id="page-runs" transform="translate(508,180)">
+      <image href="icons/used/nextdotjs.svg" width="36" height="36" x="10"/>
+      <text x="28" y="52" font-size="9" font-weight="600" text-anchor="middle">Runs</text>
+      <text x="28" y="64" font-size="8" fill="#5a6874" text-anchor="middle">exclude_drills</text>
+    </g>
+    <g class="res" data-id="page-health" transform="translate(348,262)">
+      <image href="icons/used/health.svg" width="36" height="36" x="10"/>
+      <text x="28" y="52" font-size="9" font-weight="600" text-anchor="middle">Health</text>
+      <text x="28" y="64" font-size="8" fill="#5a6874" text-anchor="middle">/health</text>
+    </g>
+    <g class="res" data-id="page-gov" transform="translate(428,262)">
+      <image href="icons/used/policy.svg" width="36" height="36" x="10"/>
+      <text x="28" y="52" font-size="9" font-weight="600" text-anchor="middle">Governance</text>
+    </g>
+    <g class="res" data-id="page-chaos" data-chaos="harness" transform="translate(508,262)">
+      <image href="icons/used/chaos-studio.svg" width="36" height="36" x="10"/>
+      <text x="28" y="52" font-size="9" font-weight="600" text-anchor="middle">Chaos Drill</text>
+      <text x="28" y="64" font-size="8" fill="#c23b22" text-anchor="middle">CISO Run</text>
+    </g>
+    <g class="res" data-id="page-evidence" transform="translate(348,344)">
+      <image href="icons/used/blob.svg" width="36" height="36" x="10"/>
+      <text x="28" y="52" font-size="9" font-weight="600" text-anchor="middle">Evidence</text>
+      <text x="28" y="64" font-size="8" fill="#5a6874" text-anchor="middle">/evidence</text>
+    </g>
+    <g class="res" data-id="page-wf" transform="translate(428,344)">
+      <image href="icons/used/logic-apps.svg" width="36" height="36" x="10"/>
+      <text x="28" y="52" font-size="9" font-weight="600" text-anchor="middle">Workflows</text>
+      <text x="28" y="64" font-size="8" fill="#5a6874" text-anchor="middle">/workflows</text>
+    </g>
+    <g class="res" data-id="page-coverage" transform="translate(508,344)">
+      <image href="icons/used/app-insights.svg" width="36" height="36" x="10"/>
+      <text x="28" y="52" font-size="9" font-weight="600" text-anchor="middle">Coverage</text>
+      <text x="28" y="64" font-size="8" fill="#5a6874" text-anchor="middle">/coverage</text>
+    </g>
+
+    <!-- Client API subnet -->
+    <rect x="322" y="464" width="332" height="160" fill="#fff" stroke="#9aa8b5"/>
+    <text x="334" y="482" font-size="10" font-weight="700" fill="#5a6874">CLIENT API SUBNET</text>
+    <g class="res" data-id="web-nsg" transform="translate(360,500)">
+      <image href="icons/used/nsg.svg" width="36" height="36"/>
+      <text x="18" y="52" font-size="9" font-weight="600" text-anchor="middle">CORS NSG</text>
+      <text x="18" y="64" font-size="8" fill="#5a6874" text-anchor="middle">WEB_ORIGIN</text>
+    </g>
+    <g class="res" data-id="web-nic" transform="translate(460,500)">
+      <image href="icons/used/nic.svg" width="36" height="36"/>
+      <text x="18" y="52" font-size="9" font-weight="600" text-anchor="middle">API NIC</text>
+      <text x="18" y="64" font-size="8" fill="#5a6874" text-anchor="middle">NEXT_PUBLIC_API_URL</text>
+    </g>
+    <g class="res" data-id="fastapi-out" transform="translate(560,500)">
+      <image href="icons/used/route-table.svg" width="36" height="36"/>
+      <text x="18" y="52" font-size="9" font-weight="600" text-anchor="middle">HTTPS</text>
+      <text x="18" y="64" font-size="8" fill="#5a6874" text-anchor="middle">/api/*</text>
+    </g>
+
+    <!-- Shared identity row -->
+    <rect x="322" y="644" width="332" height="130" fill="#fff" stroke="#9aa8b5"/>
+    <text x="334" y="662" font-size="10" font-weight="700" fill="#5a6874">LOGIN · Entra is the deploy binding</text>
+    <g class="res" data-id="page-login" transform="translate(360,680)">
+      <image href="icons/used/users.svg" width="36" height="36"/>
+      <text x="18" y="52" font-size="9" font-weight="600" text-anchor="middle">Login</text>
+      <text x="18" y="64" font-size="8" fill="#5a6874" text-anchor="middle">/login</text>
+    </g>
+    <g class="res azure-only" data-id="entra" transform="translate(460,680)">
+      <image href="icons/used/groups.svg" width="36" height="36"/>
+      <text x="18" y="52" font-size="9" font-weight="600" text-anchor="middle">Entra ID</text>
+      <text x="18" y="64" font-size="8" fill="#0078d4" text-anchor="middle">HITL groups</text>
+    </g>
+    <g class="res azure-only" data-id="managed-id-web" transform="translate(560,680)">
+      <image href="icons/used/managed-id.svg" width="36" height="36"/>
+      <text x="18" y="52" font-size="9" font-weight="600" text-anchor="middle">Managed ID</text>
+    </g>
+  </g>
+
+  <!-- Subscription shared services under control -->
+  <g transform="translate(322,900)">
+    <image href="icons/used/managed-id.svg" width="28" height="28"/>
+    <text x="14" y="42" font-size="8" text-anchor="middle">Managed</text>
+    <text x="14" y="52" font-size="8" text-anchor="middle">Identity</text>
+  </g>
+  <g transform="translate(390,900)">
+    <image href="icons/used/roles.svg" width="28" height="28"/>
+    <text x="14" y="42" font-size="8" text-anchor="middle">App RBAC</text>
+  </g>
+  <g transform="translate(458,900)">
+    <image href="icons/used/route-table.svg" width="28" height="28"/>
+    <text x="14" y="42" font-size="8" text-anchor="middle">UDR / routes</text>
+  </g>
+
+  <!-- ===== Orchestrator subscription ===== -->
+  <g data-id="orchestrator">
+    <rect x="712" y="72" width="900" height="988" fill="#fbfdff" stroke="#0078d4" stroke-width="1.6"/>
+    <image href="icons/used/subscription.svg" x="720" y="78" width="16" height="16"/>
+    <text x="742" y="91" font-size="12" font-weight="700">Orchestrator + evidence subscription</text>
+    <text x="742" y="105" font-size="9" fill="#5a6874">services/api · services/integration · Azure Container Apps</text>
+
+    <!-- Hub VNet -->
+    <rect x="728" y="118" width="868" height="520" fill="none" stroke="#7a8794" stroke-width="1.3" stroke-dasharray="6 4"/>
+    <text x="740" y="136" font-size="11" font-weight="600" fill="#3d5a73">Hub virtual network  ↔  LangGraph (in-process tools, not extra VMs)</text>
+
+    <!-- Policy plane (LEFT of hub VM) -->
+    <rect x="744" y="200" width="168" height="200" fill="#fff" stroke="#9aa8b5"/>
+    <text x="752" y="216" font-size="9" font-weight="700" fill="#5a6874">POLICY PLANE</text>
+    <g class="res" data-id="policy" data-chaos="policy" transform="translate(760,228)">
+      <image href="icons/used/policy.svg" width="32" height="32"/>
+      <text x="16" y="46" font-size="8" font-weight="600" text-anchor="middle">Policy</text>
+      <text x="16" y="56" font-size="7" fill="#c23b22" text-anchor="middle">POL-01</text>
+    </g>
+    <g class="res" data-id="guard" transform="translate(808,228)">
+      <image href="icons/used/nsg.svg" width="32" height="32"/>
+      <text x="16" y="46" font-size="8" font-weight="600" text-anchor="middle">Guard ×2</text>
+    </g>
+    <g class="res" data-id="dow" transform="translate(856,228)">
+      <image href="icons/used/budget.svg" width="32" height="32"/>
+      <text x="16" y="46" font-size="8" font-weight="600" text-anchor="middle">DoW</text>
+    </g>
+    <g class="res" data-id="policy-nic" transform="translate(808,300)">
+      <image href="icons/used/nic.svg" width="28" height="28"/>
+      <text x="14" y="42" font-size="8" font-weight="600" text-anchor="middle">Trust NIC</text>
+    </g>
+    <g class="res" data-id="policy-nsg" transform="translate(848,300)">
+      <image href="icons/used/nsg.svg" width="28" height="28"/>
+      <text x="14" y="42" font-size="8" font-weight="600" text-anchor="middle">NSG</text>
+    </g>
+
+    <!-- Chaos / Management subnet (TOP) -->
+    <rect x="980" y="150" width="220" height="130" fill="#fff8f6" stroke="#c23b22" stroke-dasharray="4 3"/>
+    <text x="988" y="166" font-size="9" font-weight="700" fill="#c23b22">MANAGEMENT · CHAOS LAB</text>
+    <g class="res" data-id="harness" data-chaos="harness" transform="translate(1000,178)">
+      <image href="icons/used/chaos-studio.svg" width="32" height="32"/>
+      <text x="16" y="46" font-size="8" font-weight="600" text-anchor="middle">harness</text>
+    </g>
+    <g class="res" data-id="drill-api" data-chaos="harness" transform="translate(1052,178)">
+      <image href="icons/used/container-app.svg" width="32" height="32"/>
+      <text x="16" y="46" font-size="8" font-weight="600" text-anchor="middle">/chaos-drill</text>
+    </g>
+    <g class="res" data-id="chaos-nic" data-chaos="harness" transform="translate(1108,178)">
+      <image href="icons/used/nic.svg" width="32" height="32"/>
+      <text x="16" y="46" font-size="8" font-weight="600" text-anchor="middle">Inject NIC</text>
+    </g>
+
+    <!-- Retrieve / Untrust subnet (RIGHT) -->
+    <rect x="1408" y="200" width="172" height="200" fill="#fff" stroke="#9aa8b5"/>
+    <text x="1416" y="216" font-size="9" font-weight="700" fill="#5a6874">EVIDENCE TOOLS</text>
+    <g class="res" data-id="retrieve" data-chaos="neo4j" transform="translate(1424,228)">
+      <image href="icons/used/neo4j.svg" width="32" height="32"/>
+      <text x="16" y="46" font-size="8" font-weight="600" text-anchor="middle">retrieve</text>
+      <text x="16" y="56" font-size="7" fill="#c23b22" text-anchor="middle">NEO-01</text>
+    </g>
+    <g class="res" data-id="egate" transform="translate(1476,228)">
+      <image href="icons/used/nsg.svg" width="32" height="32"/>
+      <text x="16" y="46" font-size="8" font-weight="600" text-anchor="middle">e_gate</text>
+    </g>
+    <g class="res" data-id="reconcile" transform="translate(1528,228)">
+      <image href="icons/used/gear.svg" width="32" height="32"/>
+      <text x="16" y="46" font-size="8" font-weight="600" text-anchor="middle">reconcile</text>
+    </g>
+    <g class="res" data-id="retrieve-nic" transform="translate(1476,300)">
+      <image href="icons/used/nic.svg" width="28" height="28"/>
+      <text x="14" y="42" font-size="8" font-weight="600" text-anchor="middle">Untrust NIC</text>
+    </g>
+    <g class="res" data-id="retrieve-nsg" transform="translate(1520,300)">
+      <image href="icons/used/nsg.svg" width="28" height="28"/>
+      <text x="14" y="42" font-size="8" font-weight="600" text-anchor="middle">NSG</text>
+    </g>
+
+    <!-- HITL / Interconnect subnet (BOTTOM of hub) -->
+    <rect x="980" y="478" width="220" height="140" fill="#fff" stroke="#9aa8b5"/>
+    <text x="988" y="494" font-size="9" font-weight="700" fill="#5a6874">INTERCONNECT · HITL</text>
+    <g class="res" data-id="hitl-route" data-chaos="hitl" transform="translate(1000,508)">
+      <image href="icons/used/route-table.svg" width="32" height="32"/>
+      <text x="16" y="46" font-size="8" font-weight="600" text-anchor="middle">hitl_route</text>
+      <text x="16" y="56" font-size="7" fill="#c23b22" text-anchor="middle">HITL-01</text>
+    </g>
+    <g class="res" data-id="memorysaver" transform="translate(1056,508)">
+      <image href="icons/used/sql.svg" width="32" height="32"/>
+      <text x="16" y="46" font-size="8" font-weight="600" text-anchor="middle">MemorySaver</text>
+    </g>
+    <g class="res" data-id="hitl-nic" data-chaos="hitl" transform="translate(1116,508)">
+      <image href="icons/used/nic.svg" width="32" height="32"/>
+      <text x="16" y="46" font-size="8" font-weight="600" text-anchor="middle">HITL NIC</text>
+    </g>
+
+    <!-- CENTER appliance = FastAPI + LangGraph (vSRX analogue) -->
+    <g class="res" data-id="fastapi" transform="translate(1048,318)">
+      <rect x="-16" y="-10" width="176" height="118" fill="#fff" stroke="#5c2d91" stroke-width="1.8" rx="3"/>
+      <image href="icons/used/fastapi.svg" x="8" y="4" width="40" height="40"/>
+      <image href="icons/used/langgraph.svg" x="56" y="4" width="40" height="40"/>
+      <image href="icons/used/container-app.svg" x="104" y="4" width="40" height="40"/>
+      <text x="72" y="60" font-size="11" font-weight="700" text-anchor="middle">Orchestrator</text>
+      <text x="72" y="74" font-size="8" fill="#5a6874" text-anchor="middle">FastAPI + LangGraph · ACA</text>
+      <text x="72" y="86" font-size="8" fill="#5c2d91" text-anchor="middle">services/api · :8000</text>
+      <text x="72" y="98" font-size="8" fill="#c23b22" text-anchor="middle">CHAOS-LLM-01 injects here</text>
+    </g>
+  </g>
+
+  <!-- Spoke: six graphs -->
+  <rect x="728" y="654" width="430" height="250" fill="none" stroke="#7a8794" stroke-width="1.3" stroke-dasharray="6 4"/>
+  <text x="740" y="672" font-size="11" font-weight="600" fill="#3d5a73">Spoke virtual network — workflow graphs (ADR-008)</text>
+  <rect x="742" y="684" width="402" height="204" fill="#fff" stroke="#9aa8b5"/>
+  <text x="754" y="700" font-size="9" font-weight="700" fill="#5a6874">GRAPH SUBNET · one VM per workflow · no cross-calls</text>
+  <g class="res" data-id="g-batch" data-chaos="graph" transform="translate(760,716)">
+    <image href="icons/used/langgraph.svg" width="36" height="36"/>
+    <text x="18" y="50" font-size="8" font-weight="700" text-anchor="middle">batch_review</text>
+    <text x="18" y="62" font-size="7" fill="#498205" text-anchor="middle">CANON · CHAOS</text>
+  </g>
+  <g class="res" data-id="g-pv" transform="translate(830,716)">
+    <image href="icons/used/langgraph.svg" width="36" height="36"/>
+    <text x="18" y="50" font-size="8" font-weight="600" text-anchor="middle">pv_intake</text>
+  </g>
+  <g class="res" data-id="g-supply" transform="translate(900,716)">
+    <image href="icons/used/langgraph.svg" width="36" height="36"/>
+    <text x="18" y="50" font-size="8" font-weight="600" text-anchor="middle">supply_pl.</text>
+  </g>
+  <g class="res" data-id="g-research" transform="translate(970,716)">
+    <image href="icons/used/langgraph.svg" width="36" height="36"/>
+    <text x="18" y="50" font-size="8" font-weight="600" text-anchor="middle">research</text>
+  </g>
+  <g class="res" data-id="g-clinical" transform="translate(1040,716)">
+    <image href="icons/used/langgraph.svg" width="36" height="36"/>
+    <text x="18" y="50" font-size="8" font-weight="600" text-anchor="middle">clinical</text>
+  </g>
+  <g class="res" data-id="g-reg" transform="translate(1110,716)">
+    <image href="icons/used/langgraph.svg" width="36" height="36"/>
+    <text x="18" y="50" font-size="8" font-weight="600" text-anchor="middle">regulatory</text>
+  </g>
+  <g class="res" data-id="graph-cache" transform="translate(830,800)">
+    <image href="icons/used/route-table.svg" width="32" height="32"/>
+    <text x="16" y="46" font-size="8" font-weight="600" text-anchor="middle">_GRAPH_CACHE</text>
+  </g>
+  <g class="res" data-id="llm-client" data-chaos="llm" transform="translate(930,800)">
+    <image href="icons/used/anthropic.svg" width="32" height="32"/>
+    <text x="16" y="46" font-size="8" font-weight="600" text-anchor="middle">llm_client</text>
+  </g>
+  <g class="res" data-id="prompt-guard" transform="translate(1030,800)">
+    <image href="icons/used/nsg.svg" width="32" height="32"/>
+    <text x="16" y="46" font-size="8" font-weight="600" text-anchor="middle">prompt_guard</text>
+  </g>
+
+  <!-- Data VNet -->
+  <rect x="1174" y="654" width="422" height="250" fill="none" stroke="#7a8794" stroke-width="1.3" stroke-dasharray="6 4"/>
+  <text x="1186" y="672" font-size="11" font-weight="600" fill="#3d5a73">Data virtual network — Neo4j / Redis / SQLite</text>
+  <rect x="1188" y="684" width="394" height="204" fill="#fff" stroke="#9aa8b5"/>
+  <text x="1200" y="700" font-size="9" font-weight="700" fill="#5a6874">DATA SUBNET</text>
+  <g class="res" data-id="neo4j" data-chaos="neo4j" transform="translate(1210,716)">
+    <image href="icons/used/neo4j.svg" width="40" height="40"/>
+    <text x="20" y="54" font-size="9" font-weight="700" text-anchor="middle">Neo4j 5 KG</text>
+    <text x="20" y="66" font-size="7" fill="#5a6874" text-anchor="middle">:7687 bolt</text>
+  </g>
+  <g class="res" data-id="neo-batch" transform="translate(1270,716)">
+    <image href="icons/used/vm.svg" width="32" height="32"/>
+    <text x="16" y="46" font-size="8" font-weight="600" text-anchor="middle">Batch</text>
+  </g>
+  <g class="res" data-id="neo-pv" transform="translate(1320,716)">
+    <image href="icons/used/vm.svg" width="32" height="32"/>
+    <text x="16" y="46" font-size="8" font-weight="600" text-anchor="middle">PV</text>
+  </g>
+  <g class="res" data-id="neo-supply" transform="translate(1370,716)">
+    <image href="icons/used/vm.svg" width="32" height="32"/>
+    <text x="16" y="46" font-size="8" font-weight="600" text-anchor="middle">Supply</text>
+  </g>
+  <g class="res" data-id="neo-other" transform="translate(1420,716)">
+    <image href="icons/used/vm.svg" width="32" height="32"/>
+    <text x="16" y="46" font-size="8" font-weight="600" text-anchor="middle">Clin/RA</text>
+  </g>
+  <g class="res" data-id="redis" data-chaos="redis" transform="translate(1480,716)">
+    <image href="icons/used/redis.svg" width="40" height="40"/>
+    <text x="20" y="54" font-size="9" font-weight="700" text-anchor="middle">Redis 7</text>
+    <text x="20" y="66" font-size="7" fill="#c23b22" text-anchor="middle">REDIS-01</text>
+  </g>
+  <g class="res" data-id="sqlite" transform="translate(1210,800)">
+    <image href="icons/used/sql.svg" width="32" height="32"/>
+    <text x="16" y="46" font-size="8" font-weight="600" text-anchor="middle">SQLite audit</text>
+  </g>
+  <g class="res" data-id="cache" data-chaos="redis" transform="translate(1300,800)">
+    <image href="icons/used/redis.svg" width="32" height="32"/>
+    <text x="16" y="46" font-size="8" font-weight="600" text-anchor="middle">response_cache</text>
+  </g>
+  <g class="res" data-id="drill-store" data-chaos="harness" transform="translate(1400,800)">
+    <image href="icons/used/sql.svg" width="32" height="32"/>
+    <text x="16" y="46" font-size="8" font-weight="600" text-anchor="middle">chaos_drill_run</text>
+  </g>
+  <g class="res" data-id="audit-mod" transform="translate(1490,800)">
+    <image href="icons/used/storage.svg" width="32" height="32"/>
+    <text x="16" y="46" font-size="8" font-weight="600" text-anchor="middle">append-only</text>
+  </g>
+
+  <!-- Shared services bottom of orch subscription -->
+  <g class="res" data-id="users" transform="translate(760,930)">
+    <image href="icons/used/users.svg" width="28" height="28"/>
+    <text x="14" y="42" font-size="8" text-anchor="middle">user_store</text>
+  </g>
+  <g class="res" data-id="auth" transform="translate(830,930)">
+    <image href="icons/used/roles.svg" width="28" height="28"/>
+    <text x="14" y="42" font-size="8" text-anchor="middle">API RBAC</text>
+  </g>
+  <g transform="translate(900,930)">
+    <image href="icons/used/route-table.svg" width="28" height="28"/>
+    <text x="14" y="42" font-size="8" text-anchor="middle">Route table</text>
+  </g>
+  <g class="azure-only" transform="translate(970,930)">
+    <image href="icons/used/key-vault.svg" width="28" height="28"/>
+    <text x="14" y="42" font-size="8" text-anchor="middle">Key Vault</text>
+  </g>
+  <g class="azure-only" transform="translate(1040,930)">
+    <image href="icons/used/storage.svg" width="28" height="28"/>
+    <text x="14" y="42" font-size="8" text-anchor="middle">Blob WORM</text>
+  </g>
+  <g transform="translate(1110,930)">
+    <image href="icons/used/firewall.svg" width="28" height="28"/>
+    <text x="14" y="42" font-size="8" text-anchor="middle">fail-closed</text>
+  </g>
+
+  <!-- ===== Azure platform subscription ===== -->
+  <g class="azure-only" data-id="azure-sub">
+    <rect x="1636" y="72" width="312" height="988" fill="#fffdf6" stroke="#c9a227" stroke-width="1.6"/>
+    <image href="icons/used/subscription.svg" x="1644" y="78" width="16" height="16"/>
+    <text x="1666" y="91" font-size="12" font-weight="700">Azure platform subscription</text>
+    <text x="1666" y="105" font-size="9" fill="#5a6874">ADR-009 bindings · not local</text>
+
+    <rect x="1652" y="118" width="280" height="900" fill="none" stroke="#7a8794" stroke-width="1.3" stroke-dasharray="6 4"/>
+    <text x="1664" y="136" font-size="11" font-weight="600" fill="#3d5a73">Platform virtual network</text>
+
+    <rect x="1666" y="150" width="252" height="200" fill="#fff" stroke="#9aa8b5"/>
+    <text x="1678" y="168" font-size="9" font-weight="700" fill="#5a6874">IDENTITY SUBNET</text>
+    <g class="res" data-id="entra2" transform="translate(1690,188)"><image href="icons/used/groups.svg" width="40" height="40"/><text x="20" y="56" font-size="9" font-weight="600" text-anchor="middle">Entra ID</text><text x="20" y="68" font-size="8" fill="#5a6874" text-anchor="middle">HITL groups</text></g>
+    <g class="res" data-id="kv" transform="translate(1760,188)"><image href="icons/used/key-vault.svg" width="40" height="40"/><text x="20" y="56" font-size="9" font-weight="600" text-anchor="middle">Key Vault</text></g>
+    <g class="res" data-id="rbac-az" transform="translate(1830,188)"><image href="icons/used/roles.svg" width="40" height="40"/><text x="20" y="56" font-size="9" font-weight="600" text-anchor="middle">Azure RBAC</text></g>
+
+    <rect x="1666" y="370" width="252" height="200" fill="#fff" stroke="#9aa8b5"/>
+    <text x="1678" y="388" font-size="9" font-weight="700" fill="#5a6874">MODEL / COMPUTE SUBNET</text>
+    <g class="res" data-id="foundry" data-chaos="llm" transform="translate(1690,408)"><image href="icons/used/foundry.svg" width="40" height="40"/><text x="20" y="56" font-size="9" font-weight="600" text-anchor="middle">AI Foundry</text><text x="20" y="68" font-size="8" fill="#5a6874" text-anchor="middle">Route A Claude</text></g>
+    <g class="res" data-id="aca" transform="translate(1760,408)"><image href="icons/used/container-app.svg" width="40" height="40"/><text x="20" y="56" font-size="9" font-weight="600" text-anchor="middle">Container</text><text x="20" y="68" font-size="8" fill="#5a6874" text-anchor="middle">Apps</text></g>
+    <g class="res" data-id="pe" transform="translate(1830,408)"><image href="icons/used/private-endpoint.svg" width="40" height="40"/><text x="20" y="56" font-size="9" font-weight="600" text-anchor="middle">Private</text><text x="20" y="68" font-size="8" fill="#5a6874" text-anchor="middle">Endpoint</text></g>
+
+    <rect x="1666" y="590" width="252" height="200" fill="#fff" stroke="#9aa8b5"/>
+    <text x="1678" y="608" font-size="9" font-weight="700" fill="#5a6874">DURABILITY SUBNET</text>
+    <g class="res" data-id="worm" transform="translate(1690,628)"><image href="icons/used/storage.svg" width="40" height="40"/><text x="20" y="56" font-size="9" font-weight="600" text-anchor="middle">Blob WORM</text></g>
+    <g class="res" data-id="monitor" transform="translate(1760,628)"><image href="icons/used/monitor.svg" width="40" height="40"/><text x="20" y="56" font-size="9" font-weight="600" text-anchor="middle">Monitor</text></g>
+    <g class="res" data-id="az-redis" data-chaos="redis" transform="translate(1830,628)"><image href="icons/used/cache-redis.svg" width="40" height="40"/><text x="20" y="56" font-size="9" font-weight="600" text-anchor="middle">Azure Redis</text></g>
+  </g>
+
+  <!-- ===== RIGHT: external (Internet / LLM / LangSmith) ===== -->
+  <g data-id="external">
+    <rect x="1996" y="72" width="232" height="700" fill="#fff" stroke="#5a6874" stroke-width="1.4"/>
+    <text x="2008" y="94" font-size="12" font-weight="700">External connectivity</text>
+    <text x="2008" y="108" font-size="9" fill="#5a6874">Internet · model · traces</text>
+    <g class="res" data-id="inet" transform="translate(2080,130)">
+      <image href="icons/used/globe.svg" width="48" height="48"/>
+      <text x="24" y="64" font-size="10" font-weight="600" text-anchor="middle">Internet</text>
+    </g>
+    <g class="res" data-id="anthropic" data-chaos="llm" transform="translate(2080,220)">
+      <image href="icons/used/anthropic.svg" width="48" height="48"/>
+      <text x="24" y="64" font-size="10" font-weight="600" text-anchor="middle">Anthropic</text>
+      <text x="24" y="76" font-size="8" fill="#5a6874" text-anchor="middle">dev API key</text>
+    </g>
+    <g class="res" data-id="groq" transform="translate(2080,330)">
+      <image href="icons/used/openai.svg" width="48" height="48"/>
+      <text x="24" y="64" font-size="10" font-weight="600" text-anchor="middle">Groq</text>
+      <text x="24" y="76" font-size="8" fill="#5a6874" text-anchor="middle">dev substitute</text>
+    </g>
+    <g class="res" data-id="langsmith" transform="translate(2080,440)">
+      <image href="icons/used/langchain.svg" width="48" height="48"/>
+      <text x="24" y="64" font-size="10" font-weight="600" text-anchor="middle">LangSmith</text>
+      <text x="24" y="76" font-size="8" fill="#5a6874" text-anchor="middle">additive · not blocking</text>
+    </g>
+    <g class="res azure-only" data-id="er" transform="translate(2080,550)">
+      <image href="icons/used/expressroute.svg" width="48" height="48"/>
+      <text x="24" y="64" font-size="10" font-weight="600" text-anchor="middle">Private link</text>
+      <text x="24" y="76" font-size="8" fill="#5a6874" text-anchor="middle">Foundry at deploy</text>
+    </g>
+  </g>
+
+  <!-- ===================== ARROWS (drawn on top of boxes, in the gutters) ===================== -->
+
+  <!-- Thick black: operators → Control Center -->
+  <line x1="244" y1="400" x2="292" y2="400" stroke="#111" stroke-width="3" marker-start="url(#arrRev)" marker-end="url(#arr)"/>
+  <text x="248" y="390" font-size="9" font-weight="700">HTTPS</text>
+  <text x="246" y="418" font-size="8" fill="#5a6874">browser session</text>
+
+  <!-- Thick black: brownfield → Neo4j (read-only) -->
+  <path d="M244,920 C480,920 480,760 1210,760" fill="none" stroke="#111" stroke-width="2.2" marker-end="url(#arr)"/>
+  <text x="430" y="908" font-size="9" font-weight="700">read-only ingest</text>
+  <text x="430" y="920" font-size="8" fill="#c23b22">no write integration</text>
+
+  <!-- Grey peering: Control Center VNet ↔ Hub VNet -->
+  <line x1="684" y1="320" x2="712" y2="320" stroke="#7a8794" stroke-width="2" marker-start="url(#peerRev)" marker-end="url(#peer)"/>
+  <text x="640" y="308" font-size="8" fill="#5a6874" font-style="italic">Virtual network peering</text>
+  <text x="655" y="336" font-size="8" fill="#5a6874">HTTPS /api/*</text>
+
+  <!-- Grey peering: Hub VNet ↔ Graph spoke (vertical inside orch) -->
+  <line x1="940" y1="638" x2="940" y2="654" stroke="#7a8794" stroke-width="2" marker-start="url(#peerRev)" marker-end="url(#peer)"/>
+  <text x="948" y="648" font-size="8" fill="#5a6874" font-style="italic">peering</text>
+
+  <!-- Grey peering: Hub ↔ Data VNet -->
+  <line x1="1380" y1="638" x2="1380" y2="654" stroke="#7a8794" stroke-width="2" marker-start="url(#peerRev)" marker-end="url(#peer)"/>
+  <text x="1388" y="648" font-size="8" fill="#5a6874" font-style="italic">peering</text>
+
+  <!-- Grey peering: Orchestrator ↔ Azure platform -->
+  <line x1="1612" y1="400" x2="1636" y2="400" stroke="#7a8794" stroke-width="2" marker-start="url(#peerRev)" marker-end="url(#peer)"/>
+  <text x="1588" y="388" font-size="8" fill="#5a6874" font-style="italic">VNet peering</text>
+  <text x="1578" y="414" font-size="8" fill="#5a6874">private endpoint</text>
+
+  <!-- Thick: Azure platform / hub → external Internet -->
+  <line x1="1948" y1="154" x2="1996" y2="154" stroke="#111" stroke-width="3" marker-end="url(#arr)"/>
+  <text x="1952" y="144" font-size="8" font-weight="700">Internet</text>
+
+  <line x1="1948" y1="244" x2="1996" y2="244" stroke="#111" stroke-width="2.4" marker-end="url(#arr)"/>
+  <text x="1908" y="234" font-size="8" font-weight="700">LLM egress</text>
+
+  <line x1="1948" y1="464" x2="1996" y2="464" stroke="#111" stroke-width="2" marker-start="url(#arrRev)" marker-end="url(#arr)"/>
+  <text x="1888" y="454" font-size="8">traces (redacted)</text>
+
+  <!-- INTERNAL BLACK ARROWS around Orchestrator VM (the vSRX pattern) -->
+  <!-- Trust NIC → Orchestrator -->
+  <line x1="912" y1="360" x2="1032" y2="360" stroke="#111" stroke-width="1.8" marker-end="url(#arr)"/>
+  <text x="932" y="352" font-size="8" font-weight="600">policy contract</text>
+
+  <!-- Orchestrator → Untrust retrieve -->
+  <line x1="1208" y1="360" x2="1408" y2="360" stroke="#111" stroke-width="1.8" marker-end="url(#arr)"/>
+  <text x="1248" y="352" font-size="8" font-weight="600">evidence.retrieve</text>
+
+  <!-- Retrieve → Neo4j (down into data vnet) -->
+  <path d="M1494,400 L1494,640 L1230,640 L1230,716" fill="none" stroke="#111" stroke-width="1.6" marker-end="url(#arr)"/>
+  <text x="1500" y="520" font-size="8" font-weight="600">bolt</text>
+  <text x="1500" y="532" font-size="8" fill="#c23b22">CHAOS-NEO4J-01</text>
+
+  <!-- Chaos inject NIC → Orchestrator (down) -->
+  <line x1="1124" y1="280" x2="1124" y2="318" stroke="#c23b22" stroke-width="1.8" marker-end="url(#arrRed)"/>
+  <text x="1132" y="302" font-size="8" fill="#c23b22" font-weight="700">inject (no kill)</text>
+
+  <!-- HITL NIC → Orchestrator (up) -->
+  <line x1="1132" y1="478" x2="1132" y2="436" stroke="#111" stroke-width="1.8" marker-end="url(#arr)"/>
+  <text x="1140" y="460" font-size="8" font-weight="600">interrupt / resume</text>
+
+  <!-- Orchestrator → graph subnet (batch_review) -->
+  <path d="M1048,430 L780,430 L780,716" fill="none" stroke="#111" stroke-width="1.6" marker-end="url(#arr)"/>
+  <text x="786" y="500" font-size="8" font-weight="600">dispatch</text>
+  <text x="786" y="512" font-size="8" fill="#5a6874">_get_graph(workflow)</text>
+
+  <!-- Redis cache path: orchestrator to redis -->
+  <path d="M1208,400 C1320,400 1520,500 1520,716" fill="none" stroke="#111" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="1528" y="560" font-size="8" font-weight="600">cache get/set</text>
+  <text x="1528" y="572" font-size="8" fill="#c23b22">CHAOS-REDIS-01</text>
+
+  <!-- LLM from orchestrator to Foundry / Anthropic -->
+  <path d="M1208,340 C1480,180 1700,180 1710,408" fill="none" stroke="#5c2d91" stroke-width="1.6" marker-end="url(#arrBlue)"/>
+  <text x="1480" y="172" font-size="8" fill="#5c2d91" font-weight="700">LLM Route A (Foundry at deploy)</text>
+
+  <path d="M1208,330 C1600,80 1980,80 2080,220" fill="none" stroke="#5c2d91" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#arrBlue)"/>
+  <text x="1720" y="74" font-size="8" fill="#5c2d91">dev: Anthropic / Groq direct</text>
+
+  <!-- Queue / HITL back to operators -->
+  <path d="M980,548 C400,548 400,200 244,200" fill="none" stroke="#111" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="400" y="538" font-size="8" font-weight="600">HITL notify · Decision Queue</text>
+
+  <!-- CISO to chaos page -->
+  <path d="M244,540 C400,540 480,300 508,300" fill="none" stroke="#c23b22" stroke-width="1.5" marker-end="url(#arrRed)"/>
+  <text x="300" y="528" font-size="8" fill="#c23b22" font-weight="700">CISO → /chaos-drill</text>
+
+  <!-- ===================== BOTTOM: batch_review pipeline with real arrows ===================== -->
+  <rect x="16" y="1096" width="2212" height="200" fill="#fff" stroke="#0078d4" stroke-width="1.4"/>
+  <text x="28" y="1118" font-size="12" font-weight="700">batch_review graph — canonical traffic (CHAOS drills this path)</text>
+  <text x="28" y="1132" font-size="9" fill="#5a6874">No edge from synthesize → finalize. Timeout is no-action, never auto-approve.</text>
+
+  <!-- pipeline nodes -->
+  <g id="pipe">
+    <g class="res" data-id="n-intake" transform="translate(40,1160)">
+      <rect width="88" height="52" fill="#fff" stroke="#9aa8b5"/>
+      <text x="44" y="22" font-size="8" fill="#5a6874" text-anchor="middle">1 det</text>
+      <text x="44" y="38" font-size="10" font-weight="700" text-anchor="middle">intake</text>
+    </g>
+    <g class="res" data-id="n-policy" data-chaos="policy" transform="translate(168,1160)">
+      <rect width="88" height="52" fill="#fff" stroke="#c23b22"/>
+      <text x="44" y="22" font-size="8" fill="#5a6874" text-anchor="middle">2 det</text>
+      <text x="44" y="38" font-size="10" font-weight="700" text-anchor="middle">policy_load</text>
+    </g>
+    <g class="res" data-id="n-retrieve" data-chaos="neo4j" transform="translate(296,1160)">
+      <rect width="88" height="52" fill="#fff" stroke="#c23b22"/>
+      <text x="44" y="22" font-size="8" fill="#5a6874" text-anchor="middle">3 tool</text>
+      <text x="44" y="38" font-size="10" font-weight="700" text-anchor="middle">retrieve</text>
+    </g>
+    <g class="res" data-id="n-gate" transform="translate(424,1160)">
+      <rect width="88" height="52" fill="#fff" stroke="#9aa8b5"/>
+      <text x="44" y="22" font-size="8" fill="#5a6874" text-anchor="middle">4 det</text>
+      <text x="44" y="38" font-size="10" font-weight="700" text-anchor="middle">e_gate</text>
+    </g>
+    <g class="res" data-id="n-recon" transform="translate(552,1160)">
+      <rect width="88" height="52" fill="#fff" stroke="#9aa8b5"/>
+      <text x="44" y="22" font-size="8" fill="#5a6874" text-anchor="middle">5 tool</text>
+      <text x="44" y="38" font-size="10" font-weight="700" text-anchor="middle">reconcile</text>
+    </g>
+    <g class="res" data-id="n-synth" data-chaos="llm" transform="translate(680,1160)">
+      <rect width="88" height="52" fill="#f4eefc" stroke="#5c2d91"/>
+      <text x="44" y="22" font-size="8" fill="#5a6874" text-anchor="middle">6 LLM</text>
+      <text x="44" y="38" font-size="10" font-weight="700" text-anchor="middle">synthesize</text>
+    </g>
+    <g class="res" data-id="n-g1" transform="translate(808,1160)">
+      <rect width="88" height="52" fill="#fff" stroke="#9aa8b5"/>
+      <text x="44" y="22" font-size="8" fill="#5a6874" text-anchor="middle">7 det</text>
+      <text x="44" y="38" font-size="10" font-weight="700" text-anchor="middle">guard1</text>
+    </g>
+    <g class="res" data-id="n-critic" data-chaos="llm" transform="translate(936,1160)">
+      <rect width="88" height="52" fill="#f4eefc" stroke="#5c2d91"/>
+      <text x="44" y="22" font-size="8" fill="#5a6874" text-anchor="middle">8 LLM</text>
+      <text x="44" y="38" font-size="10" font-weight="700" text-anchor="middle">critic</text>
+    </g>
+    <g class="res" data-id="n-g2" data-chaos="redis" transform="translate(1064,1160)">
+      <rect width="88" height="52" fill="#fff" stroke="#c23b22"/>
+      <text x="44" y="22" font-size="8" fill="#5a6874" text-anchor="middle">9 det</text>
+      <text x="44" y="38" font-size="10" font-weight="700" text-anchor="middle">guard2+cache</text>
+    </g>
+    <g class="res" data-id="n-hroute" data-chaos="hitl" transform="translate(1192,1160)">
+      <rect width="88" height="52" fill="#fff" stroke="#9aa8b5"/>
+      <text x="44" y="22" font-size="8" fill="#5a6874" text-anchor="middle">10 det</text>
+      <text x="44" y="38" font-size="10" font-weight="700" text-anchor="middle">hitl_route</text>
+    </g>
+    <g class="res" data-id="n-hitl" data-chaos="hitl" transform="translate(1320,1160)">
+      <rect width="100" height="52" fill="#fff" stroke="#c23b22"/>
+      <text x="50" y="22" font-size="8" fill="#5a6874" text-anchor="middle">11 interrupt</text>
+      <text x="50" y="38" font-size="10" font-weight="700" text-anchor="middle">hitl_interrupt</text>
+    </g>
+    <g class="res" data-id="n-final" transform="translate(1464,1160)">
+      <rect width="88" height="52" fill="#fff" stroke="#9aa8b5"/>
+      <text x="44" y="22" font-size="8" fill="#5a6874" text-anchor="middle">12 det</text>
+      <text x="44" y="38" font-size="10" font-weight="700" text-anchor="middle">finalize</text>
+    </g>
+    <g class="res" data-id="n-term" transform="translate(1596,1160)">
+      <rect width="120" height="52" fill="#fdecea" stroke="#c23b22"/>
+      <text x="60" y="22" font-size="8" fill="#5a6874" text-anchor="middle">fail-closed</text>
+      <text x="60" y="38" font-size="10" font-weight="700" text-anchor="middle">refuse / abstain</text>
+    </g>
+  </g>
+
+  <!-- sequential arrows between pipeline nodes -->
+  <line x1="128" y1="1186" x2="168" y2="1186" stroke="#111" stroke-width="1.6" marker-end="url(#arr)"/>
+  <line x1="256" y1="1186" x2="296" y2="1186" stroke="#111" stroke-width="1.6" marker-end="url(#arr)"/>
+  <line x1="384" y1="1186" x2="424" y2="1186" stroke="#111" stroke-width="1.6" marker-end="url(#arr)"/>
+  <line x1="512" y1="1186" x2="552" y2="1186" stroke="#111" stroke-width="1.6" marker-end="url(#arr)"/>
+  <line x1="640" y1="1186" x2="680" y2="1186" stroke="#111" stroke-width="1.6" marker-end="url(#arr)"/>
+  <line x1="768" y1="1186" x2="808" y2="1186" stroke="#111" stroke-width="1.6" marker-end="url(#arr)"/>
+  <line x1="896" y1="1186" x2="936" y2="1186" stroke="#111" stroke-width="1.6" marker-end="url(#arr)"/>
+  <line x1="1024" y1="1186" x2="1064" y2="1186" stroke="#111" stroke-width="1.6" marker-end="url(#arr)"/>
+  <line x1="1152" y1="1186" x2="1192" y2="1186" stroke="#111" stroke-width="1.6" marker-end="url(#arr)"/>
+  <line x1="1280" y1="1186" x2="1320" y2="1186" stroke="#111" stroke-width="1.6" marker-end="url(#arr)"/>
+  <line x1="1420" y1="1186" x2="1464" y2="1186" stroke="#111" stroke-width="1.6" marker-end="url(#arr)"/>
+
+  <!-- fail-closed branches (down then across) -->
+  <path d="M212,1212 L212,1256 L1656,1256" fill="none" stroke="#c23b22" stroke-width="1.4" marker-end="url(#arrRed)"/>
+  <text x="220" y="1250" font-size="8" fill="#c23b22">policy unreachable → refuse</text>
+  <path d="M340,1212 L340,1244 L1656,1244" fill="none" stroke="#c23b22" stroke-width="1.3" marker-end="url(#arrRed)"/>
+  <text x="348" y="1238" font-size="8" fill="#c23b22">Neo4j down → abstain</text>
+  <path d="M1370,1212 L1370,1268 L1656,1268" fill="none" stroke="#c23b22" stroke-width="1.3" marker-end="url(#arrRed)"/>
+  <text x="1380" y="1262" font-size="8" fill="#c23b22">HITL timeout → no-action (never approve)</text>
+
+  <!-- legend -->
+  <g transform="translate(16,1310)">
+    <line x1="0" y1="8" x2="36" y2="8" stroke="#111" stroke-width="3" marker-end="url(#arr)"/>
+    <text x="44" y="12" font-size="10">External / HTTPS</text>
+    <line x1="180" y1="8" x2="216" y2="8" stroke="#7a8794" stroke-width="2" marker-start="url(#peerRev)" marker-end="url(#peer)"/>
+    <text x="224" y="12" font-size="10">Virtual network peering</text>
+    <line x1="400" y1="8" x2="436" y2="8" stroke="#111" stroke-width="1.6" marker-end="url(#arr)"/>
+    <text x="444" y="12" font-size="10">Internal traffic (NIC → VM)</text>
+    <line x1="620" y1="8" x2="656" y2="8" stroke="#c23b22" stroke-width="1.6" marker-end="url(#arrRed)"/>
+    <text x="664" y="12" font-size="10">Chaos inject / fail-closed</text>
+    <line x1="840" y1="8" x2="876" y2="8" stroke="#5c2d91" stroke-width="1.6" marker-end="url(#arrBlue)"/>
+    <text x="884" y="12" font-size="10">LLM egress</text>
+    <rect x="1020" y="0" width="22" height="14" fill="none" stroke="#0078d4" stroke-dasharray="4 3"/>
+    <text x="1048" y="12" font-size="10">Azure boundary</text>
+    <rect x="1160" y="0" width="22" height="14" fill="none" stroke="#7a8794" stroke-dasharray="4 3"/>
+    <text x="1188" y="12" font-size="10">VNet</text>
+    <rect x="1260" y="0" width="22" height="14" fill="#fff" stroke="#9aa8b5"/>
+    <text x="1288" y="12" font-size="10">Subnet</text>
+  </g>
+</svg>
+</div>
+
+<aside id="panel">
+  <p class="empty">Click a resource. Thick black arrows are HTTPS / ingest. Grey double arrows are VNet peering. Thin black arrows are NIC → orchestrator traffic, same pattern as the Trust/Untrust/Management NICs in the Azure reference.</p>
+</aside>
+</div>
+
+<script>
+const DETAIL = {
+  operators: { title: "Named operators", tags: ["local"], meta: "user_store.ROLE_CATALOG", body: "<p>Customer-premises analogue. Ten governed roles. HTTPS into Control Center. Entra groups replace the SQLite stub at deploy.</p>" },
+  qp: { title: "EU Qualified Person", tags: ["local"], meta: "batch_review HITL", body: "<p>Approves batch_review and the supply quality leg. Must never release.</p>" },
+  safety: { title: "Safety physician", tags: ["local"], meta: "pv_intake", body: "<p>Acts as Global Head of PV. Veto on pv_intake. No causality field on the payload.</p>" },
+  supply: { title: "Supply governance", tags: ["local"], meta: "planning leg", body: "<p>Supply Chain VP. Dual-approval with QP. Tool cannot allocate.</p>" },
+  research: { title: "Head of Preclinical", tags: ["local"], meta: "research_review", body: "<p>Must not qualify a model.</p>" },
+  clinical: { title: "Clinical Monitor", tags: ["local"], meta: "clinical_integrity", body: "<p>Must not unblind or decide eligibility.</p>" },
+  reg: { title: "Head of RA", tags: ["local"], meta: "regulatory_completeness", body: "<p>Must not mark submission-ready.</p>" },
+  quality: { title: "Quality reviewer", tags: ["local"], meta: "no decide()", body: "<p>Oversight only.</p>" },
+  ciso: { title: "CISO / DPO", tags: ["chaos"], meta: "can_run_chaos", body: "<p>Only role that may POST a chaos drill. Red arrow on the diagram is that path into /chaos-drill.</p>" },
+  auditor: { title: "Auditor", tags: ["local"], meta: "read-only", body: "<p>Never acknowledge.</p>" },
+  unblind: { title: "Unblinding authority", tags: ["local"], meta: "excluded_workflows", body: "<p>Blocked from supply_planning reads.</p>" },
+  brownfield: { title: "Brownfield sources", tags: ["local"], meta: "c4_context.md", body: "<p>Manufacturing, Lab, Quality, Safety, Supply. The curved black arrow is read-only ingest into Neo4j. There is no return arrow.</p>" },
+  mfg: { title: "Manufacturing", tags: ["local"], meta: "ERP MES eBR", body: "<p>Feeds batch_review. Read-only.</p>" },
+  lab: { title: "Laboratory", tags: ["local"], meta: "LIMS CDS", body: "<p>Feeds LabResult / OOS nodes.</p>" },
+  qms: { title: "Quality", tags: ["local"], meta: "eQMS", body: "<p>Deviations / CAPA evidence.</p>" },
+  "safety-sys": { title: "Safety systems", tags: ["local"], meta: "global safety DB", body: "<p>Feeds pv_intake.</p>" },
+  "supply-sys": { title: "Supply systems", tags: ["local"], meta: "CMO portals", body: "<p>Feeds supply_planning. No allocation write-back.</p>" },
+  "control-center": { title: "Control Center subscription", tags: ["local","azure"], meta: "apps/web", body: "<p>Next.js. Grey peering arrow to the Orchestrator hub is HTTPS /api/*.</p>" },
+  "web-app": { title: "AppShell", tags: ["local"], meta: "AppShell.tsx", body: "<p>Nav including Chaos Drill.</p>" },
+  "page-queue": { title: "Decision Queue", tags: ["local"], meta: "/decisions", body: "<p>HITL worklist. The return arrow from HITL NIC to operators is notify + queue.</p>" },
+  "page-runs": { title: "Run History", tags: ["local"], meta: "exclude_drills", body: "<p>DRILL-* ids omitted.</p>" },
+  "page-health": { title: "System Health", tags: ["local"], meta: "/health", body: "<p>Measured dependencies — not the chaos lab.</p>" },
+  "page-gov": { title: "Governance", tags: ["local"], meta: "/governance", body: "<p>Policy version and boundaries.</p>" },
+  "page-chaos": { title: "Chaos Drill", tags: ["chaos"], meta: "/chaos-drill", body: "<p>Lab UI. Red arrow from CISO. Injects faults; does not kill VMs.</p>" },
+  "page-login": { title: "Login", tags: ["local"], meta: "/login", body: "<p>SQLite session. Entra at deploy.</p>" },
+  "page-evidence": { title: "Evidence", tags: ["local"], meta: "/evidence · GET /api/evidence", body: "<p>Catalog of EvidenceItem authority. Added after validation — this page exists in apps/web.</p>" },
+  "page-wf": { title: "Workflows", tags: ["local"], meta: "/workflows", body: "<p>What each workflow may conclude. Six graphs, structural prohibitions.</p>" },
+  "page-coverage": { title: "Coverage", tags: ["local"], meta: "/coverage · GET /api/evals /api/coverage/injects", body: "<p>Eval scorecard and security inject coverage. Exists in the repo; was missing from the first diagram.</p>" },
+  "users": { title: "user_store", tags: ["local"], meta: "services/integration/user_store.py", body: "<p>API-owned SQLite users and sessions. Not a Next.js concern. ROLE_CATALOG + can_run_chaos.</p>" },
+  "auth": { title: "API RBAC", tags: ["local"], meta: "services/api/auth.py", body: "<p>Server-side decide() and chaos Run gate. Lives on the orchestrator, not the Control Center.</p>" },
+  "web-nsg": { title: "CORS NSG", tags: ["local"], meta: "WEB_ORIGIN", body: "<p>API only accepts the Control Center origin.</p>" },
+  "web-nic": { title: "API NIC", tags: ["local"], meta: "NEXT_PUBLIC_API_URL", body: "<p>Client-side pointer at the orchestrator. Locally :8000/:8001/:8002.</p>" },
+  "fastapi-out": { title: "HTTPS egress", tags: ["local"], meta: "/api/*", body: "<p>Peering path into Hub VNet.</p>" },
+  entra: { title: "Entra ID", tags: ["azure"], meta: "ADR-009", body: "<p>HITL roles become groups.</p>" },
+  entra2: { title: "Entra ID", tags: ["azure"], meta: "platform VNet", body: "<p>Identity subnet in the Azure platform subscription.</p>" },
+  orchestrator: { title: "Orchestrator subscription", tags: ["local","azure"], meta: "services/api", body: "<p>FastAPI process. Policy, retrieve, HITL, and chaos are in-process modules grouped like NICs for the drawing — they are not separate VMs in docker-compose.</p>" },
+  fastapi: { title: "Orchestrator", tags: ["chaos"], meta: "FastAPI + LangGraph · Container Apps at deploy", body: "<p>Central appliance. Four arrows: policy, retrieve, HITL, chaos inject. CHAOS-LLM-01 raises on the LLM node here.</p>" },
+  policy: { title: "Policy engine", tags: ["chaos"], meta: "policy_engine.py", body: "<p>Trust-side. CHAOS-POLICY-01 → refuse fail-closed. Arrow into orchestrator is the policy contract load.</p>" },
+  guard: { title: "Prohibited-action guard", tags: ["local"], meta: "runs twice", body: "<p>guard1 after synthesize, guard2 after critic.</p>" },
+  dow: { title: "Denial of wallet", tags: ["local"], meta: "intake", body: "<p>Refuse on budget before any LLM call.</p>" },
+  "policy-nic": { title: "Trust NIC", tags: ["local"], meta: "policy path", body: "<p>Interface from Trust subnet into the orchestrator VM.</p>" },
+  "policy-nsg": { title: "Trust NSG", tags: ["local"], meta: "fail-closed", body: "<p>No cached-policy fallback (ADR-005).</p>" },
+  harness: { title: "chaos_harness", tags: ["chaos"], meta: "DI injectors", body: "<p>Builds a fresh batch_review. Red arrow down is inject-without-kill.</p>" },
+  "drill-api": { title: "/api/chaos-drill", tags: ["chaos"], meta: "CISO POST", body: "<p>Catalog, run, history.</p>" },
+  "chaos-nic": { title: "Inject NIC", tags: ["chaos"], meta: "lab overlay", body: "<p>Not a production interface. Faults retrieve / cache / LLM / policy / HITL callables.</p>" },
+  retrieve: { title: "evidence.retrieve", tags: ["chaos"], meta: "Untrust subnet", body: "<p>Only Neo4j reader. Black arrow to orchestrator is tool results; black arrow down is bolt to Neo4j. CHAOS-NEO4J-01 breaks that bolt path in-process.</p>" },
+  egate: { title: "evidence_gate", tags: ["local"], meta: "ADR-003", body: "<p>Halt if untrusted items appear.</p>" },
+  reconcile: { title: "batch.reconcile", tags: ["local"], meta: "structured", body: "<p>Completeness / conflict. Read-only.</p>" },
+  "retrieve-nic": { title: "Untrust NIC", tags: ["local"], meta: "retrieve path", body: "<p>Evidence plane attachment to the orchestrator VM.</p>" },
+  "retrieve-nsg": { title: "Untrust NSG", tags: ["local"], meta: "citable only", body: "<p>Filter is inside the tool, never caller-side.</p>" },
+  "hitl-route": { title: "hitl_route", tags: ["chaos"], meta: "HITL-01", body: "<p>Named approver. Timeout resume must not approve.</p>" },
+  memorysaver: { title: "MemorySaver", tags: ["local"], meta: "in-process checkpoint", body: "<p>Pause / resume. CHAOS-CKPT-01 (durable) is ops-only.</p>" },
+  "hitl-nic": { title: "HITL NIC", tags: ["chaos"], meta: "interrupt", body: "<p>Arrow up into the orchestrator VM. Return path notifies operators.</p>" },
+  "g-batch": { title: "batch_review VM", tags: ["chaos"], meta: "graph.py", body: "<p>Canonical graph. Chaos DI kwargs live only here. Dispatch arrow from the orchestrator VM.</p>" },
+  "g-pv": { title: "pv_intake", tags: ["local"], meta: "pv_graph.py", body: "<p>Peer graph. No call from batch_review.</p>" },
+  "g-supply": { title: "supply_planning", tags: ["local"], meta: "supply_graph.py", body: "<p>Dual HITL. No allocate write.</p>" },
+  "g-research": { title: "research_review", tags: ["local"], meta: "research_graph.py", body: "<p>Peer graph.</p>" },
+  "g-clinical": { title: "clinical_integrity", tags: ["local"], meta: "clinical_graph.py", body: "<p>Peer graph.</p>" },
+  "g-reg": { title: "regulatory_completeness", tags: ["local"], meta: "regulatory_graph.py", body: "<p>Peer graph.</p>" },
+  "graph-cache": { title: "_GRAPH_CACHE", tags: ["local"], meta: "(workflow, subject_id)", body: "<p>Chaos harness never uses this cache.</p>" },
+  "llm-client": { title: "llm_client", tags: ["chaos"], meta: "packages/config", body: "<p>Purple arrows: Foundry at deploy, Anthropic/Groq in dev. CHAOS-LLM-01.</p>" },
+  "prompt-guard": { title: "prompt_guard", tags: ["local"], meta: "services/integration", body: "<p>Inbound injection checks.</p>" },
+  neo4j: { title: "Neo4j 5", tags: ["chaos"], meta: ":7687", body: "<p>KG. Bolt arrow from retrieve. Chaos does not stop this VM.</p>" },
+  "neo-batch": { title: "Batch partition", tags: ["local"], meta: "kg_schema", body: "<p>Batch, LabResult, CAPA, Deviation.</p>" },
+  "neo-pv": { title: "PV partition", tags: ["local"], meta: "ICSRCase", body: "<p>No raw patient_key.</p>" },
+  "neo-supply": { title: "Supply partition", tags: ["local"], meta: "Shipment CMO", body: "<p>constrains is computed, not stored.</p>" },
+  "neo-other": { title: "Clinical / RA", tags: ["local"], meta: "EvidenceItem hub", body: "<p>Cross-context evidences edges.</p>" },
+  redis: { title: "Redis 7", tags: ["chaos"], meta: ":6379", body: "<p>Cache arrow from orchestrator. CHAOS-REDIS-01 is get-None / set-noop.</p>" },
+  sqlite: { title: "SQLite audit", tags: ["local"], meta: "evidence/audit_store.sqlite3", body: "<p>Local WORM analogue.</p>" },
+  cache: { title: "response_cache", tags: ["chaos"], meta: "get / set_cleared", body: "<p>Citability re-check must miss on Neo4j errors.</p>" },
+  "drill-store": { title: "chaos_drill_run", tags: ["chaos"], meta: "DRILL- prefix", body: "<p>Lab table, not AgentRun history.</p>" },
+  "audit-mod": { title: "audit_store", tags: ["local"], meta: "ADR-006", body: "<p>No UPDATE/DELETE functions.</p>" },
+  "azure-sub": { title: "Azure platform subscription", tags: ["azure"], meta: "ADR-009", body: "<p>Peered from the orchestrator. Identity, Foundry, Blob WORM, Monitor, Azure Redis.</p>" },
+  kv: { title: "Key Vault", tags: ["azure"], meta: "secrets", body: "<p>No Azure SDK in graph nodes.</p>" },
+  "rbac-az": { title: "Azure RBAC", tags: ["azure"], meta: "platform IAM", body: "<p>Who can run Container Apps.</p>" },
+  foundry: { title: "Azure AI Foundry", tags: ["azure","chaos"], meta: "Route A", body: "<p>Purple arrow from the orchestrator VM. Same prompts as Anthropic.</p>" },
+  aca: { title: "Container Apps", tags: ["azure"], meta: "Dockerfile.api", body: "<p>Deploy target for FastAPI.</p>" },
+  pe: { title: "Private Endpoint", tags: ["azure"], meta: "Foundry / Redis / Blob", body: "<p>VNet isolation at deploy.</p>" },
+  worm: { title: "Blob WORM", tags: ["azure"], meta: "audit at deploy", body: "<p>Replaces SQLite immutability.</p>" },
+  monitor: { title: "Azure Monitor", tags: ["azure"], meta: "OTel", body: "<p>Platform telemetry plus LangSmith.</p>" },
+  "az-redis": { title: "Azure Cache for Redis", tags: ["azure"], meta: "REDIS_URL swap", body: "<p>Same client. Compose Redis locally.</p>" },
+  external: { title: "External connectivity", tags: ["local"], meta: "Internet / LLM / traces", body: "<p>Right-hand analogue of ExpressRoute / Internet / SWIFTNet. Thick arrows leave Azure.</p>" },
+  inet: { title: "Internet", tags: ["local"], meta: "egress", body: "<p>Dev path for Anthropic/Groq. Deploy prefers private link to Foundry.</p>" },
+  anthropic: { title: "Anthropic API", tags: ["chaos"], meta: "dev", body: "<p>Dashed purple arrow from orchestrator. Interim baselines use this provider.</p>" },
+  groq: { title: "Groq", tags: ["local"], meta: "dev substitute", body: "<p>LLM_PROVIDER=groq. Provisional.</p>" },
+  langsmith: { title: "LangSmith", tags: ["local"], meta: "ADR-007", body: "<p>Must not block. Double-headed traces arrow is additive.</p>" },
+  er: { title: "Private link", tags: ["azure"], meta: "Foundry", body: "<p>ExpressRoute-style icon: private path at deploy, not public internet.</p>" },
+  "n-intake": { title: "intake", tags: ["local"], meta: "DoW", body: "<p>Binds authorization. First node.</p>" },
+  "n-policy": { title: "policy_load", tags: ["chaos"], meta: "POL-01", body: "<p>Red branch: unreachable → refuse.</p>" },
+  "n-retrieve": { title: "retrieve", tags: ["chaos"], meta: "NEO-01", body: "<p>Red branch: store unavailable → abstain.</p>" },
+  "n-gate": { title: "evidence_gate", tags: ["local"], meta: "halt if untrusted", body: "<p>No skip path to synthesize.</p>" },
+  "n-recon": { title: "reconcile", tags: ["local"], meta: "tool", body: "<p>Failure → abstain.</p>" },
+  "n-synth": { title: "synthesize", tags: ["chaos"], meta: "LLM-01", body: "<p>No arrow to finalize. Must pass guards + critic + HITL.</p>" },
+  "n-g1": { title: "guard1", tags: ["local"], meta: "prohibited_action", body: "<p>After synthesize.</p>" },
+  "n-critic": { title: "critic_verify", tags: ["chaos"], meta: "LLM", body: "<p>Citation quality only.</p>" },
+  "n-g2": { title: "guard2 + cache", tags: ["chaos"], meta: "REDIS-01", body: "<p>Cache write is a no-op under Redis inject.</p>" },
+  "n-hroute": { title: "hitl_route", tags: ["chaos"], meta: "named role", body: "<p>Unresolvable → refuse.</p>" },
+  "n-hitl": { title: "hitl_interrupt", tags: ["chaos"], meta: "HITL-01", body: "<p>Red branch: timeout → no-action, never approve.</p>" },
+  "n-final": { title: "finalize", tags: ["local"], meta: "AgentRun", body: "<p>Audit write is mandatory.</p>" },
+  "n-term": { title: "Fail-closed terminals", tags: ["chaos"], meta: "ADR-007", body: "<p>The three red branches on the pipeline (policy, Neo4j, HITL timeout) all land here. That is what the drills assert.</p>" }
+};
+
+const panel = document.getElementById("panel");
+function show(id) {
+  const d = DETAIL[id];
+  if (!d) { panel.innerHTML = `<h2>${id}</h2><p class="empty">No detail for this node.</p>`; return; }
+  const tags = (d.tags || []).map(t => `<span class="tag ${t}">${t}</span>`).join("");
+  panel.innerHTML = `<div>${tags}</div><h2>${d.title}</h2><div class="meta">${d.meta || ""}</div><div class="body">${d.body}</div>`;
+}
+document.getElementById("arch").addEventListener("click", e => {
+  const hit = e.target.closest("[data-id]");
+  if (hit) show(hit.dataset.id);
+});
+document.querySelectorAll(".tog").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tog").forEach(b => b.classList.remove("on"));
+    btn.classList.add("on");
+    document.body.classList.remove("filter-azure", "filter-local", "filter-chaos");
+    const f = btn.dataset.filter;
+    if (f === "azure") document.body.classList.add("filter-azure");
+    if (f === "local") document.body.classList.add("filter-local");
+    if (f === "chaos") document.body.classList.add("filter-chaos");
+  });
+});
+const vp = document.getElementById("vp");
+const svg = document.getElementById("arch");
+let scale = 1, dragging = false, sx = 0, sy = 0, sl = 0, st = 0;
+vp.addEventListener("wheel", e => {
+  if (!e.ctrlKey && !e.metaKey) return;
+  e.preventDefault();
+  scale = Math.min(1.8, Math.max(0.45, scale + (e.deltaY > 0 ? -0.08 : 0.08)));
+  svg.style.transform = `scale(${scale})`;
+  svg.style.transformOrigin = "0 0";
+}, { passive: false });
+vp.addEventListener("mousedown", e => {
+  if (e.target.closest(".res")) return;
+  dragging = true; vp.classList.add("grabbing");
+  sx = e.clientX; sy = e.clientY; sl = vp.scrollLeft; st = vp.scrollTop;
+});
+window.addEventListener("mousemove", e => {
+  if (!dragging) return;
+  vp.scrollLeft = sl - (e.clientX - sx);
+  vp.scrollTop = st - (e.clientY - sy);
+});
+window.addEventListener("mouseup", () => { dragging = false; vp.classList.remove("grabbing"); });
+document.getElementById("resetView").onclick = () => { scale = 1; svg.style.transform = ""; vp.scrollTo(0, 0); };
+</script>
+</body>
+</html>

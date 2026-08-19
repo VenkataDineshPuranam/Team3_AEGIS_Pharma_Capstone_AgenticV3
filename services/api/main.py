@@ -41,6 +41,7 @@ from langgraph.types import Command
 from packages.config.llm_client import get_llm
 from packages.domain.state import new_state
 from services.api import (
+    chaos_drill,
     compliance_view,
     eval_dashboard,
     governance_view,
@@ -57,6 +58,9 @@ from services.api.regulatory_graph import build_regulatory_graph
 from services.api.schemas import (
     AuditedRun,
     AuditEvent,
+    ChaosDrillCatalog,
+    ChaosDrillResult,
+    ChaosDrillSummary,
     DashboardResponse,
     DecideRequest,
     EvalScorecard,
@@ -452,6 +456,7 @@ def list_runs(
         rows, total = audit_store.list_agent_runs(
             conn, workflow=workflow, terminal_state=terminal_state,
             subject_id=subject_id, search=search, limit=limit, offset=offset,
+            exclude_drills=True,
         )
     finally:
         conn.close()
@@ -660,6 +665,37 @@ def health_detail():
         audit_store=stats,
         checked_at=datetime.now(UTC).isoformat(),
     )
+
+
+@app.get("/api/chaos-drill/experiments", response_model=ChaosDrillCatalog)
+def chaos_drill_experiments(session: user_store.Session = Depends(require_user)):
+    """Catalog of ADR-007 lab injectors + last result. Visible to any signed-in role;
+    `capabilities.can_run` is true only for CISO / DPO."""
+    return ChaosDrillCatalog(**chaos_drill.list_experiments(session))
+
+
+@app.post("/api/chaos-drill/experiments/{experiment_id}/run", response_model=ChaosDrillResult)
+def chaos_drill_run(experiment_id: str, session: user_store.Session = Depends(require_user)):
+    """Run one lab-safe failure injection. Does not take down Neo4j/Redis/API."""
+    if not user_store.can_run_chaos(session.role):
+        raise HTTPException(
+            status_code=403,
+            detail=f"Role {session.role!r} may not run a chaos drill.",
+        )
+    try:
+        return ChaosDrillResult(**chaos_drill.run_experiment(experiment_id, session))
+    except KeyError:
+        raise HTTPException(status_code=404, detail=f"Unknown experiment {experiment_id!r}") from None
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None
+
+
+@app.get("/api/chaos-drill/history", response_model=list[ChaosDrillSummary])
+def chaos_drill_history(
+    limit: int = Query(default=20, ge=1, le=100),
+    session: user_store.Session = Depends(require_user),
+):
+    return [ChaosDrillSummary(**row) for row in chaos_drill.list_history(limit=limit)]
 
 
 # ---------------------------------------------------------------------------

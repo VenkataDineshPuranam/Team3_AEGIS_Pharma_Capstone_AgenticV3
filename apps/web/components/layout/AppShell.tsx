@@ -80,6 +80,12 @@ const NAV: NavItem[] = [
     icon: <IconPulse />,
   },
   {
+    href: "/chaos-drill",
+    label: "Chaos Drill",
+    description: "Fail-closed lab drills",
+    icon: <IconChaos />,
+  },
+  {
     href: "/coverage",
     label: "Evaluation & Security",
     description: "What has been verified, and what has not",
@@ -423,6 +429,16 @@ function IconPulse() {
   return (
     <svg {...iconProps()}>
       <path d="M1.5 8h3l1.5-4 2.5 8 1.5-4h3.5" />
+    </svg>
+  );
+}
+
+function IconChaos() {
+  return (
+    <svg {...iconProps()}>
+      <circle cx="8" cy="8" r="5.5" />
+      <path d="M8 4.5v3.5l2.5 1.5" />
+      <path d="M3 3.5 4.5 5M13 3.5 11.5 5M3 12.5 4.5 11M13 12.5 11.5 11" />
     </svg>
   );
 }

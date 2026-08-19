@@ -6,6 +6,7 @@ and what stops a runaway loop.
 | Document | Answers |
 |---|---|
 | [agent_roster.md](agent_roster.md) | Which agents exist, their authority limits, why there is **no planner agent**, and what is shared across the three workflows |
+| [**aegis_agents.html**](aegis_agents.html) | Interactive diagram: orchestrator dispatch (FastAPI `_get_graph`), roster, six peer graphs, shared 14-node spine, and HITL map. This page matches the six `*_graph.py` modules (14 `add_node` calls). The markdown below still says 3 graphs / 11 nodes — trust the HTML + code. |
 | [langgraph_design.md](langgraph_design.md) | Nodes, edges, the shared state schema (including what it deliberately cannot express), checkpointing, and every HITL interrupt |
 | [memory_design.md](memory_design.md) | What persists across turns — and why there is **no long-term agent memory** |
 | [failure_and_loop_guards.md](failure_and_loop_guards.md) | Numeric caps, ceilings, the no-blind-retry rule, the four-tier HITL escalation ladder, and the failure taxonomy |

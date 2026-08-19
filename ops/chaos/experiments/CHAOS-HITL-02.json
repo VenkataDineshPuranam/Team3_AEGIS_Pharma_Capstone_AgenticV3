@@ -1,0 +1,10 @@
+{
+  "id": "CHAOS-HITL-02",
+  "title": "HITL backdate debug (ops)",
+  "adr_row": "HITL severity ladder via debug backdate",
+  "ui_runnable": false,
+  "workflow": "batch_review",
+  "injector": "ops_only",
+  "expected": {},
+  "runbook": "ops/chaos/runbooks/CHAOS-HITL-02.md"
+}

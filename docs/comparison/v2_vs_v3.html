@@ -1,0 +1,2368 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AEGIS Build Ledger</title>
+<meta name="description" content="Forensic comparison of the AEGIS-PHARMA V2 and V3 repository snapshots across SCQA, DDD, ADR, security, threat model, reusability, and agentic architecture.">
+<style>
+  :root {
+    --paper:      #f2f3ee;
+    --surface:    #fbfbf8;
+    --surface-2:  #e9ebe3;
+    --ink:        #171d1b;
+    --ink-2:      #5a6560;
+    --rule:       #dddfd6;
+    --rule-firm:  #c3c8bd;
+    --accent:     #146b5e;
+    --accent-soft:#e0eeea;
+    --amber:      #9c6614;
+    --amber-soft: #f4ead6;
+    --clay:       #9e4227;
+    --clay-soft:  #f5e2db;
+    --quiet:      #74807b;
+    --quiet-soft: #e6e9e3;
+
+    --display: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
+    --body: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    --mono: ui-monospace, "Cascadia Mono", "SF Mono", Menlo, Consolas, monospace;
+
+    --shadow: 0 1px 2px rgba(23,29,27,.05), 0 6px 20px -12px rgba(23,29,27,.18);
+    --col: 1180px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper:      #101513;
+      --surface:    #161c1a;
+      --surface-2:  #1e2624;
+      --ink:        #e6eae7;
+      --ink-2:      #98a39e;
+      --rule:       #29332f;
+      --rule-firm:  #3a4642;
+      --accent:     #5fbfac;
+      --accent-soft:#123029;
+      --amber:      #d9a44e;
+      --amber-soft: #302512;
+      --clay:       #dc8a6c;
+      --clay-soft:  #331c15;
+      --quiet:      #8a958f;
+      --quiet-soft: #1f2725;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 6px 20px -12px rgba(0,0,0,.7);
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper:      #101513;
+    --surface:    #161c1a;
+    --surface-2:  #1e2624;
+    --ink:        #e6eae7;
+    --ink-2:      #98a39e;
+    --rule:       #29332f;
+    --rule-firm:  #3a4642;
+    --accent:     #5fbfac;
+    --accent-soft:#123029;
+    --amber:      #d9a44e;
+    --amber-soft: #302512;
+    --clay:       #dc8a6c;
+    --clay-soft:  #331c15;
+    --quiet:      #8a958f;
+    --quiet-soft: #1f2725;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 6px 20px -12px rgba(0,0,0,.7);
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 16px;
+    line-height: 1.55;
+    overflow-x: hidden;
+  }
+  .wrap { max-width: var(--col); margin: 0 auto; padding: 0 28px; }
+  @media (max-width: 620px) { .wrap { padding: 0 18px; } }
+
+  /* ---------- masthead ---------- */
+  .mast { border-bottom: 1px solid var(--rule); background: var(--surface); }
+  .mast-inner { padding: 44px 0 30px; }
+  .eyebrow {
+    font-family: var(--mono); font-size: 11.5px; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--ink-2); margin: 0 0 14px;
+  }
+  h1 {
+    font-family: var(--display); font-weight: 600; font-size: clamp(34px, 5.2vw, 54px);
+    line-height: 1.06; letter-spacing: -.015em; margin: 0 0 16px; text-wrap: balance;
+  }
+  .verdict {
+    font-size: clamp(16px, 2vw, 19px); color: var(--ink-2); max-width: 62ch; margin: 0 0 8px;
+  }
+  .verdict strong { color: var(--ink); font-weight: 600; }
+  .provenance {
+    font-family: var(--mono); font-size: 12px; color: var(--ink-2);
+    margin: 20px 0 0; padding-top: 16px; border-top: 1px solid var(--rule);
+    display: flex; flex-wrap: wrap; gap: 6px 26px;
+  }
+
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px;
+           background: var(--rule); border-top: 1px solid var(--rule); }
+  @media (max-width: 760px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+  .stat { background: var(--surface); padding: 20px 24px; }
+  .stat-n {
+    font-family: var(--display); font-size: 34px; line-height: 1;
+    font-variant-numeric: tabular-nums; letter-spacing: -.02em;
+  }
+  .stat-n .unit { font-size: 17px; color: var(--ink-2); margin-left: 3px; }
+  .stat-l { font-size: 12.5px; color: var(--ink-2); margin-top: 7px; }
+
+  /* ---------- tabs ---------- */
+  .tabrail {
+    position: sticky; top: 0; z-index: 40; background: var(--paper);
+    border-bottom: 1px solid var(--rule-firm);
+  }
+  .tabs { display: flex; gap: 2px; overflow-x: auto; scrollbar-width: thin; }
+  .tabs::-webkit-scrollbar { height: 3px; }
+  .tabs::-webkit-scrollbar-thumb { background: var(--rule-firm); }
+  .tab {
+    appearance: none; border: 0; background: none; cursor: pointer;
+    font-family: var(--body); font-size: 13.5px; font-weight: 500; color: var(--ink-2);
+    padding: 15px 14px 13px; white-space: nowrap;
+    border-bottom: 2px solid transparent; margin-bottom: -1px;
+  }
+  .tab:hover { color: var(--ink); }
+  .tab[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+  .tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; border-radius: 2px; }
+  .tab .idx { font-family: var(--mono); font-size: 10.5px; opacity: .6; margin-right: 6px; }
+  .tab .dot {
+    display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+    margin-left: 8px; vertical-align: middle; position: relative; top: -1px;
+  }
+  .dot-same { background: var(--quiet); }
+  .dot-moved { background: var(--amber); }
+  .dot-risk { background: var(--clay); }
+  .tab-legend {
+    font-family: var(--mono); font-size: 11px; color: var(--ink-2);
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px;
+    padding: 14px 0; border-bottom: 1px solid var(--rule);
+  }
+  .tab-legend span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .tab-legend .dot { margin: 0; }
+
+  /* ---------- panes ---------- */
+  .pane { padding: 40px 0 76px; }
+  .pane[hidden] { display: none; }
+  h2 {
+    font-family: var(--display); font-weight: 600; font-size: clamp(25px, 3.4vw, 33px);
+    line-height: 1.14; letter-spacing: -.012em; margin: 0 0 10px; text-wrap: balance;
+  }
+  h3 {
+    font-family: var(--body); font-weight: 600; font-size: 13px; letter-spacing: .09em;
+    text-transform: uppercase; color: var(--ink-2); margin: 44px 0 16px;
+    padding-bottom: 8px; border-bottom: 1px solid var(--rule);
+  }
+  h3:first-of-type { margin-top: 34px; }
+  h4 { font-family: var(--body); font-weight: 600; font-size: 15px; margin: 0 0 8px; }
+  p { margin: 0 0 14px; max-width: 74ch; }
+  .lede { font-size: 17.5px; color: var(--ink-2); max-width: 68ch; margin-bottom: 26px; }
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  code, .m { font-family: var(--mono); font-size: .89em; }
+  code { background: var(--surface-2); padding: 1px 5px; border-radius: 3px; }
+
+  /* ---------- verdict strip ---------- */
+  .strip {
+    display: flex; align-items: flex-start; gap: 14px; padding: 15px 18px;
+    border: 1px solid var(--rule-firm); border-left-width: 4px; border-radius: 3px;
+    background: var(--surface); margin: 0 0 8px;
+  }
+  .strip.same  { border-left-color: var(--quiet); }
+  .strip.moved { border-left-color: var(--amber); }
+  .strip.risk  { border-left-color: var(--clay); }
+  .strip-k {
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase;
+    padding: 4px 9px; border-radius: 2px; white-space: nowrap; flex-shrink: 0; margin-top: 1px;
+  }
+  .strip.same  .strip-k { background: var(--quiet-soft); color: var(--ink-2); }
+  .strip.moved .strip-k { background: var(--amber-soft); color: var(--amber); }
+  .strip.risk  .strip-k { background: var(--clay-soft);  color: var(--clay); }
+  .strip p { margin: 0; font-size: 15px; }
+
+  /* ---------- side-by-side ---------- */
+  .vs { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 18px 0; }
+  @media (max-width: 780px) { .vs { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--surface); border: 1px solid var(--rule); border-radius: 4px;
+    padding: 18px 20px; box-shadow: var(--shadow);
+  }
+  .card-h {
+    display: flex; align-items: baseline; gap: 9px; margin-bottom: 12px;
+    padding-bottom: 10px; border-bottom: 1px solid var(--rule);
+  }
+  .sig {
+    font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: .1em;
+    padding: 3px 8px; border-radius: 2px;
+  }
+  .sig.v2 { background: var(--quiet-soft); color: var(--ink-2); }
+  .sig.v3 { background: var(--accent-soft); color: var(--accent); }
+  .card-h .t { font-size: 13.5px; color: var(--ink-2); }
+  .card ul { margin: 0; padding-left: 18px; }
+  .card li { margin-bottom: 7px; font-size: 14.5px; }
+  .card li:last-child { margin-bottom: 0; }
+  .card li .m { color: var(--ink-2); }
+
+  /* ---------- tables ---------- */
+  .scroll { overflow-x: auto; margin: 18px 0; border: 1px solid var(--rule); border-radius: 4px; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; min-width: 560px; }
+  th {
+    text-align: left; font-family: var(--body); font-weight: 600; font-size: 11.5px;
+    letter-spacing: .07em; text-transform: uppercase; color: var(--ink-2);
+    padding: 11px 14px; border-bottom: 1px solid var(--rule-firm); background: var(--surface-2);
+    white-space: nowrap;
+  }
+  td { padding: 11px 14px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  tbody tr:last-child td { border-bottom: 0; }
+  td.num { font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+  td .m { font-size: 12.5px; }
+
+  /* ---------- pills ---------- */
+  .pill {
+    display: inline-block; font-family: var(--mono); font-size: 10.5px; letter-spacing: .08em;
+    text-transform: uppercase; padding: 3px 8px; border-radius: 2px; white-space: nowrap;
+  }
+  .p-same { background: var(--quiet-soft); color: var(--ink-2); }
+  .p-move { background: var(--amber-soft); color: var(--amber); }
+  .p-new  { background: var(--accent-soft); color: var(--accent); }
+  .p-risk { background: var(--clay-soft);  color: var(--clay); }
+
+  /* ---------- matrix ---------- */
+  .matrix { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 20px 0; }
+  @media (max-width: 900px) { .matrix { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 520px) { .matrix { grid-template-columns: 1fr; } }
+  .cell {
+    border: 1px solid var(--rule); border-top-width: 3px; border-radius: 3px;
+    background: var(--surface); padding: 14px 15px; display: flex; flex-direction: column; gap: 7px;
+  }
+  .cell.same  { border-top-color: var(--quiet); }
+  .cell.moved { border-top-color: var(--amber); }
+  .cell.risk  { border-top-color: var(--clay); }
+  .cell .n { font-family: var(--display); font-size: 18px; line-height: 1.2; }
+  .cell .d { font-size: 13px; color: var(--ink-2); line-height: 1.45; }
+
+  /* ---------- bars ---------- */
+  .bars { display: flex; flex-direction: column; gap: 14px; margin: 20px 0; }
+  .bar-row { display: grid; grid-template-columns: 190px 1fr; gap: 14px; align-items: center; }
+  @media (max-width: 620px) { .bar-row { grid-template-columns: 1fr; gap: 5px; } }
+  .bar-lab { font-size: 13.5px; color: var(--ink-2); }
+  .bar-track { display: flex; flex-direction: column; gap: 5px; }
+  .bar { display: flex; align-items: center; gap: 9px; }
+  .bar-fill { height: 15px; border-radius: 2px; min-width: 3px; }
+  .bar-fill.v2 { background: var(--quiet); }
+  .bar-fill.v3 { background: var(--accent); }
+  .bar-v { font-family: var(--mono); font-size: 11.5px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+
+  /* ---------- svg figures ---------- */
+  figure { margin: 22px 0; }
+  .figbox {
+    border: 1px solid var(--rule); border-radius: 4px; background: var(--surface);
+    padding: 20px; overflow-x: auto; box-shadow: var(--shadow);
+  }
+  .figbox svg { display: block; max-width: 100%; height: auto; min-width: 520px; }
+  figcaption { font-size: 12.5px; color: var(--ink-2); margin-top: 10px; max-width: 74ch; }
+  .svg-t  { font-family: var(--body); font-size: 12px; fill: var(--ink); }
+  .svg-ts { font-family: var(--body); font-size: 10.5px; fill: var(--ink-2); }
+  .svg-m  { font-family: var(--mono); font-size: 10px; fill: var(--ink-2); letter-spacing: .06em; }
+  .svg-h  { font-family: var(--body); font-size: 11px; font-weight: 600; fill: var(--ink); }
+
+  /* ---------- ledger ---------- */
+  .ledger { display: flex; flex-direction: column; gap: 12px; margin: 20px 0; }
+  .entry {
+    display: grid; grid-template-columns: 96px 1fr; gap: 16px;
+    border: 1px solid var(--rule); border-radius: 4px; background: var(--surface); padding: 15px 17px;
+  }
+  @media (max-width: 620px) { .entry { grid-template-columns: 1fr; gap: 8px; } }
+  .entry-k { font-family: var(--mono); font-size: 11px; color: var(--ink-2); letter-spacing: .05em; padding-top: 2px; }
+  .entry-b p { margin: 0 0 7px; font-size: 14.5px; }
+  .entry-b p:last-child { margin-bottom: 0; }
+  .entry-b .note { font-size: 13px; color: var(--ink-2); }
+
+  .flag {
+    border-left: 3px solid var(--clay); background: var(--clay-soft);
+    padding: 12px 16px; border-radius: 0 3px 3px 0; margin: 16px 0; font-size: 14.5px;
+  }
+  .flag strong { color: var(--clay); }
+  .keep {
+    border-left: 3px solid var(--accent); background: var(--accent-soft);
+    padding: 12px 16px; border-radius: 0 3px 3px 0; margin: 16px 0; font-size: 14.5px;
+  }
+  .keep strong { color: var(--accent); }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 14px 0 0; font-size: 12.5px; color: var(--ink-2); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .swatch { width: 11px; height: 11px; border-radius: 2px; display: inline-block; }
+
+  footer { border-top: 1px solid var(--rule); padding: 26px 0 44px; font-size: 12.5px; color: var(--ink-2); }
+  footer p { max-width: 76ch; }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+
+<header class="mast">
+  <div class="wrap mast-inner">
+    <p class="eyebrow">AEGIS-PHARMA · repository comparison · 17 Aug 2026</p>
+    <h1>V2 → V3 Build Ledger</h1>
+    <p class="verdict">
+      V3 is not a redesign of V2. It is <strong>V2 plus eleven commits</strong> — a strict, linear
+      superset with no divergent history. Every architecture document in the programme is
+      byte-identical across the two snapshots. <strong>422 of 423 markdown files are unchanged;</strong>
+      the entire delta lands in the runtime, delivery and deployment layers.
+    </p>
+    <p class="verdict">
+      Which makes this comparison a test of a claim the design already made: that provider,
+      platform and packaging are supposed to be swappable <em>without</em> touching the domain.
+      V3 is that claim being cashed.
+    </p>
+    <div class="provenance">
+      <span>V2 HEAD <code>d832e67</code> · 48 commits</span>
+      <span>V3 HEAD <code>7a47074</code> · 59 commits</span>
+      <span>diff scope: excl. <code>.git</code>, <code>node_modules</code>, <code>package-lock.json</code></span>
+    </div>
+  </div>
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-n">11</div>
+      <div class="stat-l">Commits exclusive to V3 · zero exclusive to V2</div>
+    </div>
+    <div class="stat">
+      <div class="stat-n">17<span class="unit">/747</span></div>
+      <div class="stat-l">Shared files whose contents differ (2.3%)</div>
+    </div>
+    <div class="stat">
+      <div class="stat-n">+104</div>
+      <div class="stat-l">Net Python lines · 15,550 → 15,654</div>
+    </div>
+    <div class="stat">
+      <div class="stat-n">0</div>
+      <div class="stat-l">Changes to SCQA, DDD, ADR, threat-model, compliance or agentic docs</div>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="tab-legend">
+    <span>Each tab below is marked by what actually changed:</span>
+    <span><i class="dot dot-same" style="margin:0"></i> identical in both repos</span>
+    <span><i class="dot dot-moved" style="margin:0"></i> docs unchanged, something underneath moved</span>
+    <span><i class="dot dot-risk" style="margin:0"></i> a real, verifiable finding</span>
+  </div>
+</div>
+
+<nav class="tabrail" aria-label="Comparison sections">
+  <div class="wrap">
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" id="t-over"  aria-controls="p-over"  aria-selected="true"><span class="idx">00</span>Overview</button>
+      <button class="tab" role="tab" id="t-scqa"  aria-controls="p-scqa"  aria-selected="false"><span class="idx">01</span>SCQA<span class="dot dot-same" title="Identical"></span></button>
+      <button class="tab" role="tab" id="t-ddd"   aria-controls="p-ddd"   aria-selected="false"><span class="idx">02</span>DDD<span class="dot dot-same" title="Identical"></span></button>
+      <button class="tab" role="tab" id="t-adr"   aria-controls="p-adr"   aria-selected="false"><span class="idx">03</span>ADR<span class="dot dot-moved" title="Doc frozen, code moved"></span></button>
+      <button class="tab" role="tab" id="t-kg"    aria-controls="p-kg"    aria-selected="false"><span class="idx">04</span>Knowledge graph<span class="dot dot-same" title="Identical"></span></button>
+      <button class="tab" role="tab" id="t-sec"   aria-controls="p-sec"   aria-selected="false"><span class="idx">05</span>Security<span class="dot dot-moved" title="Controls held, surface shifted"></span></button>
+      <button class="tab" role="tab" id="t-zt"    aria-controls="p-zt"    aria-selected="false"><span class="idx">06</span>Zero trust by design<span class="dot dot-moved" title="Deploy plane weakened"></span></button>
+      <button class="tab" role="tab" id="t-thr"   aria-controls="p-thr"   aria-selected="false"><span class="idx">07</span>Threat model<span class="dot dot-moved" title="Register frozen, posture moved"></span></button>
+      <button class="tab" role="tab" id="t-bom"   aria-controls="p-bom"   aria-selected="false"><span class="idx">08</span>AI-BOM<span class="dot dot-risk" title="Real drift found"></span></button>
+      <button class="tab" role="tab" id="t-comp"  aria-controls="p-comp"  aria-selected="false"><span class="idx">09</span>ISO 42001 &amp; EU AI Act<span class="dot dot-moved" title="2 clauses moved"></span></button>
+      <button class="tab" role="tab" id="t-dmaic" aria-controls="p-dmaic" aria-selected="false"><span class="idx">10</span>DMAIC &amp; Lean<span class="dot dot-moved" title="Improve without Measure"></span></button>
+      <button class="tab" role="tab" id="t-reuse" aria-controls="p-reuse" aria-selected="false"><span class="idx">11</span>Reusability<span class="dot dot-moved" title="Materially improved"></span></button>
+      <button class="tab" role="tab" id="t-agent" aria-controls="p-agent" aria-selected="false"><span class="idx">12</span>Agentic architecture<span class="dot dot-same" title="Identical"></span></button>
+      <button class="tab" role="tab" id="t-sp"    aria-controls="p-sp"    aria-selected="false"><span class="idx">13</span>Skills &amp; prompts<span class="dot dot-same" title="Identical"></span></button>
+    </div>
+  </div>
+</nav>
+
+<main>
+
+<!-- ============================ OVERVIEW ============================ -->
+<section class="pane wrap" id="p-over" role="tabpanel" aria-labelledby="t-over" tabindex="0">
+  <h2>What actually changed between the two snapshots</h2>
+  <p class="lede">
+    V2's HEAD is an ancestor of V3's HEAD. There is no fork, no rewrite, and nothing present in V2
+    that V3 dropped. Eleven commits sit on top, and they do one job: take a design-complete system
+    and make it run somewhere other than the author's laptop.
+  </p>
+
+  <figure>
+    <div class="figbox">
+      <svg viewBox="0 0 900 210" role="img" aria-label="Commit lineage: 48 shared commits, then 11 commits exclusive to V3.">
+        <line x1="30" y1="96" x2="360" y2="96" stroke="var(--rule-firm)" stroke-width="2"/>
+        <line x1="360" y1="96" x2="872" y2="96" stroke="var(--accent)" stroke-width="2"/>
+        <g fill="var(--quiet)">
+          <circle cx="52" cy="96" r="5"/><circle cx="98" cy="96" r="5"/><circle cx="144" cy="96" r="5"/>
+          <circle cx="190" cy="96" r="5"/><circle cx="236" cy="96" r="5"/><circle cx="282" cy="96" r="5"/>
+        </g>
+        <text x="30" y="70" class="svg-m">STAGES 00–22 · 48 COMMITS · SHARED TRUNK</text>
+        <text x="30" y="132" class="svg-ts">discovery → SCQA → DDD → C4 → ADR → agentic → MCP → evals → security → compliance → app</text>
+
+        <circle cx="360" cy="96" r="8" fill="var(--surface)" stroke="var(--quiet)" stroke-width="3"/>
+        <text x="360" y="58" class="svg-h" text-anchor="middle">V2 HEAD</text>
+        <text x="360" y="44" class="svg-m" text-anchor="middle">d832e67</text>
+
+        <g fill="var(--accent)">
+          <circle cx="412" cy="96" r="5"/><circle cx="454" cy="96" r="5"/><circle cx="496" cy="96" r="5"/>
+          <circle cx="538" cy="96" r="5"/><circle cx="580" cy="96" r="5"/><circle cx="622" cy="96" r="5"/>
+          <circle cx="664" cy="96" r="5"/><circle cx="706" cy="96" r="5"/><circle cx="748" cy="96" r="5"/>
+          <circle cx="790" cy="96" r="5"/>
+        </g>
+        <circle cx="838" cy="96" r="8" fill="var(--surface)" stroke="var(--accent)" stroke-width="3"/>
+        <text x="838" y="58" class="svg-h" text-anchor="middle">V3 HEAD</text>
+        <text x="838" y="44" class="svg-m" text-anchor="middle">7a47074</text>
+        <text x="412" y="132" class="svg-ts">naming · bootstrap + compose · CI collection · Foundry provider · default flip ·</text>
+        <text x="412" y="148" class="svg-ts">attestation · ACR creds · SQLite threads · error logging · image fixtures · system map</text>
+        <text x="600" y="176" class="svg-m" text-anchor="middle">STAGE 23 · 11 COMMITS · V3 ONLY</text>
+      </svg>
+    </div>
+    <figcaption>Linear ancestry. Nothing in V2 was reverted, replaced, or branched away from — every difference below is additive.</figcaption>
+  </figure>
+
+  <h3>Pillar-by-pillar change matrix</h3>
+  <div class="matrix">
+    <div class="cell same">
+      <span class="pill p-same">Identical</span>
+      <div class="n">SCQA</div>
+      <div class="d">Same Situation/Complication/Question/Answer. Same four unmeasured baselines still open.</div>
+    </div>
+    <div class="cell same">
+      <span class="pill p-same">Identical</span>
+      <div class="n">DDD</div>
+      <div class="d">6 bounded contexts, same relationship types. V3's delta touches Generic subdomains only.</div>
+    </div>
+    <div class="cell moved">
+      <span class="pill p-move">Doc frozen · code moved</span>
+      <div class="n">ADR</div>
+      <div class="d">9 ADRs unchanged. ADR-009's Route A stops being a plan and becomes an adapter.</div>
+    </div>
+    <div class="cell moved">
+      <span class="pill p-move">Controls held · surface shifted</span>
+      <div class="n">Security</div>
+      <div class="d">Every governance control intact. Four deployment-layer changes, two of which cost something.</div>
+    </div>
+    <div class="cell moved">
+      <span class="pill p-move">Register frozen · posture moved</span>
+      <div class="n">Threat model</div>
+      <div class="d">T-01…T-15 and all 5 residual risks carried verbatim — but two rows now describe a system that has since changed underneath them.</div>
+    </div>
+    <div class="cell moved">
+      <span class="pill p-move">Materially improved</span>
+      <div class="n">Reusability</div>
+      <div class="d">Third LLM adapter in one file. Two new zero-to-running paths. Same 6-graph template.</div>
+    </div>
+    <div class="cell same">
+      <span class="pill p-same">Identical</span>
+      <div class="n">Agentic architecture</div>
+      <div class="d">4 agents, 2 LLM nodes, 9 deterministic nodes, 6 graphs, 8 tool contracts. Untouched.</div>
+    </div>
+    <div class="cell same">
+      <span class="pill p-same">Identical</span>
+      <div class="n">Knowledge graph</div>
+      <div class="d">17 node types, 14 edge types, same authority ladder. V3 makes the graph reproducible locally.</div>
+    </div>
+    <div class="cell moved">
+      <span class="pill p-move">Request path held · deploy plane weakened</span>
+      <div class="n">Zero trust</div>
+      <div class="d">All five PI/PG layers identical. V3's CD adds the long-lived shared credential the RBAC model rules out.</div>
+    </div>
+    <div class="cell risk">
+      <span class="pill p-risk">Drift found</span>
+      <div class="n">AI-BOM</div>
+      <div class="d">The only substantive non-code file that differs. V2's recorded tool-manifest hash doesn't match its own file; V3's does.</div>
+    </div>
+    <div class="cell moved">
+      <span class="pill p-move">Improve without Measure</span>
+      <div class="n">DMAIC &amp; Lean</div>
+      <div class="d">36 lenses, 24 registers, identical. All eight Unknown baselines still Unknown after eleven commits.</div>
+    </div>
+    <div class="cell moved">
+      <span class="pill p-move">Docs frozen · 2 clauses moved</span>
+      <div class="n">ISO 42001 &amp; EU AI Act</div>
+      <div class="d">Same classification, same 16 clauses, same 10 gaps. V3 closes the record-keeping failure and widens the supplier-controls gap.</div>
+    </div>
+    <div class="cell same">
+      <span class="pill p-same">Identical</span>
+      <div class="n">Skills &amp; prompts</div>
+      <div class="d">8 skills indexed, 0 materialized. 25 prompt files, byte-for-byte the same.</div>
+    </div>
+  </div>
+  <div class="legend">
+    <span><i class="swatch" style="background:var(--quiet)"></i> carried unchanged</span>
+    <span><i class="swatch" style="background:var(--amber)"></i> moved in V3</span>
+    <span><i class="swatch" style="background:var(--clay)"></i> costs something</span>
+  </div>
+
+  <h3>Every differing file, classified</h3>
+  <div class="scroll">
+    <table>
+      <thead>
+        <tr><th>Path</th><th>Class</th><th>What moved</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="m">packages/config/llm_client.py</td><td><span class="pill p-new">Capability</span></td><td><code>AzureFoundryLLM</code> added (+65 lines); <code>get_llm()</code> default flips to <code>azure_foundry</code></td></tr>
+        <tr><td class="m">.env.example</td><td><span class="pill p-new">Capability</span></td><td>Four <code>AZURE_FOUNDRY_*</code> vars; <code>LLM_PROVIDER</code> default changed</td></tr>
+        <tr><td class="m">services/api/health_probe.py</td><td><span class="pill p-new">Capability</span></td><td>Foundry key added to the provider→key-var map</td></tr>
+        <tr><td class="m">.github/workflows/cd.yml</td><td><span class="pill p-risk">Deploy fix</span></td><td>Foundry secrets; ACR registry credentials; attestation made non-blocking</td></tr>
+        <tr><td class="m">.github/workflows/ci.yml</td><td><span class="pill p-move">Deploy fix</span></td><td>Placeholder Foundry vars so import-time client construction survives collection</td></tr>
+        <tr><td class="m">.github/workflows/nightly-redteam.yml</td><td><span class="pill p-move">Deploy fix</span></td><td>Live red-team now gated on <code>AZURE_FOUNDRY_API_KEY</code></td></tr>
+        <tr><td class="m">deploy/containers/Dockerfile.api</td><td><span class="pill p-move">Bug fix</span></td><td><code>tests/fixtures/</code> copied in — six tools read fixtures at request time, not just in tests</td></tr>
+        <tr><td class="m">services/integration/audit_store.py</td><td><span class="pill p-move">Bug fix</span></td><td><code>check_same_thread=False</code> — LangGraph dispatches nodes across worker threads</td></tr>
+        <tr><td class="m">services/integration/user_store.py</td><td><span class="pill p-move">Bug fix</span></td><td>Same fix, same file, same rationale</td></tr>
+        <tr><td class="m">services/integration/evidence_retrieve.py</td><td><span class="pill p-move">Diagnosability</span></td><td><code>logger.exception</code> before the bare abstention swallows the cause</td></tr>
+        <tr><td class="m">tests/security/test_guard_block_completes_cleanly.py</td><td><span class="pill p-risk">Test scope</span></td><td>Skips when Neo4j is unconfigured, per the BLOCKED_BY_ENVIRONMENT convention</td></tr>
+        <tr><td class="m">README.md</td><td><span class="pill p-new">Docs</span></td><td>+17 lines: bootstrap and compose paths (the only changed markdown file in the repo)</td></tr>
+        <tr><td class="m">security/sbom/ai_sbom.json</td><td><span class="pill p-move">Regenerated</span></td><td>New timestamp; one prompt hash changed</td></tr>
+        <tr><td class="m">pytest.ini · ruff.toml · record_chat.py · prompt_guard.py</td><td><span class="pill p-same">Cosmetic</span></td><td>Comment-only version renumber: V3→V2, V2→V1. No behaviour.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Present only in V3</h3>
+  <div class="scroll">
+    <table>
+      <thead><tr><th>Path</th><th>Size</th><th>Purpose</th></tr></thead>
+      <tbody>
+        <tr><td class="m">scripts/bootstrap.sh</td><td class="num">2.3 KB</td><td>One-command setup: venv, deps, <code>.env</code>, user seed, KG ingest. Idempotent.</td></tr>
+        <tr><td class="m">docker-compose.yml</td><td class="num">4 svc</td><td>Neo4j + Redis + API + web, plus an opt-in <code>seed</code> profile</td></tr>
+        <tr><td class="m">docs/architecture/system_map/</td><td class="num">82 KB</td><td>Interactive system map (HTML) with a machine-readable JSON twin</td></tr>
+        <tr><td class="m">site/index.html</td><td class="num">291 ln</td><td>Static landing page, published by Pages</td></tr>
+        <tr><td class="m">.github/workflows/pages.yml</td><td class="num">4th wf</td><td>Publishes <code>site/</code> on push to main</td></tr>
+        <tr><td class="m">.claude/settings.local.json</td><td class="num">2 rules</td><td>Local tool permissions — not a product artifact</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="keep">
+    <strong>The one-line read.</strong> V2 is the system as designed and argued. V3 is the same system
+    with a power cord. If you are grading architecture, the two are the same submission; if you are
+    grading whether it runs, only one of them boots from a clean clone.
+  </div>
+</section>
+
+<!-- ============================ SCQA ============================ -->
+<section class="pane wrap" id="p-scqa" role="tabpanel" aria-labelledby="t-scqa" tabindex="0" hidden>
+  <h2>SCQA &amp; Minto — frozen text, one quiet complication</h2>
+  <p class="lede">
+    <code>docs/product/scqa/scqa.md</code> is byte-identical in both snapshots. The narrative class is
+    <span class="m">decision-ready</span> in both. What differs is how much of the Answer has actually
+    been discharged by the time you reach HEAD.
+  </p>
+
+  <div class="strip same">
+    <span class="strip-k">Identical</span>
+    <p>Same 4 sections, same 6 MECE supporting points, same evidence boundary, same explicit exclusions. No diff of any kind.</p>
+  </div>
+
+  <figure>
+    <div class="figbox">
+      <svg viewBox="0 0 880 300" role="img" aria-label="SCQA structure with the state of each element in V2 and V3.">
+        <g>
+          <rect x="14" y="20" width="200" height="112" rx="3" fill="var(--surface-2)" stroke="var(--rule-firm)"/>
+          <text x="28" y="42" class="svg-m">SITUATION</text>
+          <text x="28" y="66" class="svg-t">V1: single-shot,</text>
+          <text x="28" y="83" class="svg-t">84 injects, 143 CSVs,</text>
+          <text x="28" y="100" class="svg-t">30-artefact rubric.</text>
+          <text x="28" y="120" class="svg-ts">Well-governed. Not agentic.</text>
+        </g>
+        <path d="M218 76 L232 76" stroke="var(--rule-firm)" stroke-width="1.5" marker-end="url(#ar)"/>
+        <g>
+          <rect x="236" y="20" width="200" height="112" rx="3" fill="var(--surface-2)" stroke="var(--rule-firm)"/>
+          <text x="250" y="42" class="svg-m">COMPLICATION</text>
+          <text x="250" y="66" class="svg-t">Six simultaneous axes:</text>
+          <text x="250" y="83" class="svg-t">technical · governance · cost</text>
+          <text x="250" y="100" class="svg-t">cache · compliance · hosting</text>
+          <text x="250" y="120" class="svg-ts">Authority can leak at a handoff.</text>
+        </g>
+        <path d="M440 76 L454 76" stroke="var(--rule-firm)" stroke-width="1.5" marker-end="url(#ar)"/>
+        <g>
+          <rect x="458" y="20" width="200" height="112" rx="3" fill="var(--surface-2)" stroke="var(--rule-firm)"/>
+          <text x="472" y="42" class="svg-m">QUESTION</text>
+          <text x="472" y="66" class="svg-t">How to re-architect as</text>
+          <text x="472" y="83" class="svg-t">multi-agent without</text>
+          <text x="472" y="100" class="svg-t">inventing architecture</text>
+          <text x="472" y="120" class="svg-ts">before the constraints exist?</text>
+        </g>
+        <path d="M662 76 L676 76" stroke="var(--rule-firm)" stroke-width="1.5" marker-end="url(#ar)"/>
+        <g>
+          <rect x="680" y="20" width="186" height="112" rx="3" fill="var(--accent-soft)" stroke="var(--accent)"/>
+          <text x="694" y="42" class="svg-m">ANSWER</text>
+          <text x="694" y="66" class="svg-t">Additive re-architecture.</text>
+          <text x="694" y="83" class="svg-t">Domain first, graph later,</text>
+          <text x="694" y="100" class="svg-t">app last.</text>
+          <text x="694" y="120" class="svg-ts">Identical in V2 and V3.</text>
+        </g>
+
+        <text x="14" y="176" class="svg-m">THE ANSWER'S FOUR MEASURABLE OUTCOMES — STATE AT EACH HEAD</text>
+        <line x1="14" y1="186" x2="866" y2="186" stroke="var(--rule)"/>
+        <g class="svg-t">
+          <text x="14"  y="210">Eval pass rate on V1's 12 categories</text>
+          <text x="14"  y="234">Token / cost per workflow run</text>
+          <text x="14"  y="258">Cache hit rate</text>
+          <text x="14"  y="282">Prohibited-decision violations</text>
+        </g>
+        <g class="svg-ts">
+          <text x="560" y="210">baseline unknown</text><text x="740" y="210">baseline unknown</text>
+          <text x="560" y="234">unknown</text><text x="740" y="234">unknown</text>
+          <text x="560" y="258">unknown</text><text x="740" y="258">unknown</text>
+        </g>
+        <text x="560" y="282" class="svg-ts" fill="var(--accent)">target zero, held</text>
+        <text x="740" y="282" class="svg-ts" fill="var(--accent)">target zero, held</text>
+        <text x="560" y="196" class="svg-m">V2</text>
+        <text x="740" y="196" class="svg-m">V3</text>
+        <defs>
+          <marker id="ar" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+            <path d="M0 0 L7 3.5 L0 7 z" fill="var(--rule-firm)"/>
+          </marker>
+        </defs>
+      </svg>
+    </div>
+    <figcaption>Three of the Answer's four success metrics were declared unknown at Stage 02 and are still unknown at both HEADs. V3 added a deployment target without adding a measurement.</figcaption>
+  </figure>
+
+  <h3>Where the two snapshots read differently</h3>
+  <div class="vs">
+    <div class="card">
+      <div class="card-h"><span class="sig v2">V2</span><span class="t">Answer as written</span></div>
+      <ul>
+        <li>Names the offline/hosted tension (EAB-2) as inherited, not resolved</li>
+        <li>Defers LLM hosting to "Stage 04/08"</li>
+        <li>Repo internals still self-label as <span class="m">V3</span> in places — the renumbering pass was in flight</li>
+        <li>The Answer's "build the app last" clause is satisfied; the app exists and is documented</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-h"><span class="sig v3">V3</span><span class="t">Answer as discharged</span></div>
+      <ul>
+        <li>Same text, but the hosting question is now closed <em>in code</em>, not just in an ADR</li>
+        <li>Naming reconciled: internals consistently say <span class="m">V2</span> (this repo) and <span class="m">V1</span> (predecessor)</li>
+        <li>Two new zero-to-running paths mean the Answer is now falsifiable by a reviewer, not only readable</li>
+        <li>Cost and cache metrics still unmeasured — the Answer's own weakest commitment</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="flag">
+    <strong>Naming drift worth knowing before you read either repo.</strong> The directory is called
+    <code>…AgenticV3</code>, but a renumbering commit reassigned the internal labels so the repo calls
+    <em>itself</em> V2 and its predecessor V1. V2's snapshot is mid-pass (<code>pytest.ini</code> still
+    says "V2's own suite … not part of V3's contract"); V3's snapshot completed it. Folder name and
+    document vocabulary disagree in both, and consistently so only in V3.
+  </div>
+</section>
+
+<!-- ============================ DDD ============================ -->
+<section class="pane wrap" id="p-ddd" role="tabpanel" aria-labelledby="t-ddd" tabindex="0" hidden>
+  <h2>Domain-Driven Design — the model predicted where V3's changes would land</h2>
+  <p class="lede">
+    All seven DDD files are identical. The interesting result is not that the model didn't change; it's
+    that the eleven V3 commits landed almost entirely inside the subdomains DDD classified as
+    <em>Generic</em> — the ones explicitly defined as carrying no business decisions.
+  </p>
+
+  <div class="strip same">
+    <span class="strip-k">Identical</span>
+    <p><code>domain_model.md</code>, <code>context_map.md</code>, <code>gen_ai_boundaries.md</code> and the four lens/register files: no diff. Both remain <span class="m">stable</span> (EAB-3 closed).</p>
+  </div>
+
+  <figure>
+    <div class="figbox">
+      <svg viewBox="0 0 880 400" role="img" aria-label="Context map with the six bounded contexts, showing which were touched by V3.">
+        <rect x="290" y="14" width="300" height="54" rx="3" fill="var(--surface-2)" stroke="var(--rule-firm)"/>
+        <text x="440" y="36" class="svg-h" text-anchor="middle">Governance &amp; Oversight</text>
+        <text x="440" y="54" class="svg-ts" text-anchor="middle">supporting · open-host service / published language</text>
+
+        <path d="M440 68 L440 96" stroke="var(--rule-firm)" stroke-width="1.5"/>
+        <path d="M150 96 L730 96" stroke="var(--rule-firm)" stroke-width="1.5"/>
+        <path d="M150 96 L150 118" stroke="var(--rule-firm)" stroke-width="1.5" marker-end="url(#ar2)"/>
+        <path d="M440 96 L440 118" stroke="var(--rule-firm)" stroke-width="1.5" marker-end="url(#ar2)"/>
+        <path d="M730 96 L730 118" stroke="var(--rule-firm)" stroke-width="1.5" marker-end="url(#ar2)"/>
+        <text x="452" y="90" class="svg-m">POLICY CONTRACT</text>
+
+        <rect x="40" y="124" width="220" height="56" rx="3" fill="var(--surface-2)" stroke="var(--rule-firm)"/>
+        <text x="150" y="146" class="svg-h" text-anchor="middle">Batch Review</text>
+        <text x="150" y="164" class="svg-ts" text-anchor="middle">core · EU Qualified Person</text>
+
+        <rect x="330" y="124" width="220" height="56" rx="3" fill="var(--surface-2)" stroke="var(--rule-firm)"/>
+        <text x="440" y="146" class="svg-h" text-anchor="middle">PV Intake</text>
+        <text x="440" y="164" class="svg-ts" text-anchor="middle">core · Global Head of PV</text>
+
+        <rect x="620" y="124" width="220" height="56" rx="3" fill="var(--surface-2)" stroke="var(--rule-firm)"/>
+        <text x="730" y="146" class="svg-h" text-anchor="middle">Supply Planning</text>
+        <text x="730" y="164" class="svg-ts" text-anchor="middle">core · Supply Chain VP</text>
+
+        <path d="M150 180 L150 206 L730 206 L730 180" stroke="var(--rule-firm)" stroke-width="1.5" fill="none"/>
+        <path d="M440 180 L440 236" stroke="var(--rule-firm)" stroke-width="1.5" marker-end="url(#ar2)"/>
+
+        <rect x="290" y="242" width="300" height="56" rx="3" fill="var(--amber-soft)" stroke="var(--amber)"/>
+        <text x="440" y="264" class="svg-h" text-anchor="middle">Evidence &amp; Provenance</text>
+        <text x="440" y="282" class="svg-ts" text-anchor="middle">supporting · shared kernel, conformist downstream</text>
+
+        <path d="M440 298 L440 326" stroke="var(--rule-firm)" stroke-width="1.5" marker-end="url(#ar2)"/>
+        <rect x="290" y="332" width="300" height="56" rx="3" fill="var(--accent-soft)" stroke="var(--accent)"/>
+        <text x="440" y="354" class="svg-h" text-anchor="middle">Agent Orchestration</text>
+        <text x="440" y="372" class="svg-ts" text-anchor="middle">generic · LangGraph runtime, owns no domain decisions</text>
+
+        <text x="620" y="264" class="svg-m" fill="var(--amber)">← 1 LOG LINE</text>
+        <text x="620" y="354" class="svg-m" fill="var(--accent)">← ALL V3 CODE CHANGES</text>
+        <defs>
+          <marker id="ar2" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+            <path d="M0 0 L7 3.5 L0 7 z" fill="var(--rule-firm)"/>
+          </marker>
+        </defs>
+      </svg>
+    </div>
+    <figcaption>Four of the six contexts were not touched at all by V3. The one supporting-context change is a <code>logger.exception</code> call that alters no evidence semantics.</figcaption>
+  </figure>
+
+  <h3>Where each V3 change lands in the model</h3>
+  <div class="scroll">
+    <table>
+      <thead><tr><th>V3 change</th><th>Subdomain</th><th>Class</th><th>Domain impact</th></tr></thead>
+      <tbody>
+        <tr><td><code>AzureFoundryLLM</code> adapter</td><td>Agent Orchestration</td><td><span class="pill p-same">Generic</span></td><td>None — no ubiquitous-language term added or changed</td></tr>
+        <tr><td>SQLite <code>check_same_thread</code></td><td>Agent Orchestration / infra</td><td><span class="pill p-same">Generic</span></td><td>None — the <code>AgentRun</code> record is unchanged</td></tr>
+        <tr><td>Fixtures into the API image</td><td>Agent Orchestration / infra</td><td><span class="pill p-same">Generic</span></td><td>None — restores intended tool behaviour, doesn't redefine it</td></tr>
+        <tr><td><code>logger.exception</code> in retrieve</td><td>Evidence &amp; Provenance</td><td><span class="pill p-move">Supporting</span></td><td>None to semantics; adds an observability side-channel</td></tr>
+        <tr><td>compose · bootstrap · Pages</td><td>Outside the model</td><td><span class="pill p-same">n/a</span></td><td>Delivery scaffolding, no context of its own</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="keep">
+    <strong>This is the DDD claim being validated.</strong> The context map asserts that Agent
+    Orchestration "owns no business decisions" and is a technical host. Eleven commits of real
+    operational work — a new inference provider, a new deployment path, two concurrency fixes — hit
+    that context and left every core-context contract untouched. A model that misplaced the seam
+    would have leaked at least one change into Batch Review or Governance. None did.
+  </div>
+
+  <h3>Shared, and shared as gaps</h3>
+  <div class="vs">
+    <div class="card">
+      <div class="card-h"><span class="sig v2">V2</span><span class="t">Model state</span></div>
+      <ul>
+        <li>6 contexts: 3 core, 2 supporting, 1 generic</li>
+        <li>All owners named; EAB-3 closed against V1's stakeholder pack</li>
+        <li>"Agent" flagged as an overloaded term; resolved by convention, not by rename</li>
+        <li>Anti-corruption layer = the shared <code>DecisionSupportOutput</code> contract</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-h"><span class="sig v3">V3</span><span class="t">Model state</span></div>
+      <ul>
+        <li>Identical — no context added for the new provider, correctly</li>
+        <li>Identical owners, identical event list (11 domain events)</li>
+        <li>Same overloaded-term flag, still unresolved in both</li>
+        <li>Same ACL. The Foundry adapter sits below it and never sees domain vocabulary</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ ADR ============================ -->
+<section class="pane wrap" id="p-adr" role="tabpanel" aria-labelledby="t-adr" tabindex="0" hidden>
+  <h2>Architecture decisions — nine accepted, one cashed in</h2>
+  <p class="lede">
+    Every ADR file, the decision index, and the architecture review are identical. But one of them
+    made a falsifiable prediction, and V3 is the experiment that tested it.
+  </p>
+
+  <div class="strip moved">
+    <span class="strip-k">Doc frozen · code moved</span>
+    <p>ADR-009 §"Model hosting route" predicted that binding to Foundry would be "a config/client change behind one interface, never a model or prompt-behavior change." V3 executed exactly that — and did not update a single ADR to record it.</p>
+  </div>
+
+  <figure>
+    <div class="figbox">
+      <svg viewBox="0 0 880 250" role="img" aria-label="Nine ADRs, all accepted in both snapshots, with ADR-009 realized in code in V3.">
+        <text x="14" y="20" class="svg-m">ALL NINE — STATUS ACCEPTED IN BOTH SNAPSHOTS, ZERO OPEN SUB-DECISIONS</text>
+        <g>
+          <rect x="14"  y="34" width="272" height="46" rx="3" fill="var(--surface-2)" stroke="var(--rule-firm)"/>
+          <text x="28" y="53" class="svg-h">ADR-001 · Runtime stack</text>
+          <text x="28" y="70" class="svg-ts">LangGraph, LangSmith, Redis</text>
+
+          <rect x="300" y="34" width="272" height="46" rx="3" fill="var(--surface-2)" stroke="var(--rule-firm)"/>
+          <text x="314" y="53" class="svg-h">ADR-002 · Built separately</text>
+          <text x="314" y="70" class="svg-ts">verify against source, not filename</text>
+
+          <rect x="586" y="34" width="280" height="46" rx="3" fill="var(--surface-2)" stroke="var(--rule-firm)"/>
+          <text x="600" y="53" class="svg-h">ADR-003 · Evidence authority</text>
+          <text x="600" y="70" class="svg-ts">deterministic gate at retrieval boundary</text>
+
+          <rect x="14"  y="88" width="272" height="46" rx="3" fill="var(--surface-2)" stroke="var(--rule-firm)"/>
+          <text x="28" y="107" class="svg-h">ADR-004 · Unrepresentable</text>
+          <text x="28" y="124" class="svg-ts">prohibited actions absent from the type</text>
+
+          <rect x="300" y="88" width="272" height="46" rx="3" fill="var(--surface-2)" stroke="var(--rule-firm)"/>
+          <text x="314" y="107" class="svg-h">ADR-005 · Governance container</text>
+          <text x="314" y="124" class="svg-ts">policy load fails closed</text>
+
+          <rect x="586" y="88" width="280" height="46" rx="3" fill="var(--surface-2)" stroke="var(--rule-firm)"/>
+          <text x="600" y="107" class="svg-h">ADR-006 · Own audit store</text>
+          <text x="600" y="124" class="svg-ts">separate from LangSmith</text>
+
+          <rect x="14"  y="142" width="272" height="46" rx="3" fill="var(--surface-2)" stroke="var(--rule-firm)"/>
+          <text x="28" y="161" class="svg-h">ADR-007 · Degraded-mode safe</text>
+          <text x="28" y="178" class="svg-ts">not offline-capable; EAB-2 closed</text>
+
+          <rect x="300" y="142" width="272" height="46" rx="3" fill="var(--surface-2)" stroke="var(--rule-firm)"/>
+          <text x="314" y="161" class="svg-h">ADR-008 · One graph per workflow</text>
+          <text x="314" y="178" class="svg-ts">single deployment, no cross-graph calls</text>
+
+          <rect x="586" y="142" width="280" height="46" rx="3" fill="var(--amber-soft)" stroke="var(--amber)" stroke-width="2"/>
+          <text x="600" y="161" class="svg-h">ADR-009 · Azure platform</text>
+          <text x="600" y="178" class="svg-ts" fill="var(--amber)">Route A — realized in V3 code</text>
+        </g>
+        <line x1="14" y1="206" x2="866" y2="206" stroke="var(--rule)"/>
+        <text x="14" y="228" class="svg-t">V2: Route A confirmed on paper; runtime calls api.anthropic.com directly.</text>
+        <text x="14" y="244" class="svg-t" fill="var(--amber)">V3: Route A bound in code; azure_foundry is the default and CD deploys against it.</text>
+      </svg>
+    </div>
+    <figcaption>The prediction held. Adding the third provider touched one file, added no prompt change and no parser change, and left ADR-003/004's reasoning intact — exactly the "one client interface" guardrail ADR-009 relies on.</figcaption>
+  </figure>
+
+  <h3>ADR-009 in each snapshot</h3>
+  <div class="vs">
+    <div class="card">
+      <div class="card-h"><span class="sig v2">V2</span><span class="t">Route A, declared</span></div>
+      <ul>
+        <li><code>LLM_PROVIDER=anthropic</code> is the default; Foundry marked "not yet implemented in 20a dev"</li>
+        <li>Two adapters: <code>AnthropicLLM</code>, <code>GroqLLM</code> (+ a deterministic stub)</li>
+        <li>CD provisions one inference secret: <code>ANTHROPIC_API_KEY</code></li>
+        <li>ADR text: Foundry is "Route A's <em>deployment</em> binding, not a development-time requirement"</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-h"><span class="sig v3">V3</span><span class="t">Route A, bound</span></div>
+      <ul>
+        <li><code>LLM_PROVIDER=azure_foundry</code> is the default; direct Anthropic retained for dev</li>
+        <li>Three adapters — <code>AzureFoundryLLM</code> over the OpenAI-compatible chat-completions route</li>
+        <li>CD provisions three: endpoint, key, deployment name</li>
+        <li>ADR text unchanged. The change is recorded in code comments and commit messages only</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>Decision-record hygiene: the gap V3 opened</h3>
+  <div class="ledger">
+    <div class="entry">
+      <div class="entry-k">NO ADR-010</div>
+      <div class="entry-b">
+        <p>Making <code>azure_foundry</code> the <em>default</em> provider — including for the nightly
+        red-team and for CI's degraded-mode assertion — is a change of the production inference path.
+        It is defensible under ADR-009 and arguably needs no new ADR, but nothing in
+        <code>decision_index.md</code> records that the binding flipped.</p>
+      </div>
+    </div>
+    <div class="entry">
+      <div class="entry-k">TRIGGER T-6</div>
+      <div class="entry-b">
+        <p>ADR-009 sets a revisit trigger: if the hosting route changes A↔B, Stage 14's eval baselines
+        must be re-run. The route stayed A, so the trigger did not fire by its own terms.</p>
+        <p class="note">Worth asking anyway: the <em>model endpoint</em> changed even though the
+        <em>route</em> didn't, and no eval re-run is recorded in either snapshot.</p>
+      </div>
+    </div>
+    <div class="entry">
+      <div class="entry-k">CHANGELOG</div>
+      <div class="entry-b">
+        <p><code>CHANGELOG.md</code> is identical in both and still reads
+        <span class="m">[Unreleased] — Stage 00: repository scaffold established</span>. Twenty-three
+        stages of work, including all of V3's, are absent from it.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ KNOWLEDGE GRAPH ============================ -->
+<section class="pane wrap" id="p-kg" role="tabpanel" aria-labelledby="t-kg" tabindex="0" hidden>
+  <h2>Ontology, knowledge graph &amp; semantic layer</h2>
+  <p class="lede">
+    All four ontology documents and both KG modules are byte-identical. What V3 changed is not
+    the graph — it's whether you can stand one up. In V2 the knowledge graph requires a cloud
+    Neo4j instance; in V3 it comes up with the rest of the stack in one command.
+  </p>
+
+  <div class="strip same">
+    <span class="strip-k">Identical</span>
+    <p><code>ontology.md</code>, <code>kg_schema.md</code>, <code>conflict_authority_rules.md</code>, <code>semantic_layer_query_contract.md</code>, <code>packages/domain/kg/client.py</code> and <code>ingest.py</code>: no diff.</p>
+  </div>
+
+  <div class="matrix">
+    <div class="cell same">
+      <span class="pill p-same">Identical</span>
+      <div class="n">17 node types</div>
+      <div class="d">Batch Review, PV Intake, Supply Planning and Evidence &amp; Provenance. Every node carries a <code>_provenance</code> block, not just edges.</div>
+    </div>
+    <div class="cell same">
+      <span class="pill p-same">Identical</span>
+      <div class="n">14 edge types</div>
+      <div class="d">Each with a stated provenance rule naming the source dataset and whether absence is valid.</div>
+    </div>
+    <div class="cell same">
+      <span class="pill p-same">Identical</span>
+      <div class="n">32 evidence docs</div>
+      <div class="d">SHA-256-verified corpus, live-ingested into Neo4j. One <code>supersedes</code> edge; the K-006/K-007 pair verified live.</div>
+    </div>
+    <div class="cell moved">
+      <span class="pill p-move">V3 only</span>
+      <div class="n">Local graph in one command</div>
+      <div class="d">A <code>neo4j:5-community</code> service plus a <code>seed</code> profile that runs the ingest. V2 requires an AuraDB instance you provide.</div>
+    </div>
+  </div>
+
+  <h3>The authority ladder — a deterministic lookup, never a judgement</h3>
+  <figure>
+    <div class="figbox">
+      <svg viewBox="0 0 880 300" role="img" aria-label="Evidence citability decision ladder by document status and jurisdiction.">
+        <text x="14" y="18" class="svg-m">EVERY RETRIEVED DOCUMENT PASSES THIS BEFORE IT CAN REACH A CONTEXT WINDOW</text>
+
+        <rect x="14" y="34" width="200" height="46" rx="3" fill="var(--clay-soft)" stroke="var(--clay)"/>
+        <text x="28" y="54" class="svg-h">status = untrusted</text>
+        <text x="28" y="71" class="svg-ts" fill="var(--clay)">NEVER citable. Hard stop.</text>
+
+        <rect x="230" y="34" width="200" height="46" rx="3" fill="var(--clay-soft)" stroke="var(--clay)"/>
+        <text x="244" y="54" class="svg-h">status = superseded</text>
+        <text x="244" y="71" class="svg-ts" fill="var(--clay)">NEVER citable. Hard stop.</text>
+
+        <rect x="446" y="34" width="200" height="46" rx="3" fill="var(--amber-soft)" stroke="var(--amber)" stroke-width="2"/>
+        <text x="460" y="54" class="svg-h">status = draft</text>
+        <text x="460" y="71" class="svg-ts" fill="var(--amber)">CITABLE — the one people get wrong</text>
+
+        <rect x="662" y="34" width="204" height="46" rx="3" fill="var(--accent-soft)" stroke="var(--accent)"/>
+        <text x="676" y="54" class="svg-h">status = approved</text>
+        <text x="676" y="71" class="svg-ts">Citable.</text>
+
+        <rect x="14" y="96" width="416" height="46" rx="3" fill="var(--accent-soft)" stroke="var(--accent)"/>
+        <text x="28" y="116" class="svg-h">status = local_approved, jurisdiction = X</text>
+        <text x="28" y="133" class="svg-ts">Fully citable within X — not a discounted global document.</text>
+
+        <rect x="446" y="96" width="420" height="46" rx="3" fill="var(--surface-2)" stroke="var(--rule-firm)"/>
+        <text x="460" y="116" class="svg-h">A Global doc does NOT auto-override a jurisdiction-local one</text>
+        <text x="460" y="133" class="svg-ts">Parallel authorities. Only an explicit supersedes edge sets precedence.</text>
+
+        <line x1="14" y1="166" x2="866" y2="166" stroke="var(--rule)"/>
+        <text x="14" y="188" class="svg-m">WHY THE DRAFT RULE IS RIGHT — CONFIRMED TWICE, INDEPENDENTLY</text>
+        <text x="14" y="212" class="svg-t">1. Against V1's grader code: _MUST_NOT_CITE = {"untrusted", "superseded"} — exactly two statuses, not three.</text>
+        <text x="14" y="232" class="svg-t">2. Against knowledge_catalog.csv: no superseded or untrusted row carries a more permissive trust value.</text>
+        <text x="14" y="258" class="svg-ts">K-026 RESEARCH_NOTE_UNAPPROVED (draft) may be cited with a lower-confidence qualifier.</text>
+        <text x="14" y="276" class="svg-ts">K-999 FAKE_PV_EXPEDITED_RULE (untrusted) may not be cited at all — and never reaches the graph, by design.</text>
+      </svg>
+    </div>
+    <figcaption>The filter lives inside <code>evidence.retrieve</code>, at the retrieval boundary — non-citable documents never enter the graph, let alone a prompt. Filtering after generation would mean the model already read it.</figcaption>
+  </figure>
+
+  <h3>Schema decisions that carry a governance consequence</h3>
+  <div class="scroll">
+    <table>
+      <thead><tr><th>Decision</th><th>What it prevents</th><th>Snapshot difference</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code>patient_key_ref</code>, never <code>patient_key</code></td>
+          <td>V1's raw column is a pseudonymization key, not a display value. The graph stores a reference so the key itself is never in a node.</td>
+          <td><span class="pill p-same">None</span></td>
+        </tr>
+        <tr>
+          <td><code>content_hash</code> <em>and</em> <code>_provenance.source_row_hash</code></td>
+          <td>Two different failure modes, deliberately not merged: document tampering since approval, versus the graph's own record drifting from its source dataset.</td>
+          <td><span class="pill p-same">None</span></td>
+        </tr>
+        <tr>
+          <td><code>declared_exception</code> as a first-class edge property</td>
+          <td>A required edge that is legitimately absent (case <code>PV-1020</code>, a deliberate stub) must not be flagged as data loss. Ingestion distinguishes documented gap from silent loss.</td>
+          <td><span class="pill p-same">None</span></td>
+        </tr>
+        <tr>
+          <td><code>SensitiveSegment.access_group</code> checked before return</td>
+          <td>Restricted PV segments cannot leave the semantic layer un-authorized — stated at schema level so the policy register has something concrete to bind to.</td>
+          <td><span class="pill p-same">None</span></td>
+        </tr>
+        <tr>
+          <td><code>PortfolioProduct</code> as a shared hub</td>
+          <td>The only node type in all three workflows. Checked against ADR-008 and cleared: the ADR constrains <em>agent invocation</em>, not shared reference data — each graph still reaches it through its own scoped tool server.</td>
+          <td><span class="pill p-same">None</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>What V3 changed around the graph</h3>
+  <div class="vs">
+    <div class="card">
+      <div class="card-h"><span class="sig v2">V2</span><span class="t">Graph reachability</span></div>
+      <ul>
+        <li>Requires a Neo4j AuraDB instance you configure yourself</li>
+        <li>A retrieval failure surfaces as a bare <code>dependency_unavailable</code> abstention with no cause recorded anywhere</li>
+        <li>Tests touching the live graph fail rather than skip when it is absent</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-h"><span class="sig v3">V3</span><span class="t">Graph reachability</span></div>
+      <ul>
+        <li><code>docker compose up</code> brings up Neo4j; <code>--profile seed</code> runs <code>kg.ingest</code></li>
+        <li><code>logger.exception</code> records the real driver error before the abstention swallows it</li>
+        <li>Live-graph tests skip cleanly under the BLOCKED_BY_ENVIRONMENT convention</li>
+        <li>Nothing in application code branches on local-vs-cloud — the substitution is config only</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="keep">
+    <strong>Why this matters more than it looks.</strong> The ontology's central claim is that
+    evidence authority is a <em>status lookup</em>, not a model judgement — which is only
+    checkable if someone can run the graph and query it. V2 documents the rule and proves it in
+    tests that need infrastructure the reader has to supply. V3 is the first snapshot where a
+    reviewer can reproduce the K-006/K-007 supersession result from a clean clone.
+  </div>
+</section>
+
+<!-- ============================ SECURITY ============================ -->
+<section class="pane wrap" id="p-sec" role="tabpanel" aria-labelledby="t-sec" tabindex="0" hidden>
+  <h2>Security posture — controls held, deployment surface shifted</h2>
+  <p class="lede">
+    Not one governance-critical control differs between the snapshots. Every V3 security-relevant
+    change is in the supply chain and the deployment path — which is also where two of them cost
+    something the documentation hasn't caught up with.
+  </p>
+
+  <div class="strip same">
+    <span class="strip-k">Held</span>
+    <p>ADR-004's three defence layers, the retrieval-boundary evidence gate, fail-closed policy load, the ten hook bindings, the prompt guard's pattern set, and the AI-SBOM verifier are byte-identical.</p>
+  </div>
+
+  <figure>
+    <div class="figbox">
+      <svg viewBox="0 0 880 268" role="img" aria-label="The three-layer prohibited-action defence plus surrounding controls, all unchanged in V3.">
+        <text x="14" y="20" class="svg-m">ADR-004 · DEFENCE IN DEPTH AGAINST A TERMINAL DECISION — UNCHANGED IN BOTH</text>
+
+        <rect x="14" y="34" width="852" height="52" rx="3" fill="var(--accent-soft)" stroke="var(--accent)"/>
+        <text x="30" y="55" class="svg-h">Layer 1 · Type system</text>
+        <text x="30" y="74" class="svg-ts">Release / reject / allocate fields are absent from the aggregate schemas. Cannot fail at runtime because it cannot compile.</text>
+        <text x="852" y="55" class="svg-m" text-anchor="end" fill="var(--accent)">STRUCTURAL</text>
+
+        <rect x="14" y="94" width="852" height="52" rx="3" fill="var(--accent-soft)" stroke="var(--accent)"/>
+        <text x="30" y="115" class="svg-h">Layer 2 · Deterministic guard, run twice</text>
+        <text x="30" y="134" class="svg-ts">prohibited_action_guard fires before AND after the Critic — because the Critic is itself an LLM node.</text>
+        <text x="852" y="115" class="svg-m" text-anchor="end" fill="var(--accent)">DETERMINISTIC</text>
+
+        <rect x="14" y="154" width="852" height="52" rx="3" fill="var(--amber-soft)" stroke="var(--amber)"/>
+        <text x="30" y="175" class="svg-h">Layer 3 · Literal pattern match on prose</text>
+        <text x="30" y="194" class="svg-ts">Closed banned-phrase set. Paraphrased compliance evades it — documented as residual risk #1, accepted in both.</text>
+        <text x="852" y="175" class="svg-m" text-anchor="end" fill="var(--amber)">SOFT, BY ADMISSION</text>
+
+        <line x1="14" y1="224" x2="866" y2="224" stroke="var(--rule)"/>
+        <text x="14" y="246" class="svg-t">Surrounding, also unchanged: evidence gate at the retrieval boundary · fail-closed policy load · per-server credential check ·</text>
+        <text x="14" y="262" class="svg-t">redaction before any trace write · audit write before response · denial-of-wallet ceiling at intake · nightly live red-team</text>
+      </svg>
+    </div>
+    <figcaption>V3 changed none of this. The delta below sits entirely outside the governed request path.</figcaption>
+  </figure>
+
+  <h3>The four security-relevant deltas</h3>
+  <div class="ledger">
+    <div class="entry">
+      <div class="entry-k">IMPROVES</div>
+      <div class="entry-b">
+        <p><strong>Inference moves inside the Azure boundary.</strong> V2's runtime calls
+        <code>api.anthropic.com</code> directly. V3's default routes through Azure AI Foundry, which is
+        precisely the billing/networking/governance containment ADR-009 chose Route A for.</p>
+        <p class="note">Cost: the inference secret count goes 1 → 3. All three are ACA secrets referenced
+        by <code>secretref:</code>, so none is visible in <code>az containerapp show</code>.</p>
+      </div>
+    </div>
+    <div class="entry">
+      <div class="entry-k">IMPROVES</div>
+      <div class="entry-b">
+        <p><strong>Failures stop being invisible.</strong> <code>evidence_retrieve</code> now logs the real
+        exception before <code>graph.py</code> converts it into a bare <code>dependency_unavailable</code>
+        abstention. The caller still sees nothing — BC-2 is intact.</p>
+        <p class="note">Mild tension: the log line carries raw driver exception text, and Stage 17's
+        redaction ruleset governs trace writes, not application logs. Low risk in
+        <code>batch_review</code> (no PHI); revisit when PV Intake carries case narratives.</p>
+      </div>
+    </div>
+    <div class="entry">
+      <div class="entry-k">COSTS</div>
+      <div class="entry-b">
+        <p><strong>Build provenance became best-effort.</strong> Both
+        <code>attest-build-provenance</code> steps now carry <code>continue-on-error: true</code>, because
+        GitHub refuses attestation on user-owned private repos. The workflow comment is candid that this
+        is "a real gap worth knowing about."</p>
+        <p class="note">That gap is not reflected in <code>residual_risk_register.md</code> §3 (T-10,
+        supply chain), which is identical in both snapshots. The AI-SBOM's prompt hashes are only as
+        strong as the link between repo and running image — which is the link that just became optional.</p>
+      </div>
+    </div>
+    <div class="entry">
+      <div class="entry-k">COSTS</div>
+      <div class="entry-b">
+        <p><strong>A static registry credential entered the deploy path.</strong> CD now calls
+        <code>az containerapp registry set</code> with <code>ACR_USERNAME</code> / <code>ACR_PASSWORD</code>
+        so Container Apps can pull the image with its own identity. Necessary — the runner's docker login
+        does not transfer — but it is a long-lived shared secret alongside the existing OIDC
+        <code>AZURE_CREDENTIALS</code>, and a managed identity with <span class="m">AcrPull</span> would
+        achieve the same without one.</p>
+        <p class="note">Both new secrets are also missing from the required-secrets list documented at the
+        top of <code>cd.yml</code> and are not checked by the <code>preflight</code> job — so a missing
+        value fails later, inside an <code>az</code> command, which is the exact failure mode preflight
+        exists to prevent.</p>
+      </div>
+    </div>
+  </div>
+
+  <h3>Test coverage on the highest-stakes path</h3>
+  <div class="vs">
+    <div class="card">
+      <div class="card-h"><span class="sig v2">V2</span><span class="t">test_guard_block_completes_cleanly</span></div>
+      <ul>
+        <li>Runs unconditionally; loads <code>.env</code> and calls the real graph</li>
+        <li>Fails at collection or execution when Neo4j is absent</li>
+        <li>Effect: noisy locally, unrunnable in CI</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-h"><span class="sig v3">V3</span><span class="t">same test, scoped</span></div>
+      <ul>
+        <li><code>pytest.mark.skipif</code> on unset <code>NEO4J_PASSWORD</code> or a placeholder URI</li>
+        <li>Follows the established BLOCKED_BY_ENVIRONMENT convention from Stage 14</li>
+        <li>Effect: CI is green — and no longer exercises the guard-block path by default</li>
+      </ul>
+    </div>
+  </div>
+  <div class="flag">
+    <strong>Read this one carefully.</strong> The file's own docstring calls this "the single
+    highest-stakes path in the whole system." The skip is conventional and correctly implemented,
+    and the nightly red-team does hit a live system — but between the two snapshots, default-run
+    coverage of a clean guard block went from attempted-and-failing to not-attempted.
+  </div>
+</section>
+
+<!-- ============================ ZERO TRUST ============================ -->
+<section class="pane wrap" id="p-zt" role="tabpanel" aria-labelledby="t-zt" tabindex="0" hidden>
+  <h2>Zero trust, designed in rather than added on</h2>
+  <p class="lede">
+    The system's own knowledge corpus contains the policy it has to satisfy — <code>K-032
+    ZERO_TRUST_AI_TOOLS</code>, an approved document the agents can themselves cite. That makes
+    it unusually checkable: the mandatory controls are written down, and each one either maps to
+    a mechanism in the code or doesn't.
+  </p>
+
+  <div class="strip moved">
+    <span class="strip-k">Design identical · one plane regressed</span>
+    <p>Every zero-trust control in the request path is byte-identical. In the <em>deploy</em> plane V3 introduced a long-lived shared credential — the one thing the RBAC model explicitly says not to use.</p>
+  </div>
+
+  <h3>K-032's mandatory controls, mapped to what actually enforces them</h3>
+  <div class="scroll">
+    <table>
+      <thead><tr><th>Required control</th><th>Mechanism</th><th>V2</th><th>V3</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Authorize each user, purpose, object and tool <strong>at execution time</strong></td>
+          <td><code>intake</code> binds the caller's <em>current</em> Entra role at execution, not at session start; escalation eligibility re-checked at the moment of escalation</td>
+          <td><span class="pill p-new">Enforced</span></td><td><span class="pill p-new">Enforced</span></td>
+        </tr>
+        <tr>
+          <td>Scoped tools — no reach beyond the caller's context</td>
+          <td>Per-bounded-context MCP servers; pre-tool-call credential check (P-03); ADR-008 forbids cross-graph calls structurally</td>
+          <td><span class="pill p-new">Enforced</span></td><td><span class="pill p-new">Enforced</span></td>
+        </tr>
+        <tr>
+          <td><strong>Approved signed manifests</strong></td>
+          <td><code>tool_manifest.json</code> hashed into the AI-BOM; <code>verify_ai_sbom.py</code> recomputes and fails the build on drift</td>
+          <td><span class="pill p-risk">Recorded hash was stale</span></td><td><span class="pill p-new">Hash matches manifest</span></td>
+        </tr>
+        <tr>
+          <td>Least privilege and segregation of duties</td>
+          <td>One managed identity per container, scoped to its own context; Manufacturing VP excluded from every role in every plane</td>
+          <td><span class="pill p-move">Designed only</span></td><td><span class="pill p-move">Designed only</span></td>
+        </tr>
+        <tr>
+          <td>Idempotency, approval and audit for any side-effect-capable tool</td>
+          <td>Vacuously satisfied and deliberately so — <strong>no side-effect-capable tool exists</strong>. All 8 contracts are read-only by construction</td>
+          <td><span class="pill p-new">Structural</span></td><td><span class="pill p-new">Structural</span></td>
+        </tr>
+        <tr>
+          <td>Abstain or escalate when applicability cannot be established</td>
+          <td><code>abstain</code> is a terminal state on every graph and always a valid outcome; evidence gate routes to it rather than to synthesis</td>
+          <td><span class="pill p-new">Enforced</span></td><td><span class="pill p-new">Enforced</span></td>
+        </tr>
+        <tr>
+          <td>Audit events for reviewer actions, exceptions, overrides</td>
+          <td><code>finalize</code> writes before responding; <code>HumanOverrideRecorded</code> written by <code>hitl_interrupt</code></td>
+          <td><span class="pill p-risk">Crashes multi-threaded</span></td><td><span class="pill p-new">Thread-safe</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Never trust the model — the bracketing layers</h3>
+  <figure>
+    <div class="figbox">
+      <svg viewBox="0 0 880 268" role="img" aria-label="Five layers: input scan, schema, tool capability, runtime guard, output scan.">
+        <text x="14" y="18" class="svg-m">LAYERS 1–3 MAKE A BAD OUTCOME IMPOSSIBLE · LAYERS 0 AND 4 MAKE A BAD ATTEMPT VISIBLE</text>
+
+        <rect x="14" y="32" width="852" height="40" rx="3" fill="var(--amber-soft)" stroke="var(--amber)"/>
+        <text x="30" y="49" class="svg-h">Layer 0 — input · scan_input() on untrusted text before it enters a prompt</text>
+        <text x="30" y="65" class="svg-ts">13 input patterns. high ⇒ refused · medium ⇒ neutralized and recorded · low ⇒ recorded only.</text>
+
+        <rect x="14" y="80" width="852" height="40" rx="3" fill="var(--accent-soft)" stroke="var(--accent)"/>
+        <text x="30" y="97" class="svg-h">Layer 1 — schema · extra="forbid" on every payload model</text>
+        <text x="30" y="113" class="svg-ts">A disposition field cannot be constructed.</text>
+
+        <rect x="14" y="128" width="852" height="40" rx="3" fill="var(--accent-soft)" stroke="var(--accent)"/>
+        <text x="30" y="145" class="svg-h">Layer 2 — tool capability · no contract exposes a write or disposition operation</text>
+        <text x="30" y="161" class="svg-ts">A disposition cannot be produced by a tool.</text>
+
+        <rect x="14" y="176" width="852" height="40" rx="3" fill="var(--accent-soft)" stroke="var(--accent)"/>
+        <text x="30" y="193" class="svg-h">Layer 3 — runtime guard · prohibited_action_guard.check(), twice per graph</text>
+        <text x="30" y="209" class="svg-ts">Disposition language blocks the run.</text>
+
+        <rect x="14" y="224" width="852" height="40" rx="3" fill="var(--amber-soft)" stroke="var(--amber)"/>
+        <text x="30" y="241" class="svg-h">Layer 4 — output · scan_output() before a human sees generated text</text>
+        <text x="30" y="257" class="svg-ts">3 output patterns: leakage, fabricated citations, claimed authority.</text>
+      </svg>
+    </div>
+    <figcaption>Nothing in this stack asks a model whether a prompt is an attack — a compromised model is exactly what is being defended against. Identical in both snapshots, down to the pattern hashes recorded in the AI-BOM.</figcaption>
+  </figure>
+
+  <div class="keep">
+    <strong>The calibration choice worth noticing.</strong> "Should I release this batch?" is
+    flagged <em>medium</em>, not refused. It is a legitimate question from a confused operator,
+    and the useful answer explains who decides. The documented reasoning is that false positives
+    are not a safe conservative default here: every one blanks out a real finding, and a control
+    that mangles legitimate data is a control that gets switched off.
+  </div>
+
+  <h3>Two planes, one identity platform — and the plane V3 weakened</h3>
+  <div class="vs">
+    <div class="card">
+      <div class="card-h"><span class="sig v2">Human plane</span><span class="t">identical in both</span></div>
+      <ul>
+        <li>Approver — own workflow's HITL queue only; no cross-workflow visibility</li>
+        <li>Compliance Reviewer — audit store read-only, redacted traces, no approval rights</li>
+        <li>Platform Operator — dashboards and ceilings, but cannot change a <em>policy</em> value</li>
+        <li>Governance owner — policy values, escalation assignments, redaction content</li>
+        <li>Manufacturing VP — excluded from every role, deliberately, matching the approval model</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-h"><span class="sig v3">Service plane</span><span class="t">where the regression is</span></div>
+      <ul>
+        <li>Design calls for one Entra <strong>managed identity</strong> per container, scoped per bounded context</li>
+        <li>V3's CD instead registers ACR <strong>admin username and password</strong> on both Container Apps</li>
+        <li>A managed identity with <span class="m">AcrPull</span> achieves the same image pull without a shared secret</li>
+        <li>Necessary to fix a real deploy failure — but it is the pattern this document argues against</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="flag">
+    <strong>The standing gap, identical in both.</strong> <code>rbac_model.md</code> is marked
+    <span class="m">provisional</span> for an honest reason: no Entra tenant exists to bind
+    against, so both planes are a design, not a deployed configuration. The service plane is
+    where that gap now costs something — V3 had to solve image-pull authentication for real, and
+    with no managed-identity assignment available it reached for the credential the design rules
+    out.
+  </div>
+</section>
+
+<!-- ============================ THREATS ============================ -->
+<section class="pane wrap" id="p-thr" role="tabpanel" aria-labelledby="t-thr" tabindex="0" hidden>
+  <h2>Threat model — identical catalogue, two rows V3 arguably reopened</h2>
+  <p class="lede">
+    <code>threat_catalogue.md</code>, <code>residual_risk_register.md</code>,
+    <code>controls_mapping.md</code> and all three abuse cases are byte-identical. Three threats
+    (T-01, T-06, T-09) were actually exercised against running code, not just modelled — in both.
+  </p>
+
+  <div class="strip risk">
+    <span class="strip-k">Stale in V3</span>
+    <p>The register is frozen while the system underneath it moved. Two rows now describe a posture that V3's deployment changes have altered.</p>
+  </div>
+
+  <h3>Catalogue — twelve modelled, three deferred</h3>
+  <div class="scroll">
+    <table>
+      <thead><tr><th>ID</th><th>Threat</th><th>New because agentic?</th><th>State in both snapshots</th><th>V3 effect</th></tr></thead>
+      <tbody>
+        <tr><td class="m">T-01</td><td>Indirect prompt injection via tool free-text</td><td>Yes</td><td><span class="pill p-move">Exercised · residual medium</span></td><td>—</td></tr>
+        <tr><td class="m">T-02</td><td>Direct prompt injection</td><td>No</td><td><span class="pill p-same">Modelled</span></td><td>—</td></tr>
+        <tr><td class="m">T-03</td><td>Tool abuse / excessive agency</td><td>Yes</td><td><span class="pill p-same">Modelled</span></td><td>—</td></tr>
+        <tr><td class="m">T-04</td><td>Cache poisoning</td><td>Would be</td><td><span class="pill p-risk">Doc says "no cache in 20a"</span></td><td>Stale in both — <code>response_cache.py</code> exists in each</td></tr>
+        <tr><td class="m">T-05</td><td>Agent-to-agent trust exploitation</td><td>Yes</td><td><span class="pill p-same">Mitigated by Critic re-check</span></td><td>—</td></tr>
+        <tr><td class="m">T-06</td><td>Evidence-authority bypass</td><td>Yes</td><td><span class="pill p-move">Exercised · abuse case written</span></td><td>—</td></tr>
+        <tr><td class="m">T-07</td><td>Memory / context poisoning across runs</td><td>Would be</td><td><span class="pill p-same">N/A — no cross-run memory, by design</span></td><td>—</td></tr>
+        <tr><td class="m">T-08</td><td>Stale-authorization replay</td><td>Yes</td><td><span class="pill p-risk">Untested — only v1 policy exists</span></td><td>—</td></tr>
+        <tr><td class="m">T-09</td><td>Data exfiltration via tool output / trace</td><td>Partly</td><td><span class="pill p-risk">Untested — no PHI in batch_review</span></td><td><strong>New log path</strong> carries raw exception text</td></tr>
+        <tr><td class="m">T-10</td><td>Supply-chain compromise</td><td>No, but wider blast radius</td><td><span class="pill p-risk">Register: "no control at all"</span></td><td><strong>Attestation now best-effort</strong>; new static ACR credential</td></tr>
+        <tr><td class="m">T-11</td><td>Denial-of-wallet</td><td>Yes</td><td><span class="pill p-move">Guard wired; in-process ceiling only</span></td><td>—</td></tr>
+        <tr><td class="m">T-12</td><td>Cross-graph authority leak</td><td>Yes</td><td><span class="pill p-same">Server-credential boundary</span></td><td>—</td></tr>
+        <tr><td class="m">T-13</td><td>PV duplicate-check gaming</td><td>—</td><td><span class="pill p-same">Deferred</span></td><td>—</td></tr>
+        <tr><td class="m">T-14</td><td>Supply constraint-data poisoning</td><td>—</td><td><span class="pill p-same">Deferred</span></td><td>—</td></tr>
+        <tr><td class="m">T-15</td><td>Supply dual-approval bypass</td><td>—</td><td><span class="pill p-same">Deferred</span></td><td>—</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Residual risk register — five entries, identical text</h3>
+  <div class="matrix">
+    <div class="cell moved">
+      <span class="pill p-move">Medium · accepted</span>
+      <div class="n">#1 Paraphrased compliance</div>
+      <div class="d">Layer 3 matches literal phrases. "Meets all conditions to proceed" slips past. Fixing it means a semantic classifier — a new injection surface one level down.</div>
+    </div>
+    <div class="cell moved">
+      <span class="pill p-move">Medium</span>
+      <div class="n">#2 In-process wallet ceiling</div>
+      <div class="d">Not shared across instances. Needs Redis or the audit store; deferred by scope in both snapshots.</div>
+    </div>
+    <div class="cell risk">
+      <span class="pill p-risk">Open · reopened</span>
+      <div class="n">#3 No supply-chain control</div>
+      <div class="d">Register text still says <code>security/sbom/</code> "has never been populated" — it now has four files in both. V3 then made provenance attestation optional.</div>
+    </div>
+    <div class="cell risk">
+      <span class="pill p-risk">Untested</span>
+      <div class="n">#4 Stale-authorization replay</div>
+      <div class="d">No <code>policy_contract.v2.json</code> has ever existed, so the mismatch path has never run. Unchanged.</div>
+    </div>
+  </div>
+  <div class="matrix" style="margin-top:10px">
+    <div class="cell risk">
+      <span class="pill p-risk">Untested · design only</span>
+      <div class="n">#5 Redaction ruleset never exercised</div>
+      <div class="d">Waits on PV Intake for a real PHI source. V3's new error log is a second write path that the same ruleset does not currently cover.</div>
+    </div>
+  </div>
+
+  <div class="flag">
+    <strong>The honest summary.</strong> V3 did not make the system less safe in its governed request
+    path — that path is unchanged and still defended in depth. What V3 did was move the build and
+    deploy pipeline while leaving the register that describes it frozen. Registers age against code;
+    these two snapshots are a clean demonstration of exactly how fast.
+  </div>
+</section>
+
+<!-- ============================ AI-BOM ============================ -->
+<section class="pane wrap" id="p-bom" role="tabpanel" aria-labelledby="t-bom" tabindex="0" hidden>
+  <h2>AI bill of materials</h2>
+  <p class="lede">
+    <code>ai_sbom.json</code> is the only substantive non-code file that differs between the
+    snapshots — and the difference is the interesting kind. The AI-BOM exists to catch a
+    governance artifact drifting from its recorded hash. Between V2 and V3, it caught one.
+  </p>
+
+  <div class="strip risk">
+    <span class="strip-k">Real drift, found</span>
+    <p>At V2's HEAD the AI-BOM records a hash for <code>tool_manifest.json</code> that does not match the file's own content. V3's regenerated BOM matches. Verified by recomputing every hash in both trees.</p>
+  </div>
+
+  <h3>Two bills of materials, because there are two supply chains</h3>
+  <figure>
+    <div class="figbox">
+      <svg viewBox="0 0 880 258" role="img" aria-label="Two SBOMs: dependency SBOM with versions, and AI-BOM covering things with no version number.">
+        <rect x="14" y="30" width="410" height="196" rx="3" fill="var(--surface-2)" stroke="var(--rule-firm)"/>
+        <text x="34" y="54" class="svg-h">sbom.json — the dependency supply chain</text>
+        <text x="34" y="76" class="svg-ts">Answers: which library versions is this running on?</text>
+        <text x="34" y="100" class="svg-t">Every component has a version an installer</text>
+        <text x="34" y="117" class="svg-t">can check. That is what makes it trustworthy.</text>
+        <text x="34" y="146" class="svg-m">VERIFIED BY verify_sbom.py</text>
+        <text x="34" y="164" class="svg-ts">compares against importlib.metadata</text>
+        <text x="34" y="196" class="svg-m" fill="var(--accent)">IDENTICAL IN BOTH SNAPSHOTS</text>
+
+        <rect x="446" y="30" width="420" height="196" rx="3" fill="var(--accent-soft)" stroke="var(--accent)"/>
+        <text x="466" y="54" class="svg-h">ai_sbom.json — the behaviour supply chain</text>
+        <text x="466" y="76" class="svg-ts">Answers: what actually determines how it behaves?</text>
+        <text x="466" y="100" class="svg-t">The model — a hosted endpoint that can change</text>
+        <text x="466" y="117" class="svg-t">under a stable alias. The system prompts. The</text>
+        <text x="466" y="134" class="svg-t">prohibition contract. The guard's pattern set.</text>
+        <text x="466" y="158" class="svg-t" fill="var(--amber)">None of these has a version number.</text>
+        <text x="466" y="182" class="svg-m">VERIFIED BY verify_ai_sbom.py</text>
+        <text x="466" y="200" class="svg-ts">recomputes every content hash, non-zero on drift</text>
+      </svg>
+    </div>
+    <figcaption>Change a governance instruction in a system prompt and every property this repo claims can change while <code>pip freeze</code> stays byte-identical. The second BOM closes that gap; <code>sbom.json</code> is hashed <em>into</em> it so the two cannot drift apart unnoticed.</figcaption>
+  </figure>
+
+  <h3>What the AI-BOM covers — 25 components, CycloneDX 1.6</h3>
+  <div class="matrix">
+    <div class="cell same">
+      <span class="pill p-same">2</span>
+      <div class="n">machine-learning-model</div>
+      <div class="d"><code>claude-sonnet-4-5</code> (Route A, authoritative) and <code>llama-3.1-8b-instant</code> (dev-only, provisional). Both flagged <code>identifier_is_mutable_alias: true</code>.</div>
+    </div>
+    <div class="cell same">
+      <span class="pill p-same">13</span>
+      <div class="n">System prompts</div>
+      <div class="d">One synthesize + one critic per workflow, plus the record-assistant prompt. Each hashed individually with a character count.</div>
+    </div>
+    <div class="cell same">
+      <span class="pill p-same">1</span>
+      <div class="n">PI/PG ruleset</div>
+      <div class="d">13 input patterns, 3 output patterns, and the system-prompt markers — three separate hashes so a change to any one is attributable.</div>
+    </div>
+    <div class="cell moved">
+      <span class="pill p-move">3</span>
+      <div class="n">Governance artifacts</div>
+      <div class="d">Policy contract, tool manifest, and the dependency SBOM itself. <strong>The tool manifest is the one that drifted.</strong></div>
+    </div>
+  </div>
+
+  <h3>The drift, and how it was separated from a false alarm</h3>
+  <p>
+    Run <code>verify_ai_sbom.py</code> on a Windows checkout and <em>both</em> snapshots report
+    three mismatches — which is a line-ending artifact, not a finding. The generator hashes raw
+    file bytes, and git checks these files out with CRLF on Windows while the hashes were
+    computed on LF. Normalizing to the LF form that git stores and that CI's Ubuntu runner sees
+    separates the artifact from the real result:
+  </p>
+  <div class="scroll">
+    <table>
+      <thead><tr><th>Hashed artifact</th><th>V2 recorded</th><th>V3 recorded</th><th>Actual content (LF)</th><th>Verdict</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code>policy_contract.v1.json</code></td>
+          <td class="m">c37c1e44891b…</td><td class="m">c37c1e44891b…</td><td class="m">c37c1e44891b…</td>
+          <td><span class="pill p-new">Matches in both</span></td>
+        </tr>
+        <tr>
+          <td><code>tool_manifest.json</code></td>
+          <td class="m">1581026e90ca…</td><td class="m">47cb0fdb44e5…</td><td class="m">47cb0fdb44e5…</td>
+          <td><span class="pill p-risk">V2 drifted · V3 correct</span></td>
+        </tr>
+        <tr>
+          <td><code>sbom.json</code></td>
+          <td class="m">db91beb7683b…</td><td class="m">db91beb7683b…</td><td class="m">db91beb7683b…</td>
+          <td><span class="pill p-new">Matches in both</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p>
+    The manifest file itself is byte-identical across the two snapshots. So this is not a change
+    V3 made to the manifest — it is V2's BOM having been stale <em>at its own HEAD</em>, and
+    V3's regeneration commit closing it. On CI's Ubuntu runner, V2's <code>governance</code> job
+    fails the AI-BOM check; V3's passes.
+  </p>
+
+  <div class="keep">
+    <strong>This is the control working as designed.</strong> The tool manifest is the artifact
+    that enumerates what tools exist and what they may do — precisely the kind of file whose
+    silent change should be loud. <code>tests/security/test_ai_sbom_verification.py</code> proves
+    the mechanism by actually making a weakening edit to a system prompt and asserting the build
+    goes red. Here it caught a real drift with no test needed.
+  </div>
+
+  <h3>What the AI-BOM refuses to claim</h3>
+  <div class="ledger">
+    <div class="entry">
+      <div class="entry-k">HONEST LIMIT</div>
+      <div class="entry-b">
+        <p><strong>A matching model id proves nothing about the weights serving the request.</strong>
+        Both model components are marked <code>identifier_is_mutable_alias: "true"</code>, and
+        verification reports an id change as a <em>finding</em>, not a failure — because pretending
+        an alias is a pin would invite the reader to stop asking the question that matters.</p>
+        <p class="note">ADR-009's revisit trigger (re-run Stage 14 baselines if the served model
+        changes) applies here and this file explicitly cannot detect it.</p>
+      </div>
+    </div>
+    <div class="entry">
+      <div class="entry-k">V3 GAP</div>
+      <div class="entry-b">
+        <p><strong>The new provider is not in the BOM.</strong> V3 added
+        <code>AzureFoundryLLM</code> and made it the default, but the AI-BOM still lists exactly
+        two models — <code>claude-sonnet-4-5</code> and <code>llama-3.1-8b-instant</code> — with
+        no component for the Foundry deployment that now serves production traffic.</p>
+        <p class="note">Defensible in that the underlying model is unchanged and the deployment
+        name lives in a secret. But the BOM's own purpose is recording what determines behaviour,
+        and "which endpoint answers" is now a different answer than it records.</p>
+      </div>
+    </div>
+    <div class="entry">
+      <div class="entry-k">BOTH</div>
+      <div class="entry-b">
+        <p><strong>Stale identity.</strong> The BOM's <code>bom-ref</code> is
+        <code>aegis-pharma-v3</code> in both snapshots, while the repo's renumbering pass now
+        calls this system V2. Cosmetic, but it is the identifier a customer's security tooling
+        would key on.</p>
+      </div>
+    </div>
+  </div>
+
+  <p style="font-size:14px;color:var(--ink-2)">
+    Both verifiers run in CI's <code>governance</code> job and again at API container startup, so
+    a drifted BOM fails the build and refuses the boot — not merely a report someone has to read.
+  </p>
+</section>
+
+<!-- ============================ COMPLIANCE ============================ -->
+<section class="pane wrap" id="p-comp" role="tabpanel" aria-labelledby="t-comp" tabindex="0" hidden>
+  <h2>ISO/IEC 42001 &amp; the EU AI Act</h2>
+  <p class="lede">
+    All five compliance documents are byte-identical. But compliance is the one pillar where a
+    deployment-layer change is <em>not</em> merely operational: two of V3's eleven commits land
+    directly on clauses the mapping already calls out — one closing a real failure in the
+    record-keeping obligation, one loosening the supplier-controls clause that was already a
+    registered gap.
+  </p>
+
+  <div class="strip moved">
+    <span class="strip-k">Docs frozen · two clauses moved</span>
+    <p><code>eu_ai_act_risk_classification.md</code>, <code>iso42001_control_mapping.md</code>, <code>gap_assessment.md</code>, <code>compliance_evidence_index.md</code> and the DMAIC lens: no diff. The system underneath them moved on two clauses in opposite directions.</p>
+  </div>
+
+  <h3>EU AI Act — the classification, and what it deliberately does not claim</h3>
+  <p>
+    The classification is explicitly labelled <strong>reasoned, not a legal determination</strong>,
+    and is recorded as open gap <strong>G-1</strong> rather than quietly treated as settled. That
+    framing is identical in both snapshots and is the most defensible thing in the pack.
+  </p>
+
+  <figure>
+    <div class="figbox">
+      <svg viewBox="0 0 880 296" role="img" aria-label="EU AI Act classification reasoning and the four baseline obligations, with status in each snapshot.">
+        <text x="14" y="18" class="svg-m">CLASSIFICATION REASONING — IDENTICAL IN BOTH SNAPSHOTS</text>
+
+        <rect x="14" y="30" width="270" height="72" rx="3" fill="var(--surface-2)" stroke="var(--rule-firm)"/>
+        <text x="28" y="50" class="svg-h">Annex III enumerated categories</text>
+        <text x="28" y="70" class="svg-ts">Biometrics, infrastructure, education,</text>
+        <text x="28" y="84" class="svg-ts">employment, credit, policing, migration…</text>
+        <text x="28" y="98" class="svg-ts" fill="var(--accent)">none names pharma, PV or supply</text>
+
+        <rect x="300" y="30" width="270" height="72" rx="3" fill="var(--amber-soft)" stroke="var(--amber)"/>
+        <text x="314" y="50" class="svg-h">Article 6(1) safety component</text>
+        <text x="314" y="70" class="svg-ts">Turns on whether the supported product</text>
+        <text x="314" y="84" class="svg-ts">is under sectoral safety legislation.</text>
+        <text x="314" y="98" class="svg-ts" fill="var(--amber)">UNRESOLVED — GAP G-1, needs counsel</text>
+
+        <rect x="586" y="30" width="280" height="72" rx="3" fill="var(--accent-soft)" stroke="var(--accent)"/>
+        <text x="600" y="50" class="svg-h">System's own characteristics</text>
+        <text x="600" y="70" class="svg-ts">No terminal action representable ·</text>
+        <text x="600" y="84" class="svg-ts">structural human oversight · citations</text>
+        <text x="600" y="98" class="svg-ts">required · audit write not optional</text>
+
+        <text x="14" y="134" class="svg-m">BASELINE OBLIGATIONS — SATISFIED BY DESIGN REGARDLESS OF FINAL TIER</text>
+        <line x1="14" y1="144" x2="866" y2="144" stroke="var(--rule)"/>
+        <text x="600" y="160" class="svg-m">V2</text>
+        <text x="740" y="160" class="svg-m">V3</text>
+
+        <g class="svg-t">
+          <text x="14" y="184">Transparency — every claim cites retrievable evidence (ADR-003)</text>
+          <text x="14" y="212">Human oversight — named accountable role on every run</text>
+          <text x="14" y="240">Technical documentation — 423 markdown artifacts, stage-traced</text>
+          <text x="14" y="268">Logging &amp; record-keeping — audit write before response</text>
+        </g>
+        <g class="svg-ts" fill="var(--accent)">
+          <text x="600" y="184">satisfied</text><text x="740" y="184">satisfied</text>
+          <text x="600" y="212">satisfied</text><text x="740" y="212">satisfied</text>
+          <text x="600" y="240">satisfied</text><text x="740" y="240">satisfied</text>
+        </g>
+        <text x="600" y="268" class="svg-ts" fill="var(--clay)">crashes multi-threaded</text>
+        <text x="740" y="268" class="svg-ts" fill="var(--accent)">satisfied</text>
+      </svg>
+    </div>
+    <figcaption>Three of the four baseline obligations are identical. The fourth is the single most consequential change in the entire V2→V3 delta — see the record-keeping entry below.</figcaption>
+  </figure>
+
+  <h3>The boundary pack's six questions, answered the same way in both</h3>
+  <div class="scroll">
+    <table>
+      <thead><tr><th>Question</th><th>Answer as recorded</th></tr></thead>
+      <tbody>
+        <tr><td>Does it touch a regulated record?</td><td><strong>Retrieves and reads</strong> regulated evidence; never writes. No write-capable tool exists anywhere in the design.</td></tr>
+        <tr><td>Does it influence quality, safety, PV, labeling, release or recall?</td><td>It <strong>informs</strong> a human who decides. The output schemas structurally cannot represent a disposition.</td></tr>
+        <tr><td>Advisory, workflow-supporting, determinative, or executed?</td><td><strong>Advisory only</strong> — confirmed at the type level, not asserted as policy.</td></tr>
+        <tr><td>Which human role stays accountable?</td><td>Named, not generic: EU Qualified Person · Global Head of PV · Supply Chain VP with Quality co-approval.</td></tr>
+        <tr><td>What validation is proportionate?</td><td>63-scenario eval harness, red-team with three real attacks executed, audit retention (structure fixed, duration open).</td></tr>
+        <tr><td>What is prohibited even if technically possible?</td><td>Release/reject/reprocess/relabel/recall · causality/seriousness/reportability · allocation/reservation/shipment. Enforced at three independent layers.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>ISO/IEC 42001 clause mapping — sixteen clauses, status in each snapshot</h3>
+  <div class="scroll">
+    <table>
+      <thead><tr><th>Clause</th><th>Mapped artifact</th><th>V2</th><th>V3</th><th>Movement</th></tr></thead>
+      <tbody>
+        <tr><td>Context / interested parties (4)</td><td>discovery, stakeholder pack</td><td><span class="pill p-same">Documentary</span></td><td><span class="pill p-same">Documentary</span></td><td>—</td></tr>
+        <tr><td>Leadership, roles &amp; responsibilities (5)</td><td>hitl_control_model · control_ownership</td><td><span class="pill p-new">Real</span></td><td><span class="pill p-new">Real</span></td><td>—</td></tr>
+        <tr><td>Risk management (6.1)</td><td>threat catalogue · residual risk register</td><td><span class="pill p-new">Real — 3 of 12 attacked</span></td><td><span class="pill p-new">Real</span></td><td>Register not refreshed against V3</td></tr>
+        <tr><td>AI system impact assessment</td><td>EU AI Act classification</td><td><span class="pill p-move">Reasoned, G-1 open</span></td><td><span class="pill p-move">Reasoned, G-1 open</span></td><td>—</td></tr>
+        <tr><td>Data governance</td><td>ontology · kg_schema · conflict rules</td><td><span class="pill p-new">Real — 32 docs SHA-verified</span></td><td><span class="pill p-new">Real</span></td><td>Inference moved inside the Azure boundary</td></tr>
+        <tr><td>Design &amp; development controls</td><td>langgraph_design · loop guards · code</td><td><span class="pill p-new">Real — 108+ tests</span></td><td><span class="pill p-new">Real</span></td><td>—</td></tr>
+        <tr><td><strong>Third-party / supplier relationships</strong></td><td>SBOM + verifier scripts</td><td><span class="pill p-risk">Gap G-2</span></td><td><span class="pill p-risk">Gap G-2, widened</span></td><td><strong>Attestation now optional; static ACR credential added</strong></td></tr>
+        <tr><td>Resource management</td><td>token_economics · wallet guardrail</td><td><span class="pill p-move">Real, partial</span></td><td><span class="pill p-move">Real, partial</span></td><td>Ceiling still in-process only</td></tr>
+        <tr><td>Human oversight</td><td>hitl_control_model · four-tier ladder</td><td><span class="pill p-new">Real — 99 runs, 0 silent completions</span></td><td><span class="pill p-new">Real</span></td><td>—</td></tr>
+        <tr><td>Transparency to users</td><td>ADR-003 · <code>claims[].cites</code></td><td><span class="pill p-new">Real</span></td><td><span class="pill p-new">Real</span></td><td>—</td></tr>
+        <tr><td>Incident management</td><td>— none —</td><td><span class="pill p-risk">Gap G-3</span></td><td><span class="pill p-risk">Gap G-3</span></td><td>—</td></tr>
+        <tr><td><strong>Logging / record-keeping</strong></td><td>audit_store · escalation log design</td><td><span class="pill p-risk">Real, but thread-fragile</span></td><td><span class="pill p-new">Real, thread-safe</span></td><td><strong>V3 fixes a crash on the audit-write path</strong></td></tr>
+        <tr><td>Monitoring &amp; measurement</td><td>dashboards · alerting</td><td><span class="pill p-move">Designed, not populated — G-7</span></td><td><span class="pill p-move">Designed, not populated</span></td><td>—</td></tr>
+        <tr><td>Internal audit</td><td>— none —</td><td><span class="pill p-risk">Gap G-5</span></td><td><span class="pill p-risk">Gap G-5</span></td><td>Needs an operating organization</td></tr>
+        <tr><td>Management review</td><td>— none —</td><td><span class="pill p-risk">Gap G-6</span></td><td><span class="pill p-risk">Gap G-6</span></td><td>Needs an operating organization</td></tr>
+        <tr><td>Continual improvement</td><td>DMAIC lens on every stage</td><td><span class="pill p-new">Real — operates continuously</span></td><td><span class="pill p-new">Real</span></td><td>—</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>The two clauses V3 actually moved</h3>
+  <div class="ledger">
+    <div class="entry">
+      <div class="entry-k">CLOSES</div>
+      <div class="entry-b">
+        <p><strong>Logging / record-keeping — the audit write could not survive a real deployment.</strong>
+        <code>graph.py</code> opens one SQLite connection per request and closes over it from every node
+        from intake to finalize; LangGraph's runner dispatches those nodes onto different worker threads.
+        In V2 that trips Python's same-thread guard and raises.</p>
+        <p class="note">This matters more here than an ordinary bug would. The audit write is not
+        best-effort logging — it is the clause. <code>finalize</code>'s own rule is that a response
+        reaching the caller with no audit record is not a valid terminal state, and the compliance
+        evidence index rests its strongest claim (99+ <code>AgentRun</code> rows, zero silent
+        completions) on that path working. V2's evidence was collected on a single-threaded local
+        run; V3 is the first snapshot where the same guarantee survives a multi-threaded container.</p>
+      </div>
+    </div>
+    <div class="entry">
+      <div class="entry-k">WIDENS</div>
+      <div class="entry-b">
+        <p><strong>Third-party / supplier relationships — already Gap G-2, now with less provenance.</strong>
+        Both <code>attest-build-provenance</code> steps became <code>continue-on-error: true</code>, so a
+        deployed image may now carry no signed link back to the source that built it. A static ACR
+        username/password also entered the deploy path alongside the existing federated credential.</p>
+        <p class="note">Neither is reflected in <code>gap_assessment.md</code> G-2, which is identical in
+        both snapshots. The AI-SBOM's per-prompt SHA-256 hashes are only meaningful if the running image
+        provably came from the hashed repo — which is precisely the link that became optional.</p>
+      </div>
+    </div>
+    <div class="entry">
+      <div class="entry-k">SHIFTS</div>
+      <div class="entry-b">
+        <p><strong>Data governance — the model provider moved inside the tenancy boundary.</strong>
+        V2's runtime calls Anthropic directly; V3 defaults to a model deployed behind Azure AI Foundry.
+        That is the containment ADR-009 chose Route A to get, and it changes where prompt content
+        travels.</p>
+        <p class="note">Whether that also improves data residency depends on the Foundry deployment's
+        region, which lives in a secret and cannot be verified from either repository. Worth confirming
+        before citing it as a compliance improvement.</p>
+      </div>
+    </div>
+  </div>
+
+  <h3>Gap register — ten entries, identical text in both</h3>
+  <div class="scroll">
+    <table>
+      <thead><tr><th>ID</th><th>Gap</th><th>Owner</th><th>Target</th><th>State at V3</th></tr></thead>
+      <tbody>
+        <tr><td class="m">G-1</td><td>EU AI Act tier is reasoned, not legally determined</td><td>CQO + external regulatory counsel</td><td>Before any real deployment</td><td><span class="pill p-move">Open, unchanged</span></td></tr>
+        <tr><td class="m">G-2</td><td>Dependency supply-chain control</td><td>Engineering / Platform</td><td>Before Stage 20b adds dependencies</td><td><span class="pill p-risk">Open · text now stale in both, and widened by V3</span></td></tr>
+        <tr><td class="m">G-3</td><td>No incident-management procedure for this system</td><td>CISO</td><td>Before any real deployment</td><td><span class="pill p-move">Open, unchanged</span></td></tr>
+        <tr><td class="m">G-4</td><td><s>HumanOverrideRecorded never written by the graph</s></td><td>Engineering / Platform</td><td>—</td><td><span class="pill p-new">Closed in both</span></td></tr>
+        <tr><td class="m">G-5</td><td>No internal-audit procedure or schedule</td><td>Chief Quality Officer</td><td>Needs an operating organization</td><td><span class="pill p-move">Open, unchanged</span></td></tr>
+        <tr><td class="m">G-6</td><td>No management-review cadence</td><td>Chief Quality Officer</td><td>Needs an operating organization</td><td><span class="pill p-move">Open, unchanged</span></td></tr>
+        <tr><td class="m">G-7</td><td>Dashboards designed, never populated</td><td>Architecture owner</td><td>Once real traffic exists</td><td><span class="pill p-move">Open — V3's CD makes real traffic reachable</span></td></tr>
+        <tr><td class="m">G-8</td><td>PV Intake and Supply Planning have zero operational evidence</td><td>Engineering / Platform</td><td>Stage 20b</td><td><span class="pill p-move">Open, unchanged</span></td></tr>
+        <tr><td class="m">G-9</td><td>Guard paraphrase-evasion</td><td>Governance &amp; Oversight</td><td>Needs a design decision</td><td><span class="pill p-move">Open, unchanged</span></td></tr>
+        <tr><td class="m">G-10</td><td>Approver justification is a placeholder string</td><td>Engineering / Platform</td><td>Stage 20b</td><td><span class="pill p-move">Open, unchanged</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="flag">
+    <strong>One stale gap, equally stale in both snapshots.</strong> G-2 states that the repo has
+    "no lockfile, no pinning, no SBOM" and that <code>security/sbom/</code> "has never been
+    populated." Both snapshots in fact carry pinned <code>requirements.txt</code> and
+    <code>requirements-dev.txt</code> (<code>==</code> pins throughout) plus a four-file
+    <code>security/sbom/</code> with generator and verifier scripts. The gap text predates that
+    work and was never refreshed — so the register currently understates the controls that exist
+    while missing the one V3 removed. That is the register's weakest property, and it is not a
+    V3 regression; it is inherited.
+  </div>
+
+  <div class="keep">
+    <strong>Net compliance read.</strong> On paper the two snapshots are the same submission —
+    same classification, same sixteen clauses, same ten gaps. In operation V3 is the stronger
+    one: it is the first snapshot in which the record-keeping obligation actually holds under the
+    concurrency a deployed container imposes. It pays for that with a weaker supplier-controls
+    story on a clause already marked open, and with a register that no longer describes either
+    change.
+  </div>
+</section>
+
+<!-- ============================ DMAIC & LEAN ============================ -->
+<section class="pane wrap" id="p-dmaic" role="tabpanel" aria-labelledby="t-dmaic" tabindex="0" hidden>
+  <h2>DMAIC &amp; Lean evidence</h2>
+  <p class="lede">
+    Thirty-six <code>dmaic_lens.md</code> files and twenty-four waste registers, identical across
+    both snapshots. The programme's Lean discipline is its most consistently applied method — and
+    also the one that produces the sharpest question about V3.
+  </p>
+
+  <div class="strip risk">
+    <span class="strip-k">Improve without Measure</span>
+    <p>The DMAIC plan runs in <strong>MEASURE-FIRST</strong> mode and lists eight Unknown baselines. V3's eleven commits closed <strong>none</strong> of them — while building most of the capability needed to close them.</p>
+  </div>
+
+  <h3>The consolidated Stage 09 workbook — identical in both</h3>
+  <div class="matrix">
+    <div class="cell same">
+      <span class="pill p-same">9 lenses merged</span>
+      <div class="n">lens_rollup.md</div>
+      <div class="d">Reconciles nine prior stage lenses, records where they disagreed rather than picking one silently, and names the gaps Stage 09 had to close.</div>
+    </div>
+    <div class="cell same">
+      <span class="pill p-same">24 findings</span>
+      <div class="n">Merged waste list</div>
+      <div class="d">Deduped across every lens and register pair: 8 closed by design, 5 partly open, <strong>11 still open</strong>.</div>
+    </div>
+    <div class="cell same">
+      <span class="pill p-same">20 + 9</span>
+      <div class="n">build_constraints_from_lean.md</div>
+      <div class="d">BC-1…BC-12 must-fix-before-build, BC-13…BC-20 fix-in-pilot, RR-1…RR-9 accepted with a named re-decision trigger each.</div>
+    </div>
+    <div class="cell same">
+      <span class="pill p-same">4 root causes</span>
+      <div class="n">Analyze</div>
+      <div class="d">RC-1 prohibition was expressible in the data model · RC-2 authority treated as content · RC-3 composition outruns control · RC-4 simultaneous risk introduction.</div>
+    </div>
+  </div>
+
+  <h3>The eight Unknown baselines — state at each HEAD</h3>
+  <figure>
+    <div class="figbox">
+      <svg viewBox="0 0 880 306" role="img" aria-label="Eight unknown baselines and whether each was closed in V2 or V3.">
+        <text x="14" y="18" class="svg-m">DECLARED UNKNOWN AT STAGE 01–04 · STILL UNKNOWN AT BOTH HEADS</text>
+        <line x1="14" y1="28" x2="866" y2="28" stroke="var(--rule)"/>
+        <text x="646" y="46" class="svg-m">V2</text>
+        <text x="766" y="46" class="svg-m">V3</text>
+
+        <g class="svg-t">
+          <text x="14" y="72">U1 · Token / cost per workflow run</text>
+          <text x="14" y="100">U2 · Latency per workflow run</text>
+          <text x="14" y="128">U3 · Eval pass rate on V1's 12 categories</text>
+          <text x="14" y="156">U4 · Cache hit rate</text>
+          <text x="14" y="184">U5 · Actual hop count vs. the designed 7</text>
+          <text x="14" y="212">U6 · Added latency from the Policy Engine hop</text>
+          <text x="14" y="240">U7 · HITL escalation rate and reviewer load</text>
+          <text x="14" y="268">U8 · V1's own eval scorecard</text>
+        </g>
+        <g class="svg-ts" fill="var(--amber)">
+          <text x="646" y="72">unknown</text><text x="766" y="72">unknown</text>
+          <text x="646" y="100">unknown</text><text x="766" y="100">unknown</text>
+          <text x="646" y="128">unknown</text><text x="766" y="128">unknown</text>
+          <text x="646" y="156">unknown</text><text x="766" y="156">unknown</text>
+          <text x="646" y="184">unknown</text><text x="766" y="184">unknown</text>
+          <text x="646" y="212">unknown</text><text x="766" y="212">unknown</text>
+          <text x="646" y="240">unknown</text><text x="766" y="240">unknown</text>
+        </g>
+        <text x="646" y="268" class="svg-ts">out of scope</text>
+        <text x="766" y="268" class="svg-ts">out of scope</text>
+
+        <rect x="10" y="58" width="620" height="20" fill="var(--clay)" opacity="0.10"/>
+        <text x="14" y="294" class="svg-m" fill="var(--clay)">U1 IS THE DISPROPORTIONATE ONE — SEE RR-1</text>
+      </svg>
+    </div>
+    <figcaption>U1 has been Unknown since Stage 01. It was the stated precondition for locking agent topology, and ADR-008 was accepted anyway — recorded honestly as residual risk RR-1 with trigger T-3, rather than quietly dropped.</figcaption>
+  </figure>
+
+  <h3>Waste closure — 24 merged findings, same split in both</h3>
+  <div class="bars">
+    <div class="bar-row">
+      <div class="bar-lab">Closed by a design decision</div>
+      <div class="bar-track"><div class="bar"><span class="bar-fill v3" style="width:33%"></span><span class="bar-v">8</span></div></div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-lab">Partly open</div>
+      <div class="bar-track"><div class="bar"><span class="bar-fill v2" style="width:21%"></span><span class="bar-v">5</span></div></div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-lab">Still open</div>
+      <div class="bar-track"><div class="bar"><span class="bar-fill v2" style="width:46%"></span><span class="bar-v">11</span></div></div>
+    </div>
+  </div>
+
+  <h3>The highest-magnitude AI wastes, and whether V3 touched them</h3>
+  <div class="scroll">
+    <table>
+      <thead><tr><th>Waste category</th><th>Treatment as designed</th><th>Proof it depends on</th><th>V3 effect</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>Token</strong> — highest magnitude, no number at all</td>
+          <td>ADR-008 caps structural multiplication; bound mechanism at Stage 10; numeric budgets at Stage 15 from measured data, never estimated</td>
+          <td>U1 — the first real cost number in the programme</td>
+          <td><span class="pill p-move">Mechanism preserved</span> — the new Foundry adapter returns <code>prompt_tokens</code>/<code>completion_tokens</code>, honouring BC-7</td>
+        </tr>
+        <tr>
+          <td><strong>Retrieval</strong> — unbounded or non-citable context</td>
+          <td>Per-context RAG scoping; status filter at the retrieval boundary, before ranking</td>
+          <td>Interim assumption 2; Stage 14 evals</td>
+          <td><span class="pill p-same">Unchanged</span></td>
+        </tr>
+        <tr>
+          <td><strong>Model</strong> — blind retry, and asking the model what a lookup can answer</td>
+          <td>Closed reason-code enum, no blind retry (BC-5); authority is a deterministic status lookup (ADR-003)</td>
+          <td>Stage 14 retry-behaviour tests</td>
+          <td><span class="pill p-same">Unchanged</span></td>
+        </tr>
+        <tr>
+          <td><strong>Human review</strong> — over- or under-routing</td>
+          <td>PV and Supply stay at 100% routing — regulatory, not waste to optimize. Only Batch Review is a tiering candidate</td>
+          <td>U7, unmeasurable until all three workflows run</td>
+          <td><span class="pill p-same">Unchanged</span></td>
+        </tr>
+        <tr>
+          <td><strong>Observability</strong> — trace noise or PII over-capture</td>
+          <td>Redaction rules written before the first trace (BC-8); separate audit store (ADR-006)</td>
+          <td>Stage 17 ruleset, still design-only</td>
+          <td><span class="pill p-risk">New log path</span> not covered by the ruleset</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Where V3 sits in the DMAIC cycle</h3>
+  <div class="vs">
+    <div class="card">
+      <div class="card-h"><span class="sig v2">V2</span><span class="t">Position in the cycle</span></div>
+      <ul>
+        <li><strong>Define</strong> — complete; scope and permanent exclusions ratified</li>
+        <li><strong>Measure</strong> — capability designed, eight baselines Unknown</li>
+        <li><strong>Analyze</strong> — four root causes traced to register rows</li>
+        <li><strong>Improve</strong> — controls built; system runs locally</li>
+        <li><strong>Control</strong> — 36 lenses, every stage adds one; gates defined</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-h"><span class="sig v3">V3</span><span class="t">Position in the cycle</span></div>
+      <ul>
+        <li><strong>Define</strong> — unchanged</li>
+        <li><strong>Measure</strong> — <em>still</em> eight Unknowns, but the instrumentation path now reaches a deployable target</li>
+        <li><strong>Analyze</strong> — unchanged</li>
+        <li><strong>Improve</strong> — eleven commits, all delivery-layer</li>
+        <li><strong>Control</strong> — unchanged; no new lens written for Stage 23, and CHANGELOG untouched</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="flag">
+    <strong>The Lean critique of V3, in its own vocabulary.</strong> The DMAIC plan's governing
+    rule is that instrumentation and evidence acquisition outrank feature scale-out, because
+    "nothing has been measured from a running system." V3 did the work that makes measurement
+    possible — a deployable image, a one-command local stack, a working CD path — and then took
+    no measurement. That is not waste in the register's sense; it is the correct prerequisite.
+    But it means the single Unknown that RR-1 says could reopen ADR-008 is exactly as Unknown as
+    it was eleven commits ago, and V3 is the first snapshot where measuring it would have been
+    cheap.
+  </div>
+
+  <div class="keep">
+    <strong>What the discipline got right.</strong> Every one of the four root causes is traced
+    to the register rows it explains, every accepted residual risk carries a named re-decision
+    trigger, and the plan states plainly that topology was locked before the cost number existed
+    rather than presenting the sequencing as clean. A register that records its own violated
+    precondition is doing the job.
+  </div>
+</section>
+
+<!-- ============================ REUSABILITY ============================ -->
+<section class="pane wrap" id="p-reuse" role="tabpanel" aria-labelledby="t-reuse" tabindex="0" hidden>
+  <h2>Reusability — the seams got tested, and held</h2>
+  <p class="lede">
+    Reuse claims are cheap until someone reuses something. V3 exercised two of this codebase's
+    load-bearing abstractions — the provider port and the deployment packaging — and both absorbed the
+    change at the cost the design predicted.
+  </p>
+
+  <div class="strip moved">
+    <span class="strip-k">Materially improved</span>
+    <p>Third inference adapter added in one file with zero prompt and zero parser changes. Zero-to-running paths went from one manual sequence to three, one of which is a single command.</p>
+  </div>
+
+  <h3>Adapter count and the cost of adding one</h3>
+  <div class="bars">
+    <div class="bar-row">
+      <div class="bar-lab">LLM adapters behind <span class="m">LLMNodes</span></div>
+      <div class="bar-track">
+        <div class="bar"><span class="bar-fill v2" style="width:34%"></span><span class="bar-v">V2 · 2 + stub</span></div>
+        <div class="bar"><span class="bar-fill v3" style="width:51%"></span><span class="bar-v">V3 · 3 + stub</span></div>
+      </div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-lab">Files touched to add one</div>
+      <div class="bar-track">
+        <div class="bar"><span class="bar-fill v3" style="width:6%"></span><span class="bar-v">1 file · llm_client.py</span></div>
+      </div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-lab">Prompt / parser changes required</div>
+      <div class="bar-track">
+        <div class="bar"><span class="bar-fill v3" style="width:1%"></span><span class="bar-v">0 · systems and parsers shared across all three</span></div>
+      </div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-lab">Zero-to-running paths</div>
+      <div class="bar-track">
+        <div class="bar"><span class="bar-fill v2" style="width:20%"></span><span class="bar-v">V2 · 1 (manual, ~6 steps)</span></div>
+        <div class="bar"><span class="bar-fill v3" style="width:60%"></span><span class="bar-v">V3 · 3 (bootstrap · compose · manual)</span></div>
+      </div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-lab">CI/CD workflows</div>
+      <div class="bar-track">
+        <div class="bar"><span class="bar-fill v2" style="width:36%"></span><span class="bar-v">V2 · 3</span></div>
+        <div class="bar"><span class="bar-fill v3" style="width:48%"></span><span class="bar-v">V3 · 4 (+ Pages)</span></div>
+      </div>
+    </div>
+  </div>
+
+  <h3>Reuse assets, identical in both</h3>
+  <div class="scroll">
+    <table>
+      <thead><tr><th>Asset</th><th>Count</th><th>Reuse mechanism</th></tr></thead>
+      <tbody>
+        <tr><td>Governed graph spine</td><td class="num">6 graphs</td><td>Compile-time template, instantiated per workflow. <strong>Never</strong> shared at runtime — ADR-008 forbids cross-graph calls</td></tr>
+        <tr><td><code>prohibited_action_guard</code></td><td class="num">1 impl</td><td>Shared code, per-workflow prohibition contract injected. Workflow A's list must never load into workflow B</td></tr>
+        <tr><td>Critic / Verifier</td><td class="num">1 impl</td><td>One instance per graph; reasons only over <code>DecisionSupportOutput</code>, so it needs no workflow vocabulary</td></tr>
+        <tr><td>State schema</td><td class="num">1 base</td><td>Base carries governance/budget/evidence; per-workflow <code>domain_payload</code> extension</td></tr>
+        <tr><td>MCP tool contracts</td><td class="num">8 schemas</td><td>Read-only by construction — a schema that cannot express a write can't be asked to perform one</td></tr>
+        <tr><td>Prompt library</td><td class="num">25 files</td><td>13 carried from V1 with documented modifications, 10 net-new agentic stages, 2 meta-documents</td></tr>
+        <tr><td>Knowledge pack</td><td class="num">32 docs</td><td>Authority-stated policy corpus, ingested into the KG</td></tr>
+        <tr><td>Eval harness</td><td class="num">15 sets · 13 graders</td><td>Dataset + grader split, reusable across model substitutions</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>What V3 adds to reuse, and one thing it left behind</h3>
+  <div class="vs">
+    <div class="card">
+      <div class="card-h"><span class="sig v3">V3</span><span class="t">New portability surface</span></div>
+      <ul>
+        <li><code>scripts/bootstrap.sh</code> — venv, deps, <code>.env</code>, seed, ingest; every step idempotent</li>
+        <li><code>docker-compose.yml</code> — Neo4j, Redis, API, web + an opt-in <code>seed</code> profile</li>
+        <li>Local Neo4j/Redis are drop-in substitutes for the cloud services; <em>no application code branches on which is live</em></li>
+        <li><code>system_map.html</code> + JSON twin — the map is machine-readable, not just a picture</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-h"><span class="sig v2">V2</span><span class="t">What a reviewer had to do</span></div>
+      <ul>
+        <li>Install backend deps, install frontend deps, copy env, seed users, ingest KG — by hand</li>
+        <li>Bring your own Neo4j and Redis; no local substitute is provided</li>
+        <li>Container path exists but builds the two deploy images individually</li>
+        <li>Everything works — it just has no on-ramp</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="flag">
+    <strong>Small inconsistency in the new on-ramp.</strong> <code>bootstrap.sh</code> still prints
+    "fill in ANTHROPIC_API_KEY" when it skips the seed step, while <code>.env.example</code> and
+    <code>get_llm()</code> now default to <code>azure_foundry</code>. A first-time user following the
+    script's own instructions configures the wrong provider. One-line fix; worth doing before anyone
+    else clones it.
+  </div>
+</section>
+
+<!-- ============================ AGENTIC ============================ -->
+<section class="pane wrap" id="p-agent" role="tabpanel" aria-labelledby="t-agent" tabindex="0" hidden>
+  <h2>Agentic architecture — byte-identical, and that is the finding</h2>
+  <p class="lede">
+    Four agents. Two LLM nodes against nine deterministic ones. A router, not a planner. Six graphs
+    from one template. Neither the roster, the graph design, the loop guards, nor the memory design
+    differs by a single character. The only thing V3 changed sits <em>under</em> the two LLM nodes.
+  </p>
+
+  <div class="strip same">
+    <span class="strip-k">Identical</span>
+    <p><code>agent_roster.md</code>, <code>langgraph_design.md</code>, <code>failure_and_loop_guards.md</code>, <code>memory_design.md</code> — no diff. Same authority limits, same stop conditions, same escalation ladder.</p>
+  </div>
+
+  <figure>
+    <div class="figbox">
+      <svg viewBox="0 0 880 340" role="img" aria-label="The batch_review governed spine: nine deterministic nodes, two LLM nodes, and the terminal exits.">
+        <text x="14" y="18" class="svg-m">BATCH_REVIEW GOVERNED SPINE — 12 NODES, IDENTICAL IN BOTH SNAPSHOTS</text>
+
+        <rect x="14" y="34" width="120" height="40" rx="3" fill="var(--surface-2)" stroke="var(--rule-firm)"/>
+        <text x="74" y="52" class="svg-t" text-anchor="middle">intake</text>
+        <text x="74" y="67" class="svg-ts" text-anchor="middle">bind authorization</text>
+
+        <rect x="152" y="34" width="120" height="40" rx="3" fill="var(--surface-2)" stroke="var(--rule-firm)"/>
+        <text x="212" y="52" class="svg-t" text-anchor="middle">policy_load</text>
+        <text x="212" y="67" class="svg-ts" text-anchor="middle">fails closed</text>
+
+        <rect x="290" y="34" width="120" height="40" rx="3" fill="var(--surface-2)" stroke="var(--rule-firm)"/>
+        <text x="350" y="52" class="svg-t" text-anchor="middle">retrieve</text>
+        <text x="350" y="67" class="svg-ts" text-anchor="middle">scoped, status-gated</text>
+
+        <rect x="428" y="34" width="120" height="40" rx="3" fill="var(--surface-2)" stroke="var(--rule-firm)"/>
+        <text x="488" y="52" class="svg-t" text-anchor="middle">evidence_gate</text>
+        <text x="488" y="67" class="svg-ts" text-anchor="middle">halt on non-citable</text>
+
+        <rect x="566" y="34" width="120" height="40" rx="3" fill="var(--surface-2)" stroke="var(--rule-firm)"/>
+        <text x="626" y="52" class="svg-t" text-anchor="middle">reconcile</text>
+        <text x="626" y="67" class="svg-ts" text-anchor="middle">structured tool</text>
+
+        <rect x="704" y="34" width="162" height="40" rx="3" fill="var(--amber-soft)" stroke="var(--amber)" stroke-width="2"/>
+        <text x="785" y="52" class="svg-t" text-anchor="middle">synthesize · LLM</text>
+        <text x="785" y="67" class="svg-ts" text-anchor="middle" fill="var(--amber)">provider swapped in V3</text>
+
+        <g stroke="var(--rule-firm)" stroke-width="1.5" marker-end="url(#ar3)">
+          <path d="M134 54 L148 54"/><path d="M272 54 L286 54"/><path d="M410 54 L424 54"/>
+          <path d="M548 54 L562 54"/><path d="M686 54 L700 54"/>
+        </g>
+
+        <path d="M785 74 L785 96 L74 96 L74 118" stroke="var(--rule-firm)" stroke-width="1.5" fill="none" marker-end="url(#ar3)"/>
+
+        <rect x="14" y="124" width="120" height="40" rx="3" fill="var(--accent-soft)" stroke="var(--accent)"/>
+        <text x="74" y="142" class="svg-t" text-anchor="middle">guard #1</text>
+        <text x="74" y="157" class="svg-ts" text-anchor="middle">pre-critic</text>
+
+        <rect x="152" y="124" width="162" height="40" rx="3" fill="var(--amber-soft)" stroke="var(--amber)" stroke-width="2"/>
+        <text x="233" y="142" class="svg-t" text-anchor="middle">critic_verify · LLM</text>
+        <text x="233" y="157" class="svg-ts" text-anchor="middle" fill="var(--amber)">provider swapped in V3</text>
+
+        <rect x="332" y="124" width="120" height="40" rx="3" fill="var(--accent-soft)" stroke="var(--accent)"/>
+        <text x="392" y="142" class="svg-t" text-anchor="middle">guard #2</text>
+        <text x="392" y="157" class="svg-ts" text-anchor="middle">post-critic</text>
+
+        <rect x="470" y="124" width="120" height="40" rx="3" fill="var(--surface-2)" stroke="var(--rule-firm)"/>
+        <text x="530" y="142" class="svg-t" text-anchor="middle">hitl_route</text>
+        <text x="530" y="157" class="svg-ts" text-anchor="middle">resolve approver</text>
+
+        <rect x="608" y="124" width="120" height="40" rx="3" fill="var(--surface-2)" stroke="var(--rule-firm)"/>
+        <text x="668" y="142" class="svg-t" text-anchor="middle">hitl_interrupt</text>
+        <text x="668" y="157" class="svg-ts" text-anchor="middle">timeout ⇒ no action</text>
+
+        <rect x="746" y="124" width="120" height="40" rx="3" fill="var(--surface-2)" stroke="var(--rule-firm)"/>
+        <text x="806" y="142" class="svg-t" text-anchor="middle">finalize</text>
+        <text x="806" y="157" class="svg-ts" text-anchor="middle">audit before reply</text>
+
+        <g stroke="var(--rule-firm)" stroke-width="1.5" marker-end="url(#ar3)">
+          <path d="M134 144 L148 144"/><path d="M314 144 L328 144"/><path d="M452 144 L466 144"/>
+          <path d="M590 144 L604 144"/><path d="M728 144 L742 144"/>
+        </g>
+
+        <line x1="14" y1="192" x2="866" y2="192" stroke="var(--rule)"/>
+        <text x="14" y="214" class="svg-m">TERMINAL EXITS — ALWAYS VALID OUTCOMES</text>
+        <rect x="14"  y="226" width="150" height="34" rx="3" fill="var(--surface-2)" stroke="var(--rule-firm)"/>
+        <text x="89" y="248" class="svg-t" text-anchor="middle">abstain</text>
+        <rect x="182" y="226" width="150" height="34" rx="3" fill="var(--surface-2)" stroke="var(--rule-firm)"/>
+        <text x="257" y="248" class="svg-t" text-anchor="middle">blocked</text>
+        <rect x="350" y="226" width="150" height="34" rx="3" fill="var(--surface-2)" stroke="var(--rule-firm)"/>
+        <text x="425" y="248" class="svg-t" text-anchor="middle">refuse</text>
+        <rect x="518" y="226" width="150" height="34" rx="3" fill="var(--surface-2)" stroke="var(--rule-firm)"/>
+        <text x="593" y="248" class="svg-t" text-anchor="middle">gate defect · halt</text>
+
+        <text x="14" y="292" class="svg-t">There is no edge from synthesize to finalize. Generated text cannot reach a caller without passing the guard,</text>
+        <text x="14" y="308" class="svg-t">the Critic, the guard again, and a human. There is no edge that skips evidence_gate.</text>
+        <text x="14" y="330" class="svg-m" fill="var(--accent)">RATIO: 2 LLM NODES · 9 DETERMINISTIC NODES · THAT RATIO IS THE DESIGN</text>
+        <defs>
+          <marker id="ar3" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+            <path d="M0 0 L7 3.5 L0 7 z" fill="var(--rule-firm)"/>
+          </marker>
+        </defs>
+      </svg>
+    </div>
+    <figcaption>Amber marks the only two places V3's change is visible at runtime — and it is visible as a different SDK sending the request, not a different graph.</figcaption>
+  </figure>
+
+  <h3>The roster — four agents, same authority limits in both</h3>
+  <div class="scroll">
+    <table>
+      <thead><tr><th>Agent</th><th>Context</th><th>May do</th><th>May not do</th><th>Stop condition</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>Batch-Review</strong></td><td>Batch Review</td>
+          <td>Synthesize reconciled evidence; flag deviations, gaps, conflicts</td>
+          <td>Rank, score, or characterize batch disposition</td>
+          <td>Unresolved conflict · incomplete evidence · guard flag · budget cap</td>
+        </tr>
+        <tr>
+          <td><strong>PV-Intake</strong></td><td>PV Intake</td>
+          <td>Triage/prioritize signals; suggest terminology with confidence</td>
+          <td>Apply normalization silently; decide causality or reportability</td>
+          <td>100% escalation by construction</td>
+        </tr>
+        <tr>
+          <td><strong>Supply-Planning</strong></td><td>Supply Planning</td>
+          <td>Rank and explain options <em>within</em> the filtered candidate set</td>
+          <td>Widen the set; allocate, reserve, or ship</td>
+          <td>100% escalation; abstains on empty or unbounded set</td>
+        </tr>
+        <tr>
+          <td><strong>Critic / Verifier</strong></td><td>Governance</td>
+          <td>Approve-for-human-review, or reject with a reason code</td>
+          <td>Retrieve anything; call a domain tool; edit domain output</td>
+          <td>Two rejections, same reason code ⇒ stop and escalate</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Design positions carried into both snapshots unchanged</h3>
+  <div class="matrix">
+    <div class="cell same">
+      <span class="pill p-same">Unchanged</span>
+      <div class="n">No planner agent</div>
+      <div class="d">A deterministic router plans. The sequence is a constant; a planner would be an LLM re-deriving something already written down — and a new authority surface that could skip a gate.</div>
+    </div>
+    <div class="cell same">
+      <span class="pill p-same">Unchanged</span>
+      <div class="n">Guard runs twice</div>
+      <div class="d">Before and after the Critic, because the Critic is itself an LLM node and its approve verdict is the transition that reaches a human.</div>
+    </div>
+    <div class="cell same">
+      <span class="pill p-same">Unchanged</span>
+      <div class="n">Critic never duplicates a gate</div>
+      <div class="d">If a check is a lookup, a type, or a pattern match, the Critic doesn't do it. It exists only for checks that require reading the argument.</div>
+    </div>
+    <div class="cell same">
+      <span class="pill p-same">Unchanged</span>
+      <div class="n">No cross-run memory</div>
+      <div class="d">Deliberate. It is why T-07 (context poisoning across runs) is marked not-applicable rather than mitigated.</div>
+    </div>
+  </div>
+
+  <div class="keep">
+    <strong>What the identity of these files proves.</strong> A design whose agent topology has to move
+    when the model host moves was coupling orchestration to inference. This one didn't move — the graph,
+    the authority limits, the loop guards and the stop conditions are the same bytes on both sides of a
+    provider change and a platform change.
+  </div>
+</section>
+
+<!-- ============================ SKILLS & PROMPTS ============================ -->
+<section class="pane wrap" id="p-sp" role="tabpanel" aria-labelledby="t-sp" tabindex="0" hidden>
+  <h2>Skills and prompts</h2>
+  <p class="lede">
+    <code>.claude/skills/skills.md</code>, <code>.claude/hooks/hooks.md</code>, the boundary rule, and
+    all 25 files in <code>prompts/</code> are byte-identical across the two snapshots. Listed in full
+    below, with the status each carries in both.
+  </p>
+
+  <div class="strip same">
+    <span class="strip-k">Identical</span>
+    <p>8 skills indexed · 0 materialized as <code>.claude/skills/&lt;name&gt;/SKILL.md</code> folders · 10 hook bindings · 23 numbered prompts + 2 meta-documents.</p>
+  </div>
+
+  <h3>The governing rule: skills advise, hooks enforce</h3>
+  <div class="vs">
+    <div class="card">
+      <div class="card-h"><span class="sig v2">Skill</span><span class="t">agent-invoked, advisory</span></div>
+      <ul>
+        <li>A packaged set of instructions loaded when a trigger condition is met</li>
+        <li>Shapes what the model <em>attempts</em></li>
+        <li>Its output is never trusted without a hook checking it</li>
+        <li><strong>No skill performs a governance-critical check</strong></li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-h"><span class="sig v3">Hook</span><span class="t">system-enforced, unskippable</span></div>
+      <ul>
+        <li>A LangGraph node with no bypass edge</li>
+        <li>Every row answers "depends on prompt compliance?" with <strong>No</strong></li>
+        <li>Prohibited-decision block, PII redaction, HITL gate — all three are hooks</li>
+        <li>Would behave identically if the system prompt were deleted entirely</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>Runtime domain-agent skills — 4</h3>
+  <div class="scroll">
+    <table>
+      <thead><tr><th>Skill</th><th>Purpose</th><th>Trigger</th><th>Node</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="m">synthesize-batch-reconciliation</td>
+          <td>Turn <code>batch.reconcile</code>'s structured findings into a citation-complete summary that flags deviations and gaps</td>
+          <td>Evidence gate passed and reconcile returned findings</td>
+          <td class="m">synthesize · batch_review</td>
+          <td><span class="pill p-new">stable</span></td>
+        </tr>
+        <tr>
+          <td class="m">synthesize-pv-triage</td>
+          <td>Prioritize PV signals; propose terminology normalization with confidence, never applying it</td>
+          <td>Gate passed and <code>pv.duplicate_check</code> complete — hard ordering</td>
+          <td class="m">synthesize · pv_intake</td>
+          <td><span class="pill p-move">provisional</span></td>
+        </tr>
+        <tr>
+          <td class="m">synthesize-supply-ranking</td>
+          <td>Rank and explain options within the constraint-filtered set — never widen it</td>
+          <td>Gate passed and <code>generate_options</code> returned a non-empty set</td>
+          <td class="m">synthesize · supply_planning</td>
+          <td><span class="pill p-move">provisional</span></td>
+        </tr>
+        <tr>
+          <td class="m">critic-verify-decision-support-output</td>
+          <td>The checks that require reading prose: every claim carries a resolvable citation, no claim exceeds its evidence, abstention used where evidence is thin</td>
+          <td>Any draft with <code>guard_verdict = clear</code></td>
+          <td class="m">critic_verify · all three graphs</td>
+          <td><span class="pill p-new">stable</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p style="font-size:14px;color:var(--ink-2)">
+    One shared Critic skill covers all three graphs because the Critic reasons only over the common
+    <code>DecisionSupportOutput</code> contract. A shared <em>domain</em> skill would recreate the
+    generalist-agent problem DDD §10 rejected — which is why there are three of those, not one.
+  </p>
+
+  <h3>Build-process skills — 4</h3>
+  <div class="scroll">
+    <table>
+      <thead><tr><th>Skill</th><th>Purpose</th><th>Stages</th><th>Usable today?</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="m">grade-evidence-provenance</td>
+          <td>Verify a claim in a stage artifact is backed by a real citation with the correct authority status — the grader discipline turned on the programme's own documents</td>
+          <td>02, 04, 09–19</td>
+          <td><span class="pill p-new">Yes</span></td>
+        </tr>
+        <tr>
+          <td class="m">verify-against-source-not-filename</td>
+          <td>Before asserting "V1 does X", read the cited code or data — not the filename, not a prior summary</td>
+          <td>All stages citing V1</td>
+          <td><span class="pill p-new">Yes</span></td>
+        </tr>
+        <tr>
+          <td class="m">reconcile-dmaic-lens</td>
+          <td>Merge every prior stage's DMAIC lens, flagging contradictions rather than silently picking one</td>
+          <td>09, and any stage reopening it</td>
+          <td><span class="pill p-new">Yes</span></td>
+        </tr>
+        <tr>
+          <td class="m">run-release-gate-check</td>
+          <td>Execute the eval categories and gates against a build artifact or a real run</td>
+          <td>12, 14, 21</td>
+          <td><span class="pill p-move">No — needs gate definitions</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="flag">
+    <strong>Identical gap in both snapshots.</strong> No <code>.claude/skills/&lt;name&gt;/SKILL.md</code>
+    folder exists for any of the eight. For the four runtime skills that is correct — the nodes that
+    load them are built, but the skills were deliberately left as design. For the three
+    usable-today build skills it is a self-declared deferral, and V3 did not close it.
+  </div>
+
+  <h3>Hook bindings — 10, all prompt-compliance-independent</h3>
+  <div class="scroll">
+    <table>
+      <thead><tr><th>Event</th><th>Node</th><th>Enforces</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td class="m">session-start</td><td><code>intake</code></td><td>Bind current authorization before any other work</td><td><span class="pill p-new">stable</span></td></tr>
+        <tr><td class="m">session-start</td><td><code>policy_load</code></td><td>ADR-005 — refuse if the policy contract is unreachable</td><td><span class="pill p-new">stable</span></td></tr>
+        <tr><td class="m">pre-tool-call</td><td>server-credential check</td><td>ADR-008 — no cross-graph tool access</td><td><span class="pill p-new">stable</span></td></tr>
+        <tr><td class="m">pre-tool-call</td><td><code>intake</code> · wallet ceiling</td><td>Denial-of-wallet circuit breaker — the only row with an executable <em>and</em> tests (7/7)</td><td><span class="pill p-new">stable</span></td></tr>
+        <tr><td class="m">post-tool-call</td><td><code>evidence_gate</code></td><td>ADR-003 — zero non-citable items, halt and alert on violation</td><td><span class="pill p-new">stable</span></td></tr>
+        <tr><td class="m">pre-output</td><td><code>prohibited_action_guard</code> ×2</td><td>ADR-004 layer 3, before and after the Critic</td><td><span class="pill p-new">stable</span></td></tr>
+        <tr><td class="m">pre-output</td><td>Critic reason-code gate</td><td>BC-5 — no blind retry, no retry at all on PROHIBITION_ADJACENT</td><td><span class="pill p-new">stable</span></td></tr>
+        <tr><td class="m">on-interrupt</td><td><code>hitl_route</code> → <code>hitl_interrupt</code></td><td>Four-tier escalation ladder; timeout ⇒ no action, never auto-proceed</td><td><span class="pill p-move">stable (Batch) · provisional (PV/Supply)</span></td></tr>
+        <tr><td class="m">pre-checkpoint</td><td>trace + audit redaction</td><td>ADR-006, BC-8 — redact before any write; blocked drafts keep only a reason code and hash</td><td><span class="pill p-move">design only</span></td></tr>
+        <tr><td class="m">post-run</td><td><code>finalize</code></td><td>ADR-006 — a response reaching the caller with no audit write is not a valid terminal state</td><td><span class="pill p-new">stable</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Prompt library — 25 files, identical in both</h3>
+  <div class="scroll">
+    <table>
+      <thead><tr><th>File</th><th>Stage</th><th>Core question / topic</th><th>Origin</th></tr></thead>
+      <tbody>
+        <tr><td class="m">01_discovery.md</td><td class="num">01</td><td>What exists, how does it connect, and what can we trust?</td><td><span class="pill p-same">V1, remapped</span></td></tr>
+        <tr><td class="m">02_scqa_minto.md</td><td class="num">02</td><td>Why does this matter, and what is the ask?</td><td><span class="pill p-same">V1, remapped</span></td></tr>
+        <tr><td class="m">03_prd_vision.md</td><td class="num">—</td><td>What problem, for whom, and what does success look like?</td><td><span class="pill p-same">V1, remapped</span></td></tr>
+        <tr><td class="m">04_ddd.md</td><td class="num">02</td><td>What business meaning and rules must the system respect? <em>(+§10 agent responsibilities)</em></td><td><span class="pill p-move">V1, extended</span></td></tr>
+        <tr><td class="m">05_feature_specs.md</td><td class="num">—</td><td>What should the system do, per feature?</td><td><span class="pill p-same">V1, remapped</span></td></tr>
+        <tr><td class="m">06_c4.md</td><td class="num">03</td><td>What does the system look like? <em>(+agentic runtime view)</em></td><td><span class="pill p-move">V1, extended</span></td></tr>
+        <tr><td class="m">07_adrs.md</td><td class="num">04</td><td>Why does it look that way — can we defend the map before coding?</td><td><span class="pill p-same">V1, remapped</span></td></tr>
+        <tr><td class="m">08_technical_design.md</td><td class="num">—</td><td>Exact contracts, data, errors, NFRs <em>(+§I2 agent/tool contracts)</em></td><td><span class="pill p-move">V1, extended</span></td></tr>
+        <tr><td class="m">09_lean_dmaic.md</td><td class="num">09</td><td>Where is waste, and how will we Define → Measure → Analyze → Improve → Control?</td><td><span class="pill p-same">V1, remapped</span></td></tr>
+        <tr><td class="m">10_implementation_tasks.md</td><td class="num">—</td><td>What code needs writing, as numbered handoff-ready units?</td><td><span class="pill p-same">V1, remapped</span></td></tr>
+        <tr><td class="m">11_product_and_build.md</td><td class="num">20</td><td>Ship the governed slice one task at a time, with AC-linked tests</td><td><span class="pill p-same">V1, remapped</span></td></tr>
+        <tr><td class="m">12_assurance.md</td><td class="num">—</td><td>Does the system match the design and our claims? <em>(+agentic assurance)</em></td><td><span class="pill p-move">V1, extended</span></td></tr>
+        <tr><td class="m">13_solution_proposal.md</td><td class="num">21</td><td>What should leaders understand, fund, and decide next?</td><td><span class="pill p-same">V1, remapped</span></td></tr>
+        <tr><td class="m">14_agentic_architecture.md</td><td class="num">10</td><td>Agentic architecture — LangGraph multi-agent design</td><td><span class="pill p-new">New</span></td></tr>
+        <tr><td class="m">15_mcp.md</td><td class="num">11</td><td>MCP servers and tool contracts</td><td><span class="pill p-new">New</span></td></tr>
+        <tr><td class="m">16_skills_hooks.md</td><td class="num">12</td><td>Skills and hooks — capability packaging and enforced controls</td><td><span class="pill p-new">New</span></td></tr>
+        <tr><td class="m">17_ontology_knowledge_graph.md</td><td class="num">13</td><td>Ontology, knowledge graph, semantic layer</td><td><span class="pill p-new">New</span></td></tr>
+        <tr><td class="m">18_eval_ai_cache.md</td><td class="num">14</td><td>Eval harness and response cache</td><td><span class="pill p-new">New</span></td></tr>
+        <tr><td class="m">19_performance_tuning.md</td><td class="num">15</td><td>Performance tuning — Redis, cache, token economics</td><td><span class="pill p-new">New</span></td></tr>
+        <tr><td class="m">20_governance_control.md</td><td class="num">16</td><td>Governance and control — an enforced policy layer independent of any agent</td><td><span class="pill p-new">New</span></td></tr>
+        <tr><td class="m">21_observability.md</td><td class="num">17</td><td>Observability — LangSmith, OpenTelemetry, dashboards</td><td><span class="pill p-new">New</span></td></tr>
+        <tr><td class="m">22_ai_security_threat_modeling.md</td><td class="num">18</td><td>AI security threat modeling — STRIDE-for-AI style</td><td><span class="pill p-new">New</span></td></tr>
+        <tr><td class="m">23_compliance.md</td><td class="num">19</td><td>Compliance — EU AI Act, ISO 42001</td><td><span class="pill p-new">New</span></td></tr>
+        <tr><td class="m">PROMPT_LIBRARY.md</td><td class="num">—</td><td>Six participant prompt patterns + the agentic addendum mapping 14–23 to stages</td><td><span class="pill p-same">Meta</span></td></tr>
+        <tr><td class="m">ADAPTATION_NOTES.md</td><td class="num">—</td><td>What changed when V1's 13 prompts were carried forward, itemized</td><td><span class="pill p-same">Meta</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="legend">
+    <span><i class="swatch" style="background:var(--quiet)"></i> carried from V1 with paths remapped</span>
+    <span><i class="swatch" style="background:var(--amber)"></i> carried and extended for multi-agent concerns</span>
+    <span><i class="swatch" style="background:var(--accent)"></i> net-new agentic stage, no V1 equivalent</span>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>
+      Built by diffing the two working trees at <code>d832e67</code> (V2) and <code>7a47074</code> (V3),
+      excluding <code>.git</code>, <code>node_modules</code> and <code>package-lock.json</code>.
+      Counts are from the trees themselves, not from the repositories' own documentation.
+      Every claim of "identical" means a byte-level diff returned nothing.
+    </p>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var tabs = Array.prototype.slice.call(document.querySelectorAll('.tab'));
+  var panes = tabs.map(function (t) { return document.getElementById(t.getAttribute('aria-controls')); });
+
+  function select(i, focus) {
+    tabs.forEach(function (t, j) {
+      var on = i === j;
+      t.setAttribute('aria-selected', on ? 'true' : 'false');
+      panes[j].hidden = !on;
+    });
+    if (focus) { tabs[i].focus(); }
+    if (history.replaceState) {
+      history.replaceState(null, '', '#' + tabs[i].getAttribute('aria-controls'));
+    }
+  }
+
+  tabs.forEach(function (t, i) {
+    t.addEventListener('click', function () {
+      select(i, false);
+      window.scrollTo({ top: 0, behavior: 'auto' });
+    });
+    t.addEventListener('keydown', function (e) {
+      var n = null;
+      if (e.key === 'ArrowRight') { n = (i + 1) % tabs.length; }
+      else if (e.key === 'ArrowLeft') { n = (i - 1 + tabs.length) % tabs.length; }
+      else if (e.key === 'Home') { n = 0; }
+      else if (e.key === 'End') { n = tabs.length - 1; }
+      if (n !== null) { e.preventDefault(); select(n, true); }
+    });
+  });
+
+  var hash = window.location.hash.replace('#', '');
+  if (hash) {
+    var idx = tabs.findIndex(function (t) { return t.getAttribute('aria-controls') === hash; });
+    if (idx >= 0) { select(idx, false); }
+  }
+})();
+</script>
+
+</body>
+</html>

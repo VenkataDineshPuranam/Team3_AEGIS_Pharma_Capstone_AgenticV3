@@ -163,6 +163,12 @@ def can_veto(role: str, workflow: str) -> bool:
     return workflow in ROLE_CATALOG.get(role, {}).get("veto_for", set())
 
 
+def can_run_chaos(role: str) -> bool:
+    """Chaos drills inject ADR-007 failure modes in-process. Only CISO / DPO may trigger
+    them — security/incident oversight, not an approver capability."""
+    return role == "CISO / DPO"
+
+
 # ---------------------------------------------------------------------------
 # Storage
 # ---------------------------------------------------------------------------

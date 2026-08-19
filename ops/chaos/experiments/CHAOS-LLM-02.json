@@ -1,0 +1,13 @@
+{
+  "id": "CHAOS-LLM-02",
+  "title": "Real LLM provider outage (ops)",
+  "adr_row": "LLM provider unreachable — live network kill",
+  "ui_runnable": false,
+  "workflow": "batch_review",
+  "injector": "ops_only",
+  "expected": {
+    "terminal_state": "abstained",
+    "abstention_reason": "degraded_mode"
+  },
+  "runbook": "ops/chaos/runbooks/CHAOS-LLM-02.md"
+}

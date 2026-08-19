@@ -1,0 +1,957 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AEGIS V1 · V2 · V3 — three-repo ledger</title>
+<meta name="description" content="Tabular comparison of the V1 brownfield capstone, the V2 agentic Control Center, and the current V3 tree.">
+<style>
+:root {
+  --paper: #f2f3ee; --surface: #fbfbf8; --surface-2: #e9ebe3;
+  --ink: #171d1b; --ink-2: #5a6560; --rule: #dddfd6; --rule-firm: #c3c8bd;
+  --accent: #146b5e; --accent-soft: #e0eeea;
+  --amber: #9c6614; --amber-soft: #f4ead6;
+  --clay: #9e4227; --clay-soft: #f5e2db;
+  --quiet: #74807b; --quiet-soft: #e6e9e3;
+  --v1: #6b5a3e; --v1-soft: #efe8dc;
+  --v2: #3d5a73; --v2-soft: #e4edf4;
+  --v3: #146b5e; --v3-soft: #e0eeea;
+  --display: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, "Cascadia Mono", "SF Mono", Menlo, Consolas, monospace;
+  --shadow: 0 1px 2px rgba(23,29,27,.05), 0 6px 20px -12px rgba(23,29,27,.18);
+  --col: 1280px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #101513; --surface: #161c1a; --surface-2: #1e2624;
+    --ink: #e6eae7; --ink-2: #98a39e; --rule: #29332f; --rule-firm: #3a4642;
+    --accent: #5fbfac; --accent-soft: #123029;
+    --amber: #d9a44e; --amber-soft: #302512;
+    --clay: #dc8a6c; --clay-soft: #331c15;
+    --quiet: #8a958f; --quiet-soft: #1f2725;
+    --v1: #c4b08a; --v1-soft: #2a2418;
+    --v2: #8bb4d4; --v2-soft: #1a2730;
+    --v3: #5fbfac; --v3-soft: #123029;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 6px 20px -12px rgba(0,0,0,.7);
+  }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--paper); color: var(--ink);
+  font-family: var(--body); font-size: 16px; line-height: 1.55;
+}
+.wrap { max-width: var(--col); margin: 0 auto; padding: 0 24px; }
+.mast { border-bottom: 1px solid var(--rule); background: var(--surface); }
+.mast-inner { padding: 40px 0 28px; }
+.eyebrow {
+  font-family: var(--mono); font-size: 11.5px; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--ink-2); margin: 0 0 12px;
+}
+h1 {
+  font-family: var(--display); font-weight: 600;
+  font-size: clamp(30px, 4.6vw, 48px); line-height: 1.08;
+  letter-spacing: -.015em; margin: 0 0 14px;
+}
+.verdict { font-size: 17.5px; color: var(--ink-2); max-width: 78ch; margin: 0; }
+.verdict strong { color: var(--ink); font-weight: 600; }
+.paths {
+  font-family: var(--mono); font-size: 11.5px; color: var(--ink-2);
+  margin: 18px 0 0; padding-top: 14px; border-top: 1px solid var(--rule);
+  display: grid; gap: 6px;
+}
+.paths b { color: var(--ink); font-weight: 600; }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--rule); }
+@media (max-width: 720px) { .stats { grid-template-columns: 1fr; } }
+.stat { background: var(--surface); padding: 18px 22px; }
+.stat-n { font-family: var(--display); font-size: 22px; line-height: 1.15; }
+.stat-l { font-size: 12.5px; color: var(--ink-2); margin-top: 6px; }
+.tabrail {
+  position: sticky; top: 0; z-index: 40; background: var(--paper);
+  border-bottom: 1px solid var(--rule-firm);
+}
+.tabs { display: flex; gap: 2px; overflow-x: auto; }
+.tab {
+  appearance: none; border: 0; background: none; cursor: pointer;
+  font: 500 13.5px var(--body); color: var(--ink-2);
+  padding: 14px 13px 12px; white-space: nowrap;
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+}
+.tab[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+.pane { padding: 36px 0 72px; }
+.pane[hidden] { display: none; }
+h2 {
+  font-family: var(--display); font-weight: 600;
+  font-size: clamp(24px, 3vw, 32px); margin: 0 0 10px;
+}
+.lede { font-size: 16.5px; color: var(--ink-2); max-width: 72ch; margin: 0 0 22px; }
+h3 {
+  font-size: 12.5px; letter-spacing: .09em; text-transform: uppercase;
+  color: var(--ink-2); margin: 36px 0 12px; padding-bottom: 8px;
+  border-bottom: 1px solid var(--rule);
+}
+code, .m { font-family: var(--mono); font-size: .88em; }
+code { background: var(--surface-2); padding: 1px 5px; border-radius: 3px; }
+.scroll { overflow-x: auto; margin: 14px 0 22px; border: 1px solid var(--rule); border-radius: 4px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; min-width: 980px; }
+th {
+  text-align: left; font-size: 11px; letter-spacing: .07em; text-transform: uppercase;
+  color: var(--ink-2); padding: 11px 12px; border-bottom: 1px solid var(--rule-firm);
+  background: var(--surface-2); vertical-align: bottom;
+}
+th.dim { min-width: 160px; position: sticky; left: 0; z-index: 1; background: var(--surface-2); }
+th.col-v1 { color: var(--v1); }
+th.col-v2 { color: var(--v2); }
+th.col-v3 { color: var(--v3); }
+td { padding: 11px 12px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+td.dim {
+  position: sticky; left: 0; background: var(--surface); font-weight: 600;
+  font-size: 13px; min-width: 160px; border-right: 1px solid var(--rule);
+}
+tbody tr:last-child td { border-bottom: 0; }
+.pill {
+  display: inline-block; font-family: var(--mono); font-size: 10px; letter-spacing: .06em;
+  text-transform: uppercase; padding: 2px 7px; border-radius: 2px; white-space: nowrap;
+}
+.p-none { background: var(--quiet-soft); color: var(--ink-2); }
+.p-doc  { background: var(--amber-soft); color: var(--amber); }
+.p-run  { background: var(--accent-soft); color: var(--accent); }
+.p-gap  { background: var(--clay-soft); color: var(--clay); }
+.yes { color: var(--accent); font-weight: 600; }
+.no  { color: var(--clay); }
+.part { color: var(--amber); }
+.note { font-size: 12.5px; color: var(--ink-2); margin-top: 4px; }
+footer { border-top: 1px solid var(--rule); padding: 22px 0 40px; color: var(--ink-2); font-size: 13px; }
+.strip {
+  border: 1px solid var(--rule-firm); border-left-width: 4px; border-radius: 3px;
+  background: var(--surface); padding: 14px 16px; margin: 0 0 18px;
+}
+.strip.v1 { border-left-color: var(--v1); }
+.strip.v2 { border-left-color: var(--v2); }
+.strip.v3 { border-left-color: var(--v3); }
+.strip p { margin: 0; font-size: 14.5px; }
+.strip b { display: block; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 4px; }
+</style>
+</head>
+<body>
+
+<header class="mast">
+  <div class="wrap mast-inner">
+    <p class="eyebrow">Three-repo ledger · V1 brownfield · V2 agentic · V3 current</p>
+    <h1>What each tree actually is</h1>
+    <p class="verdict">
+      <strong>V1</strong> is the FDE challenge package plus Team 3’s document-heavy, code-light submission.
+      <strong>V2</strong> is the first running AEGIS Control Center — six LangGraphs, FastAPI, Next.js, Neo4j, Redis, server-side RBAC.
+      <strong>V3</strong> is that same system made operable off a laptop: Azure Foundry client, docker-compose, injectable chaos drills, and the comparison / architecture HTML.
+    </p>
+    <div class="paths">
+      <div><b>V1</b> D:\Capstone\pharmaRepo-Mono\fde-training-team3-pharma-project</div>
+      <div><b>V2</b> D:\Capstone\V2vsV3\v2\Team3_AEGIS_Pharma_Capstone_AgenticV2</div>
+      <div><b>V3</b> D:\Capstone\V2vsV3\v2\Team3_AEGIS_Pharma_Capstone_AgenticV3 <i>(this repo)</i></div>
+    </div>
+  </div>
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-n">Challenge + POC docs</div>
+      <div class="stat-l">V1 — 35 unittest gates, mock Next dashboard, no agents in code</div>
+    </div>
+    <div class="stat">
+      <div class="stat-n">Running Control Center</div>
+      <div class="stat-l">V2 — 6 graphs, 10 demo roles, 84/84 inject map, no compose / no chaos lab</div>
+    </div>
+    <div class="stat">
+      <div class="stat-n">V2 + operate + prove</div>
+      <div class="stat-l">V3 — Foundry default, compose, bootstrap, 5 UI drills, Pages, architecture HTML</div>
+    </div>
+  </div>
+</header>
+
+<nav class="tabrail">
+  <div class="wrap tabs" role="tablist">
+    <button class="tab" role="tab" id="t-nature" aria-selected="true" aria-controls="p-nature">Nature</button>
+    <button class="tab" role="tab" id="t-stack" aria-selected="false" aria-controls="p-stack">Stack</button>
+    <button class="tab" role="tab" id="t-wf" aria-selected="false" aria-controls="p-wf">Workflows &amp; HITL</button>
+    <button class="tab" role="tab" id="t-gov" aria-selected="false" aria-controls="p-gov">Governance</button>
+    <button class="tab" role="tab" id="t-cap" aria-selected="false" aria-controls="p-cap">Capability map</button>
+    <button class="tab" role="tab" id="t-run" aria-selected="false" aria-controls="p-run">Runtime &amp; data</button>
+    <button class="tab" role="tab" id="t-ops" aria-selected="false" aria-controls="p-ops">Tests, CI, ops</button>
+    <button class="tab" role="tab" id="t-docs" aria-selected="false" aria-controls="p-docs">Docs &amp; method</button>
+    <button class="tab" role="tab" id="t-delta" aria-selected="false" aria-controls="p-delta">V1 → V2 → V3</button>
+  </div>
+</nav>
+
+<main>
+
+<section class="pane wrap" id="p-nature" role="tabpanel">
+  <h2>Nature of each repository</h2>
+  <p class="lede">These are not three versions of the same running app. V1 is a workshop challenge. V2/V3 are a separately built agentic system (ADR-002: zero V1 code reuse).</p>
+
+  <div class="strip v1"><b>V1 — brownfield capstone</b><p>Workshop-Ready v2 challenge: 84 injects, 139 CSVs, 32 knowledge docs, defective <code>starter/</code> code. Team 3 work lives in <code>submission/</code>: 12 ADRs on paper, <code>submission/src/</code> is <code>contracts.py</code> + <code>policy_guard.py</code> + <code>__init__.py</code>, 35 tests, Next.js 15.5 mock cockpit (<code>USE_MOCK = true</code>). <code>demo.py</code> imports <code>workflow_batch</code> / <code>workflow_pv</code> / <code>workflow_supply</code> — those files are not in the tree.</p></div>
+  <div class="strip v2"><b>V2 — agentic Control Center</b><p>Spec-driven 21-stage rebuild. FastAPI hosts six LangGraphs. Next.js 16 is wired to real APIs (login, queue, decide, coverage). Neo4j + Redis + SQLite. Nine ADRs accepted. Chaos folder is a three-line README. No docker-compose. Foundry is a commented <code>.env.example</code> line; <code>get_llm()</code> defaults to Anthropic.</p></div>
+  <div class="strip v3"><b>V3 — current tree (this repo)</b><p>Strict superset of V2 source — nothing V2 had was dropped. Adds <code>AzureFoundryLLM</code> (default provider), compose + <code>scripts/bootstrap.sh</code>, injectable ADR-007 chaos drills, SQLite thread-safety and Dockerfile fixture fixes, GitHub Pages, and the comparison / system-map / high-level / low-level architecture HTML.</p></div>
+
+  <h3>Purpose and shape</h3>
+  <div class="scroll">
+    <table>
+      <thead>
+        <tr>
+          <th class="dim">Dimension</th>
+          <th class="col-v1">V1 monolithic / challenge</th>
+          <th class="col-v2">V2 agentic</th>
+          <th class="col-v3">V3 current</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="dim">What it is</td>
+          <td>FDE training package + Team 3 submission (docs-first)</td>
+          <td>Governed multi-agent decision-support system</td>
+          <td>Same system, runnable locally and fail-closed under injected faults</td>
+        </tr>
+        <tr>
+          <td class="dim">Layout</td>
+          <td><code>app/</code> <code>case/</code> <code>data/</code> <code>knowledge/</code> <code>starter/</code> <code>submission/</code> — no <code>apps/</code> or <code>services/</code></td>
+          <td><code>apps/web</code> <code>services/api</code> <code>services/integration</code> <code>packages/</code> <code>docs/</code> <code>tests/</code></td>
+          <td>Same as V2 + <code>docker-compose.yml</code> <code>scripts/bootstrap.sh</code> <code>ops/chaos/</code> <code>docs/chaos/</code> <code>docs/comparison/</code> <code>docs/architecture/high-level/</code> <code>docs/architecture/low-level/</code> <code>docs/architecture/agentic/aegis_agents.html</code> <code>docs/architecture/system_map/</code> <code>site/</code></td>
+        </tr>
+        <tr>
+          <td class="dim">Monolith vs services</td>
+          <td>Single-repo advisory POC. No API process in the working submission.</td>
+          <td>One FastAPI deployment, six in-process graphs (ADR-008). Worker/admin are READMEs.</td>
+          <td>Same process topology. Compose adds Neo4j + Redis + API + web (four services) plus an opt-in <code>seed</code> profile. Worker/admin still README-only.</td>
+        </tr>
+        <tr>
+          <td class="dim">V1 code reuse</td>
+          <td>—</td>
+          <td>ADR-002: <span class="no">none</span>. V1 is gitignored evidence.</td>
+          <td>Same ADR-002. V1 injects still mapped 84/84.</td>
+        </tr>
+        <tr>
+          <td class="dim">Offline claim</td>
+          <td>Fully offline challenge (CSV/JSON). No cloud required.</td>
+          <td>ADR-007: degraded-mode-safe, <span class="no">not</span> offline-capable. LLM is a hard egress.</td>
+          <td>Same ADR-007. Chaos drills assert the degraded rows instead of hoping they hold.</td>
+        </tr>
+        <tr>
+          <td class="dim">Scale (approx.)</td>
+          <td>644 files · 21 <code>.py</code> · 143 <code>.md</code> (excl. node_modules)</td>
+          <td>~760 tracked · 129 <code>.py</code> · 45 <code>.tsx</code> · 423 <code>.md</code> · 39 <code>test_*.py</code></td>
+          <td>V2 plus the operate/prove layer. 41 <code>test_*.py</code> (+2 chaos). 12 Next pages vs V2’s 11.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="pane wrap" id="p-stack" role="tabpanel" hidden>
+  <h2>Tech stack</h2>
+  <p class="lede">V1 is stdlib Python plus a mock Next 15 dashboard. V2/V3 share LangGraph + FastAPI + Next 16; V3 actually binds Azure Foundry.</p>
+  <div class="scroll">
+    <table>
+      <thead>
+        <tr>
+          <th class="dim">Layer</th>
+          <th class="col-v1">V1</th>
+          <th class="col-v2">V2</th>
+          <th class="col-v3">V3</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="dim">Core language</td>
+          <td>Python 3.10+ stdlib. No pyproject.</td>
+          <td>Python · FastAPI 0.141 · Pydantic v2 · LangGraph 1.1</td>
+          <td>Same</td>
+        </tr>
+        <tr>
+          <td class="dim">UI</td>
+          <td>Static inject explorer + Next 15.5 mock (<code>USE_MOCK = true</code>). Taipy demo imports missing modules.</td>
+          <td>Next.js 16.3 · React 19 · wired to <code>/api/*</code></td>
+          <td>Same + <code>/chaos-drill</code> page</td>
+        </tr>
+        <tr>
+          <td class="dim">Orchestration</td>
+          <td><span class="no">None in code</span> (agents only in CSVs / docs)</td>
+          <td>LangGraph, one compiled graph per workflow, <code>MemorySaver</code></td>
+          <td>Same + optional DI on <code>build_graph</code> for chaos (production <code>_get_graph</code> unchanged)</td>
+        </tr>
+        <tr>
+          <td class="dim">LLM</td>
+          <td>Optional on paper; kill switch; not implemented</td>
+          <td>Anthropic + Groq. <code>get_llm()</code> default <code>anthropic</code>. <code>.env.example</code> says Foundry is “not yet implemented”</td>
+          <td><code>AzureFoundryLLM</code> class; default <code>azure_foundry</code>; four <code>AZURE_FOUNDRY_*</code> env vars; health probe maps the key</td>
+        </tr>
+        <tr>
+          <td class="dim">Database</td>
+          <td>CSV / JSON files. D-205: no knowledge-graph <em>database</em> for the POC (RER+C instead). Neo4j named only as a stakeholder-risk, not a product choice.</td>
+          <td>Neo4j 5/6 KG · Redis cache · SQLite audit + users</td>
+          <td>Same stores. Compose ships Neo4j 5-community + Redis 7</td>
+        </tr>
+        <tr>
+          <td class="dim">Identity</td>
+          <td>Challenge CSVs (<code>users_entitlements.csv</code>). No login server.</td>
+          <td>SQLite sessions, PBKDF2, 10 demo roles. Entra planned (ADR-009)</td>
+          <td>Same. CISO / DPO uniquely <code>can_run_chaos</code></td>
+        </tr>
+        <tr>
+          <td class="dim">Cloud target</td>
+          <td>None (offline workshop)</td>
+          <td>ADR-009 Azure: Container Apps, Foundry, Entra, Key Vault, Blob WORM — mostly design</td>
+          <td>Foundry client + CD secrets + compose as the local substitute</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="pane wrap" id="p-wf" role="tabpanel" hidden>
+  <h2>Workflows and HITL</h2>
+  <p class="lede">V1 assesses three workflows on paper. V2/V3 run six graphs. The extra three close V1 inject dimensions D02 / D03 / D07.</p>
+  <div class="scroll">
+    <table>
+      <thead>
+        <tr>
+          <th class="dim">Workflow</th>
+          <th class="col-v1">V1</th>
+          <th class="col-v2">V2</th>
+          <th class="col-v3">V3</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="dim">batch_review</td>
+          <td>Mandatory assessed. Schema + policy tests. No <code>workflow_batch</code> module.</td>
+          <td><code>graph.py</code> — 14 <code>add_node</code> calls (design docs still say 11). EU QP HITL</td>
+          <td>Same 14 nodes + optional DI on <code>build_graph</code> for chaos injectors</td>
+        </tr>
+        <tr>
+          <td class="dim">pv_intake</td>
+          <td>Mandatory. Duplicate / clocks / listedness. No engine.</td>
+          <td><code>pv_graph.py</code> — Global Head of PV + veto</td>
+          <td>Same</td>
+        </tr>
+        <tr>
+          <td class="dim">supply_planning</td>
+          <td>Mandatory. Draft options only. No engine.</td>
+          <td><code>supply_graph.py</code> — dual HITL (VP + quality)</td>
+          <td>Same</td>
+        </tr>
+        <tr>
+          <td class="dim">research_review</td>
+          <td>D02 injects only. Not a scored workflow.</td>
+          <td><code>research_graph.py</code> — Head of Preclinical Research</td>
+          <td>Same</td>
+        </tr>
+        <tr>
+          <td class="dim">clinical_integrity</td>
+          <td>D03 injects / supporting context.</td>
+          <td><code>clinical_graph.py</code> — Medical Monitor; unblinding role excluded from supply</td>
+          <td>Same</td>
+        </tr>
+        <tr>
+          <td class="dim">regulatory_completeness</td>
+          <td>D07 injects.</td>
+          <td><code>regulatory_graph.py</code> — Head of RA</td>
+          <td>Same</td>
+        </tr>
+        <tr>
+          <td class="dim">Cross-graph calls</td>
+          <td>N/A</td>
+          <td>Forbidden (ADR-008)</td>
+          <td>Forbidden. Chaos does not add a seventh graph.</td>
+        </tr>
+        <tr>
+          <td class="dim">Record Assistant</td>
+          <td><span class="no">None</span></td>
+          <td>Stage 23 overlay: ask about one run; prompt-guarded; cannot recommend. HITL notification bell is also here.</td>
+          <td>Same code. Not a V3 add.</td>
+        </tr>
+        <tr>
+          <td class="dim">HITL timeout</td>
+          <td>Documented; no interrupt runtime</td>
+          <td>LangGraph interrupt · timeout = no-action, never auto-approve</td>
+          <td>Same + CHAOS-HITL-01 asserts timeout resume is not approve</td>
+        </tr>
+        <tr>
+          <td class="dim">UI destinations</td>
+          <td>Mock cockpit. Not wired.</td>
+          <td>Nav: Overview, Decision Queue, Run History, Evidence, Workflows, Governance, System Health, Evaluation &amp; Security. Plus Login, nested run/decision pages (11 <code>page.tsx</code>). Record Assistant is a global overlay, not a route.</td>
+          <td>Same + Chaos Drill in the nav (12 <code>page.tsx</code>)</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="pane wrap" id="p-gov" role="tabpanel" hidden>
+  <h2>Governance, auth, fail-closed</h2>
+  <p class="lede">The prohibited-action idea is the same from V1 onwards. Enforcement moves from unittest + JSON Schema to graph structure + server-side RBAC, then V3 proves the degraded-mode rows with drills.</p>
+  <div class="scroll">
+    <table>
+      <thead>
+        <tr>
+          <th class="dim">Control</th>
+          <th class="col-v1">V1</th>
+          <th class="col-v2">V2</th>
+          <th class="col-v3">V3</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="dim">Prohibited actions</td>
+          <td><code>policy_guard.py</code> deny-by-default. Schema <code>additionalProperties: false</code>.</td>
+          <td>ADR-004: payload has no release/causality/allocate field. Guard runs twice around the Critic.</td>
+          <td>Same. Chaos does not weaken the guard.</td>
+        </tr>
+        <tr>
+          <td class="dim">Policy engine</td>
+          <td>Hard-coded sets in the guard</td>
+          <td>ADR-005 fail-closed load. No cached-policy fallback.</td>
+          <td>CHAOS-POLICY-01 injects <code>PolicyEngineUnavailable</code> → <code>refused</code></td>
+        </tr>
+        <tr>
+          <td class="dim">Evidence gate</td>
+          <td>Contract samples; RER+C (no graph)</td>
+          <td>ADR-003: retrieve filters untrusted/superseded inside the tool</td>
+          <td>Same. Cache citability miss on any Neo4j error (does not hang synthesize). Retrieve logs the driver exception before mapping to <code>STORE_UNAVAILABLE</code>.</td>
+        </tr>
+        <tr>
+          <td class="dim">AuthZ at execution time</td>
+          <td>CSV stale-cache inject (INJ-067) + unit tests</td>
+          <td>Server-side role check on <code>decide()</code> before the graph. 10 seeded users.</td>
+          <td>Same + chaos Run restricted to CISO / DPO</td>
+        </tr>
+        <tr>
+          <td class="dim">Audit</td>
+          <td>Local export described; not a store</td>
+          <td>ADR-006 append-only SQLite. Finalize writes AgentRun before response.</td>
+          <td>Same file also holds <code>chaos_drill_run</code>. Run History <code>exclude_drills</code>.</td>
+        </tr>
+        <tr>
+          <td class="dim">Denial of wallet</td>
+          <td>FinOps artefact + cost CSVs</td>
+          <td><code>DenialOfWalletGuard</code> on intake</td>
+          <td>Same</td>
+        </tr>
+        <tr>
+          <td class="dim">Prompt / tool trust</td>
+          <td>Signed-manifest tests (INJ-066)</td>
+          <td><code>prompt_guard.py</code> + tool manifest integrity tests + AI-BOM</td>
+          <td>Same</td>
+        </tr>
+        <tr>
+          <td class="dim">LLM down</td>
+          <td>Kill switch on paper</td>
+          <td>ADR-007 row: abstain / degraded_mode</td>
+          <td>CHAOS-LLM-01 runs that row from the UI</td>
+        </tr>
+        <tr>
+          <td class="dim">Segregation of duties</td>
+          <td>CSV entitlements + INJ-067 stale-cache tests. No runtime login.</td>
+          <td>Role→workflow map on <code>decide()</code>. Unblinding authority excluded from supply reads. Record Assistant uses the same exclusion. Dual-approval: neither leg twice by the same person. Not “requester ≠ approver” — EU QP may both submit and decide batch_review.</td>
+          <td>Same + CISO / DPO uniquely gated for chaos Run</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="pane wrap" id="p-cap" role="tabpanel" hidden>
+  <h2>Capability map</h2>
+  <p class="lede">A credit-case control list, mapped onto AEGIS. Names in the left column are the analogue, not a claim that the banking feature exists here. Rows that do not apply are marked absent rather than stretched.</p>
+  <div class="scroll">
+    <table>
+      <thead>
+        <tr>
+          <th class="dim">Capability</th>
+          <th class="col-v1">V1</th>
+          <th class="col-v2">V2</th>
+          <th class="col-v3">V3</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="dim">Deterministic case review</td>
+          <td><span class="yes">Yes</span> — single functions: <code>contracts.py</code> + <code>policy_guard.py</code>. No risk score.</td>
+          <td><span class="yes">Yes</span> — <code>packages/domain</code> payloads + deterministic tools (reconcile / duplicate / options / integrity checks) then LLM synthesize + critic. Still no numeric risk score.</td>
+          <td><span class="yes">Yes</span> — same domain package. Chaos does not replace the tools.</td>
+        </tr>
+        <tr>
+          <td class="dim">Multi-agent workflow</td>
+          <td><span class="no">No</span> in code (agents only in CSVs / docs)</td>
+          <td><span class="yes">Yes</span> — six sequential LangGraphs. Roster names four agent <em>types</em> (batch / PV / supply / critic); research, clinical, regulatory reuse the same synthesize+critic pair. Not six independent specialists.</td>
+          <td><span class="yes">Yes</span> — same six graphs. Chaos DI is on <code>batch_review</code> only.</td>
+        </tr>
+        <tr>
+          <td class="dim">Parallel independent specialists</td>
+          <td>N/A</td>
+          <td><span class="no">No</span> — one spine, one node at a time. No planner, no <code>Promise.all</code>.</td>
+          <td><span class="no">No</span> — still sequential. V3 did not add parallelism.</td>
+        </tr>
+        <tr>
+          <td class="dim">Tool allowlists / budgets</td>
+          <td>Signed-manifest tests (INJ-066). No runtime budget.</td>
+          <td><span class="yes">Yes</span> — JSON tool contracts (<code>read_only</code>, ADR-008 credential). <code>DenialOfWalletGuard</code> 20 runs / $45 / day. <code>MAX_LLM_CALLS = 6</code>. One retrieval broadening then abstain.</td>
+          <td>Same. Schema <code>rate_limit.per_run_ceiling</code> is documented; it is not a separate HTTP limiter.</td>
+        </tr>
+        <tr>
+          <td class="dim">Per-call tool timeout</td>
+          <td><span class="no">No</span></td>
+          <td><span class="no">No</span> uniform 5s. Redis sockets 3s; SMTP 10s; LLM clients use SDK defaults (no timeout set).</td>
+          <td>Same. Compose healthchecks are 5s — not a tool timeout.</td>
+        </tr>
+        <tr>
+          <td class="dim">Uniform limit validation</td>
+          <td>JSON Schema <code>additionalProperties: false</code> on samples</td>
+          <td><span class="part">Partial</span> — Pydantic bounds on decide/chat bodies; Query <code>ge</code>/<code>le</code> on list endpoints; tool JSON schemas. Runtime does not enforce every schema <code>server_ceiling_per_minute</code>.</td>
+          <td>Same plus chaos-history <code>limit</code>. Still not a blanket bounded-tools runtime.</td>
+        </tr>
+        <tr>
+          <td class="dim">Workflow state machine</td>
+          <td><span class="no">No</span></td>
+          <td><span class="yes">Yes</span> — <code>GovernedState</code> + LangGraph edges. Timeout and refuse are states, not exceptions.</td>
+          <td>Same. Chaos asserts degraded/refused rows rather than adding states.</td>
+        </tr>
+        <tr>
+          <td class="dim">HITL approval gate</td>
+          <td>Documented; no interrupt</td>
+          <td><span class="yes">Yes</span> — <code>interrupt()</code>; timeout = no-action, never auto-approve. Dual HITL on supply.</td>
+          <td>Same + CHAOS-HITL-01</td>
+        </tr>
+        <tr>
+          <td class="dim">Segregation of duties</td>
+          <td>CSV + unit tests. No login.</td>
+          <td><span class="yes">Yes</span> (role×workflow), not requester≠approver. Unblinding cannot see supply. A role not in <code>approver_for</code> gets 403 on <code>decide()</code>.</td>
+          <td>Same + CISO-only chaos Run</td>
+        </tr>
+        <tr>
+          <td class="dim">RBAC-lite roles</td>
+          <td>Entitlement CSV. No sessions.</td>
+          <td><span class="yes">Yes</span> — 10 seeded roles (QP, PV, supply, research, clinical, RA, quality, CISO/DPO, auditor, unblinding). PBKDF2 sessions. Entra is ADR-009, not local.</td>
+          <td>Same catalog. Not a V3 add. Closest analogue to a “credit_officer” is EU Qualified Person.</td>
+        </tr>
+        <tr>
+          <td class="dim">Policy / evidence citations</td>
+          <td>Contract samples only</td>
+          <td><span class="yes">Yes</span> — every claim <code>cites</code> evidence_ids from this run; Critic fails <code>MISSING_CITATION</code> / <code>CITATION_UNRESOLVED</code>. Run stores <code>policy_contract_version</code>. Not clause IDs like INV-01.</td>
+          <td>Same. Cache citability re-checks Neo4j status so a superseded id cannot replay.</td>
+        </tr>
+        <tr>
+          <td class="dim">Evidence refs (citable only)</td>
+          <td>RER+C on paper</td>
+          <td><span class="yes">Yes</span> — ADR-003 filter inside retrieve. <code>EvidenceItem</code> type cannot hold untrusted/superseded.</td>
+          <td>Same + catch-all miss on Neo4j errors; retrieve logs the cause before <code>STORE_UNAVAILABLE</code></td>
+        </tr>
+        <tr>
+          <td class="dim">Instruction-injection isolation</td>
+          <td>Signed-manifest tests</td>
+          <td><span class="yes">Yes</span> — <code>prompt_guard</code> on Record Assistant (input + output). Graph drafts hit the prohibited-action guard twice. Red-team suite. Evidence excerpts are not trusted as instructions.</td>
+          <td>Same. Chaos does not bypass the guard.</td>
+        </tr>
+        <tr>
+          <td class="dim">Tamper-evident trace</td>
+          <td>Local export described</td>
+          <td><span class="part">Hashed, not chained</span> — append-only SQLite (no UPDATE/DELETE API). SHA256 on prompts, AI-BOM, blocked drafts, evidence <code>content_hash</code>. There is no hash-linked event chain.</td>
+          <td>Same store also holds <code>chaos_drill_run</code>. Still not a hash chain.</td>
+        </tr>
+        <tr>
+          <td class="dim">Deterministic replay</td>
+          <td><span class="no">No</span> engine</td>
+          <td><span class="part">Tools yes, graph no</span> — reconcile/options are deterministic on the same evidence. Redis exact-match cache after guard+critic. Checkpointer is in-process <code>MemorySaver</code> (lost on restart).</td>
+          <td>Same. CHAOS-CKPT-01 is an ops runbook, not a durable replay fix.</td>
+        </tr>
+        <tr>
+          <td class="dim">Indexed persistence</td>
+          <td>CSV / JSON files</td>
+          <td><span class="yes">Yes</span> — SQLite <code>run_id</code> PK + SQL filters. List endpoints use <code>LIMIT</code>/<code>OFFSET</code>. No extra secondary indexes. Not a full-file scan.</td>
+          <td>Same + <code>exclude_drills</code> so Run History does not mix <code>DRILL-*</code> rows</td>
+        </tr>
+        <tr>
+          <td class="dim">API pagination / rate limit</td>
+          <td><span class="no">No</span> API</td>
+          <td><span class="part">Pagination yes, HTTP rate limit no</span> — <code>GET /api/runs</code> <code>limit</code> 1–200. Denial-of-wallet is the admission budget, not SlowAPI.</td>
+          <td>Same pagination. Chaos history also capped. Still no HTTP rate limiter.</td>
+        </tr>
+        <tr>
+          <td class="dim">Security headers / body / path</td>
+          <td>Minimal / none</td>
+          <td><span class="part">Partial</span> — CORS on FastAPI; Pydantic max lengths; SQL column allowlist on filter distincts. Next config has no CSP / X-Frame extras.</td>
+          <td>Same. No new header middleware.</td>
+        </tr>
+        <tr>
+          <td class="dim">MCP evidence tools</td>
+          <td><span class="no">No</span></td>
+          <td>C4/workshop named MCP servers. Runtime is in-process Python + JSON contracts. <code>.claude/mcp.json</code> is empty on purpose.</td>
+          <td>Same. Chaos injects callables in-process. No Node/PowerShell MCP runtime, no extra MCP for runs/traces/health.</td>
+        </tr>
+        <tr>
+          <td class="dim">Cursor / Claude rules &amp; hooks</td>
+          <td><span class="no">No</span></td>
+          <td>Workshop <code>.claude/</code> pack; <code>hooks.json</code> left <code>{}</code> so the coding session does not bind nonexistent commands. Runtime “hooks” are LangGraph nodes.</td>
+          <td>Same pack. Not a product control, and not a V3 delta.</td>
+        </tr>
+        <tr>
+          <td class="dim">SDD / ADR pack</td>
+          <td>12 ADRs on paper + 30 numbered artefacts. Phase 5 POC incomplete.</td>
+          <td>9 accepted prod ADRs + 21-stage SDD. Some handoff files still say three workflows.</td>
+          <td>Same 9 ADRs. Chaos implements ADR-007; no ADR-010. Comparison / system-map / high-level / low-level HTML added.</td>
+        </tr>
+        <tr>
+          <td class="dim">Advisory-only (no brownfield write)</td>
+          <td>Forbidden in contracts</td>
+          <td><span class="yes">Yes</span> — no MES / ERP / LIMS write. Supply tool has no allocate/ship method. Record Assistant cannot <code>decide()</code>.</td>
+          <td>Same. Chaos does not add a write path.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="pane wrap" id="p-run" role="tabpanel" hidden>
+  <h2>Runtime and data plane</h2>
+  <div class="scroll">
+    <table>
+      <thead>
+        <tr>
+          <th class="dim">Concern</th>
+          <th class="col-v1">V1</th>
+          <th class="col-v2">V2</th>
+          <th class="col-v3">V3</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="dim">How you run it</td>
+          <td><code>python run_capstone.py --check</code> · open <code>app/index.html</code></td>
+          <td>Manual: uvicorn :8000 + <code>npm run dev</code>. Neo4j/Redis from .env (often Aura / Redis Cloud)</td>
+          <td><code>docker compose up --build</code> (optional <code>--profile seed</code>) or <code>scripts/bootstrap.sh</code> (venv, deps, .env, seed, ingest). Bootstrap still prints “fill in ANTHROPIC_API_KEY” even though the default provider is Foundry.</td>
+        </tr>
+        <tr>
+          <td class="dim">Knowledge</td>
+          <td>32 markdown extracts + CSV edges. D-205: no KG <em>database</em> for the POC (RER+C). Neo4j named as a stakeholder-risk, not a product.</td>
+          <td>Neo4j semantic layer; ingest from knowledge + CSVs</td>
+          <td>Same schema. Seed container runs ingest + <code>seed_users</code></td>
+        </tr>
+        <tr>
+          <td class="dim">Cache</td>
+          <td>None</td>
+          <td>Redis exact-match after guard+critic</td>
+          <td>Same. CHAOS-REDIS-01: get None / set no-op. LLM/HITL drills bypass cache too.</td>
+        </tr>
+        <tr>
+          <td class="dim">Brownfield writes</td>
+          <td>Forbidden in contracts</td>
+          <td>No outbound write integration. Supply tool has no allocate method.</td>
+          <td>Same</td>
+        </tr>
+        <tr>
+          <td class="dim">Tools / MCP</td>
+          <td>N/A</td>
+          <td>C4 called them MCP servers. Runtime: in-process Python + JSON contracts</td>
+          <td>Same. Chaos injects callables; does not stand up extra processes</td>
+        </tr>
+        <tr>
+          <td class="dim">Checkpointer</td>
+          <td>N/A</td>
+          <td><code>MemorySaver</code> (in-process). Durable CKPT is a gap.</td>
+          <td>Same. CHAOS-CKPT-01 is ops-runbook only — not faked in the UI lab</td>
+        </tr>
+        <tr>
+          <td class="dim">SQLite threading</td>
+          <td>N/A</td>
+          <td>Default <code>check_same_thread=True</code> — LangGraph worker threads can raise</td>
+          <td><code>check_same_thread=False</code> on audit, users, and <code>chaos_drill_store</code></td>
+        </tr>
+        <tr>
+          <td class="dim">API image fixtures</td>
+          <td>N/A</td>
+          <td>Dockerfile.api did not copy <code>tests/fixtures/</code>; tools need them at request time</td>
+          <td>Fixtures copied into the API image</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="pane wrap" id="p-ops" role="tabpanel" hidden>
+  <h2>Tests, CI, chaos, deploy</h2>
+  <div class="scroll">
+    <table>
+      <thead>
+        <tr>
+          <th class="dim">Concern</th>
+          <th class="col-v1">V1</th>
+          <th class="col-v2">V2</th>
+          <th class="col-v3">V3</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="dim">Automated tests</td>
+          <td>35 unittest (contracts + policy gates). Dashboard untested against a live API.</td>
+          <td>39 <code>test_*.py</code> + 8 Vitest files. Six graph integration suites, security, resilience, unit.</td>
+          <td>41 <code>test_*.py</code> — V2 plus <code>test_chaos_harness.py</code> and <code>test_chaos_drill_endpoint.py</code>. Vitest count unchanged.</td>
+        </tr>
+        <tr>
+          <td class="dim">CI / CD</td>
+          <td><span class="no">None</span></td>
+          <td>Three workflows: CI, Azure Container Apps CD, nightly red-team. LLM env is Anthropic.</td>
+          <td>Those three retargeted to Foundry secrets/placeholders (CI uses dummy keys so import-time client construction survives collection; CD also wires ACR login; attestation is <code>continue-on-error</code> on private repos). Fourth workflow: <code>pages.yml</code> publishes <code>site/</code>.</td>
+        </tr>
+        <tr>
+          <td class="dim">Docker</td>
+          <td><span class="no">None</span></td>
+          <td>Dockerfiles for API and web. <span class="no">No compose</span>, no <code>bootstrap.sh</code></td>
+          <td><code>docker-compose.yml</code> (neo4j, redis, api, web, seed) + <code>scripts/bootstrap.sh</code></td>
+        </tr>
+        <tr>
+          <td class="dim">Chaos</td>
+          <td><span class="no">None</span></td>
+          <td><code>ops/chaos/README.md</code> placeholder. Resilience tests only.</td>
+          <td>Five UI drills (LLM, Redis, Neo4j, HITL, Policy) + three ops runbooks. Inject, don’t kill processes.</td>
+        </tr>
+        <tr>
+          <td class="dim">Evals / injects</td>
+          <td>15 public fixtures; pitch claims 11/15. 84 injects in the explorer.</td>
+          <td>84/84 mapped in <code>inject_coverage_v1_to_v2.json</code>. In-app /coverage.</td>
+          <td>Same coverage map. Chaos is ADR-007 proof, not a 85th inject dimension.</td>
+        </tr>
+        <tr>
+          <td class="dim">Observability</td>
+          <td>Documented SLIs; no tracing</td>
+          <td>LangSmith optional (must not block). Audit SQLite is the compliance store. OTel designed.</td>
+          <td>Same. No LangSmith chaos drill in v1 of the lab.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="pane wrap" id="p-docs" role="tabpanel" hidden>
+  <h2>Docs and method</h2>
+  <div class="scroll">
+    <table>
+      <thead>
+        <tr>
+          <th class="dim">Artifact</th>
+          <th class="col-v1">V1</th>
+          <th class="col-v2">V2</th>
+          <th class="col-v3">V3</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="dim">ADRs</td>
+          <td>12 in <code>submission/artefacts/11_ADR_REGISTER.md</code> (deterministic-first, kill switch, HITL)</td>
+          <td>9 accepted (LangGraph, separate from V1, evidence gate, prohibitions, policy fail-closed, audit, degraded-mode, one-graph, Azure)</td>
+          <td>Same 9. Chaos implements ADR-007 rather than adding ADR-010.</td>
+        </tr>
+        <tr>
+          <td class="dim">DDD / C4</td>
+          <td>Filled templates. Implementation does not match C4 containers.</td>
+          <td>Stable DDD + C4. Runtime collapses MCP/policy into the API process.</td>
+          <td>Same, plus C4 high-level HTML, Azure-style low-level HTML, and the agents-and-flow HTML of the six graphs</td>
+        </tr>
+        <tr>
+          <td class="dim">SDD stages</td>
+          <td>30 numbered templates (01–30) plus two <code>00_</code> charters (32). Folder has 34 markdown files. Phase 0–4 exit claimed; Phase 5 POC incomplete (<code>demo.py</code> will not import).</td>
+          <td>21 stages + Stage 23 moonshots. <code>README.md</code> says six workflows; <code>PROJECT_SUMMARY.md</code> still opens with three and “no auth” — <strong>same drift in V3</strong>.</td>
+          <td>Same drift in <code>PROJECT_SUMMARY.md</code> (three-workflow lede). V3 adds §6o chaos and compose notes in README. Trust README + code over the handoff file.</td>
+        </tr>
+        <tr>
+          <td class="dim">Comparison HTML</td>
+          <td>None</td>
+          <td><code>architecture_explorer.html</code> + <code>repo-graph/architecture.html</code> (same files in V3). No three-repo ledger.</td>
+          <td>Those two plus <code>v2_vs_v3.html</code>, <code>v3_blueprint.html</code>, this file, <code>aegis_high_level.html</code>, <code>aegis_low_level.html</code>, <code>aegis_agents.html</code>, <code>system_map.html</code></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="pane wrap" id="p-delta" role="tabpanel" hidden>
+  <h2>The actual progression</h2>
+  <p class="lede">Read down the pill column. Grey = absent. Amber = designed or partial. Green = running in this tree.</p>
+  <div class="scroll">
+    <table>
+      <thead>
+        <tr>
+          <th class="dim">Capability</th>
+          <th class="col-v1">V1</th>
+          <th class="col-v2">V2</th>
+          <th class="col-v3">V3</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="dim">Challenge injects &amp; CSVs</td>
+          <td><span class="pill p-run">Source of truth</span></td>
+          <td><span class="pill p-run">Read-only evidence</span></td>
+          <td><span class="pill p-run">Read-only evidence</span></td>
+        </tr>
+        <tr>
+          <td class="dim">Fail-closed schema / policy unit tests</td>
+          <td><span class="pill p-run">35 tests</span></td>
+          <td><span class="pill p-run">Inherited as idea, reimplemented</span></td>
+          <td><span class="pill p-run">Same + chaos assertions</span></td>
+        </tr>
+        <tr>
+          <td class="dim">Live LangGraph workflows</td>
+          <td><span class="pill p-none">Absent</span></td>
+          <td><span class="pill p-run">Six graphs</span></td>
+          <td><span class="pill p-run">Six graphs</span></td>
+        </tr>
+        <tr>
+          <td class="dim">Wired operator UI</td>
+          <td><span class="pill p-gap">Mock only</span></td>
+          <td><span class="pill p-run">Control Center</span></td>
+          <td><span class="pill p-run">+ Chaos Drill</span></td>
+        </tr>
+        <tr>
+          <td class="dim">Server-side RBAC / HITL</td>
+          <td><span class="pill p-doc">CSV + tests</span></td>
+          <td><span class="pill p-run">Login + decide() 403</span></td>
+          <td><span class="pill p-run">+ CISO chaos gate</span></td>
+        </tr>
+        <tr>
+          <td class="dim">Neo4j evidence layer</td>
+          <td><span class="pill p-none">Rejected (RER+C)</span></td>
+          <td><span class="pill p-run">Live KG</span></td>
+          <td><span class="pill p-run">Compose + CHAOS-NEO4J-01</span></td>
+        </tr>
+        <tr>
+          <td class="dim">Azure Foundry binding</td>
+          <td><span class="pill p-none">N/A</span></td>
+          <td><span class="pill p-doc">.env comment</span></td>
+          <td><span class="pill p-run">AzureFoundryLLM</span></td>
+        </tr>
+        <tr>
+          <td class="dim">One-command local stack</td>
+          <td><span class="pill p-none">N/A</span></td>
+          <td><span class="pill p-none">No compose</span></td>
+          <td><span class="pill p-run">docker compose</span></td>
+        </tr>
+        <tr>
+          <td class="dim">Chaos / ADR-007 proof</td>
+          <td><span class="pill p-none">None</span></td>
+          <td><span class="pill p-doc">Folder stub</span></td>
+          <td><span class="pill p-run">5 UI drills + 3 runbooks</span></td>
+        </tr>
+        <tr>
+          <td class="dim">Durable checkpoint</td>
+          <td><span class="pill p-none">N/A</span></td>
+          <td><span class="pill p-gap">MemorySaver only</span></td>
+          <td><span class="pill p-gap">Still MemorySaver; CKPT-01 ops-only</span></td>
+        </tr>
+        <tr>
+          <td class="dim">Entra / Blob WORM in prod</td>
+          <td><span class="pill p-none">N/A</span></td>
+          <td><span class="pill p-doc">ADR-009 target</span></td>
+          <td><span class="pill p-doc">Still a deploy binding, not local</span></td>
+        </tr>
+        <tr>
+          <td class="dim">Worker / admin apps</td>
+          <td><span class="pill p-none">N/A</span></td>
+          <td><span class="pill p-gap">README only</span></td>
+          <td><span class="pill p-gap">README only — unchanged</span></td>
+        </tr>
+        <tr>
+          <td class="dim">Parallel specialists</td>
+          <td><span class="pill p-none">N/A</span></td>
+          <td><span class="pill p-none">Sequential spine</span></td>
+          <td><span class="pill p-none">Still sequential</span></td>
+        </tr>
+        <tr>
+          <td class="dim">Advisory-only (no write-back)</td>
+          <td><span class="pill p-run">Contracts forbid it</span></td>
+          <td><span class="pill p-run">No MES/ERP/LIMS write</span></td>
+          <td><span class="pill p-run">Unchanged</span></td>
+        </tr>
+        <tr>
+          <td class="dim">Bootstrap script</td>
+          <td><span class="pill p-none">N/A</span></td>
+          <td><span class="pill p-none">Absent</span></td>
+          <td><span class="pill p-run">scripts/bootstrap.sh</span> — leftover print still names Anthropic</td>
+        </tr>
+        <tr>
+          <td class="dim">GitHub Pages landing</td>
+          <td><span class="pill p-none">N/A</span></td>
+          <td><span class="pill p-none">Absent</span></td>
+          <td><span class="pill p-run">site/ + pages.yml</span></td>
+        </tr>
+        <tr>
+          <td class="dim">Cache on Neo4j errors</td>
+          <td><span class="pill p-none">N/A</span></td>
+          <td><span class="pill p-gap">Only Neo4jNotConfigured</span></td>
+          <td><span class="pill p-run">Catch-all miss — never raise into synthesize</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Present only in V3 (source-level; V2 dropped nothing)</h3>
+  <div class="scroll">
+    <table>
+      <thead>
+        <tr>
+          <th class="dim">Path</th>
+          <th class="col-v3" colspan="3">Why it exists</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td class="dim"><code>docker-compose.yml</code></td><td colspan="3">Local Neo4j + Redis + API + web; <code>seed</code> profile</td></tr>
+        <tr><td class="dim"><code>scripts/bootstrap.sh</code></td><td colspan="3">Idempotent venv / deps / .env / seed / ingest. Still prints “fill in ANTHROPIC_API_KEY” while <code>get_llm()</code> defaults to Foundry.</td></tr>
+        <tr><td class="dim"><code>services/integration/chaos_harness.py</code> + store + <code>chaos_drill.py</code></td><td colspan="3">ADR-007 lab injectors; run ids <code>DRILL-*</code></td></tr>
+        <tr><td class="dim"><code>apps/web/app/chaos-drill/</code></td><td colspan="3">CISO-gated UI; 5 runnable / 3 ops-only</td></tr>
+        <tr><td class="dim"><code>ops/chaos/experiments/</code> (8 JSON) + <code>runbooks/</code></td><td colspan="3">Catalog + LLM-02, HITL-02, CKPT-01</td></tr>
+        <tr><td class="dim"><code>tests/resilience/test_chaos_harness.py</code> + <code>tests/integration/test_chaos_drill_endpoint.py</code></td><td colspan="3">+2 Python test modules vs V2’s 39</td></tr>
+        <tr><td class="dim"><code>docs/chaos/moonshot_plan.md</code></td><td colspan="3">Canonical hybrid chaos plan</td></tr>
+        <tr><td class="dim"><code>docs/comparison/</code></td><td colspan="3"><code>v2_vs_v3.html</code>, <code>v3_blueprint.html</code>, this file</td></tr>
+        <tr><td class="dim"><code>docs/architecture/high-level/</code></td><td colspan="3">C4 context + containers of the running system</td></tr>
+        <tr><td class="dim"><code>docs/architecture/agentic/aegis_agents.html</code></td><td colspan="3">Roster + shared spine + HITL map of the six graphs</td></tr>
+        <tr><td class="dim"><code>docs/architecture/low-level/</code></td><td colspan="3">Azure-style running-architecture diagram (VNet / subnet)</td></tr>
+        <tr><td class="dim"><code>docs/architecture/system_map/</code></td><td colspan="3">Interactive system map + JSON twin</td></tr>
+        <tr><td class="dim"><code>site/index.html</code> + <code>.github/workflows/pages.yml</code></td><td colspan="3">Static landing published by Pages</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>What V3 did not reopen</h3>
+  <p>Chaos v1 drills <code>batch_review</code> only. PV / supply / clinical / regulatory graphs are not in the lab. There is no Run-all, no LangSmith drill, and no production chaos. Durable checkpoint is still <code>MemorySaver</code>. <code>apps/admin</code> and <code>services/worker</code> stay README stubs. “Three vs six workflows” is a <em>doc</em> inconsistency in both V2 and V3 — not a V2→V3 change. <code>bootstrap.sh</code> still tells a first clone to fill <code>ANTHROPIC_API_KEY</code> even though the default provider is <code>azure_foundry</code>.</p>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>
+      Validated 18 Aug 2026 against the three working trees named in the masthead. V3 is a strict source superset of V2 — no V2 paths were deleted.
+      Both V2 and V3 <code>PROJECT_SUMMARY.md</code> still open with “three governed workflows”; both <code>README.md</code> files and the six <code>*_graph.py</code> modules are the accurate count.
+      <code>graph.py</code> registers 14 nodes in both trees; several design docs still say 11.
+      V1 <code>demo.py</code> imports workflow modules that are not in <code>submission/src/</code>.
+    </p>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var tabs = Array.prototype.slice.call(document.querySelectorAll('.tab'));
+  var panes = tabs.map(function (t) { return document.getElementById(t.getAttribute('aria-controls')); });
+  function select(i) {
+    tabs.forEach(function (t, j) {
+      t.setAttribute('aria-selected', i === j ? 'true' : 'false');
+      panes[j].hidden = i !== j;
+    });
+    if (history.replaceState) history.replaceState(null, '', '#' + tabs[i].getAttribute('aria-controls'));
+  }
+  tabs.forEach(function (t, i) {
+    t.addEventListener('click', function () { select(i); window.scrollTo({ top: 0 }); });
+  });
+  var hash = location.hash.replace('#', '');
+  var idx = tabs.findIndex(function (t) { return t.getAttribute('aria-controls') === hash; });
+  if (idx >= 0) select(idx);
+})();
+</script>
+</body>
+</html>

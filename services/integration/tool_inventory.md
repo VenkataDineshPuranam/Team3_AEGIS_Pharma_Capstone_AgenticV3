@@ -41,8 +41,9 @@ redundancy, the same pattern `boundary_and_degraded_mode.md` uses for the write 
 | 5 | `pv-intake-tools/` | `pv.duplicate_check` | PV Intake | Read-only | PV-Intake Agent only |
 | 6 | `pv-intake-tools/` | `pv.normalize_terminology` | PV Intake | Read-only, suggestion-only output | PV-Intake Agent only |
 | 7 | `supply-planning-tools/` | `supply.generate_options` | Supply Planning | Read-only, **no allocation/reservation method exists in this contract** | Supply-Planning Agent only |
+| 8 | `batch-review-tools/` (`precedent_retrieve.py`) | `precedent.retrieve` | Batch Review | Read-only. Deterministic; not agent memory (ADR-010) | Batch-Review Agent only — no PV/Supply binding exists for this tool |
 
-**Six server processes, seven tool operations.** Servers 1–3 share one JSON Schema
+**Six server processes, eight tool operations.** Servers 1–3 share one JSON Schema
 (`evidence_retrieve.schema.json`) with three independent bindings; servers 5–6 are combined
 into one process (`pv-intake-tools/`) because they operate on the same `PVCase` aggregate and
 splitting them into separate processes would add an Integration-waste hop with no
@@ -94,6 +95,7 @@ shape, defensible without measurement) now; a **budget** (from measured traffic)
 | `pv.duplicate_check` | ≤ 1 call/run | `hash(case_id, comparison_window_version)` | Must complete before `SignalTriaged` (DDD §7 hard ordering) |
 | `pv.normalize_terminology` | ≤ 1 call/run | `hash(source_text, terminology_table_version)` | Pure function of input + a versioned table |
 | `supply.generate_options` | ≤ 1 call/run | `hash(constraint_set, inventory_snapshot_version)` | Must be re-run, not replayed, if the inventory snapshot has moved — see §6 |
+| `precedent.retrieve` | ≤ 1 call/run — no broadening concept, unlike `evidence.retrieve` | `hash(finding_hash, policy_contract_version)` | Deterministic given the same finding shape; called once, after `batch.reconcile`, before `synthesize` |
 
 Global request-rate ceilings (circuit-breaker level, not a tuned quota): **60 calls/min per
 server**, matching `failure_and_loop_guards.md` C4's blunt denial-of-wallet posture. Replaced

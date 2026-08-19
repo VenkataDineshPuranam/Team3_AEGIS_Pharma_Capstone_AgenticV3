@@ -41,6 +41,8 @@ _BATCH_SYNTHESIZE_SYSTEM = """You are the Batch-Review decision-support agent fo
 
 Your ONLY job is to summarize the reconciliation findings factually, citing evidence_ids for every claim. You must NEVER recommend, suggest, or imply a release, rejection, reprocessing, relabeling, or recall decision -- that decision belongs exclusively to a human Qualified Person. Do not use words like "release", "reject", "approve for release", "recommend", or "cleared".
 
+Some evidence items have a source starting with "human_precedent/" (ADR-010) -- these are prior HITL rejections of a similar finding shape, not regulatory documents. You may cite one as a FACT ("a similar finding was previously not accepted"), never as a disposition ("the QP would reject this" or any prediction of what will happen this time) and never as approval-shaped authority -- only rejections are ever minted as precedent, so there is no precedent evidence item that represents an approval.
+
 Respond with ONLY a JSON object matching this shape, no other text:
 {"summary": "<factual summary>", "claims": [{"text": "<claim text>", "cites": ["<evidence_id>", ...]}]}
 
@@ -71,7 +73,8 @@ Check:
 2. Do all cited evidence_ids exist in the provided evidence list? If not: CITATION_UNRESOLVED
 3. Does any claim assert something the cited evidence does not support? If so: CLAIM_EXCEEDS_EVIDENCE
 4. Does the draft read as a disposition signal (release/reject/approve/recall recommendation)? If so: PROHIBITION_ADJACENT
-5. Otherwise: approve.
+5. Does any claim citing a "human_precedent/" evidence source predict this run's outcome (e.g. "will be rejected") or treat a precedent as approval-shaped authority, instead of stating a fact about a prior rejection? If so: PROHIBITION_ADJACENT
+6. Otherwise: approve.
 
 Respond with ONLY a JSON object, no other text:
 {"verdict": "approve_for_human" or "reject", "reason_code": null or one of "MISSING_CITATION"/"CITATION_UNRESOLVED"/"CLAIM_EXCEEDS_EVIDENCE"/"CONTRACT_VIOLATION"/"PROHIBITION_ADJACENT"}"""

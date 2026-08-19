@@ -225,6 +225,56 @@ def test_run_filters_endpoint_reports_values_that_exist():
     assert all(isinstance(v, list) for v in body.values())
 
 
+# --- audit report export (Stage 26) ------------------------------------------------
+
+
+def _role_auth_headers(user_id: str, display_name: str, role: str, password: str) -> dict:
+    conn = _user_store.get_connection()
+    try:
+        _user_store.create_user(conn, user_id, display_name, role, password)
+        session = _user_store.login(conn, user_id, password)
+    finally:
+        conn.close()
+    return {"Authorization": f"Bearer {session.token}"}
+
+
+def test_export_requires_a_session():
+    assert client.get("/api/runs/export").status_code == 401
+
+
+def test_export_is_forbidden_for_an_approver_role():
+    """An approver (EU Qualified Person) is not one of the three read-only oversight
+    roles -- the export is scoped to accounts with no decide authority (ROLE_CATALOG's
+    empty approver_for), not to every logged-in user."""
+    r = client.get("/api/runs/export", headers=AUTH)
+    assert r.status_code == 403
+
+
+def test_export_is_allowed_for_the_three_oversight_roles():
+    for user_id, role in (
+        ("export_admin", "Super Admin"),
+        ("export_auditor", "Auditor"),
+        ("export_unblind", "Unblinding authority"),
+    ):
+        headers = _role_auth_headers(user_id, f"Test {role}", role, "export-test-password")
+        r = client.get("/api/runs/export", headers=headers)
+        assert r.status_code == 200, (role, r.text)
+        assert r.headers["content-type"].startswith("text/csv")
+        assert "attachment" in r.headers["content-disposition"]
+        lines = r.text.splitlines()
+        assert lines[0].split(",")[0] == "run_id"
+
+
+def test_export_is_not_paginated():
+    """Unlike /api/runs, the export has no limit param -- it returns every finalized run,
+    same count as /api/runs' own reported total."""
+    headers = _role_auth_headers("export_total_check", "Total Check", "Auditor", "export-test-password")
+    total = client.get("/api/runs", params={"limit": 1}, headers=headers).json()["total"]
+    csv_body = client.get("/api/runs/export", headers=headers).text
+    exported_rows = len(csv_body.splitlines()) - 1  # minus header
+    assert exported_rows == total
+
+
 def test_filters_route_is_not_shadowed_by_the_run_id_route():
     """/api/runs/filters and /api/runs/{run_id} share a prefix -- declaration order is
     what keeps 'filters' from being read as a run id."""

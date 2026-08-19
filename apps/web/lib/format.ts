@@ -286,6 +286,20 @@ export function evidenceTone(authority: EvidenceAuthority): BadgeTone {
   }
 }
 
+/**
+ * ADR-010: a precedent evidence item is a prior HITL rejection of a similar finding
+ * shape, minted by services/integration/precedent_mint.py with a synthetic source of
+ * `human_precedent/{run_id}.md`. It is real, citable (status stays "draft"), and
+ * deliberately distinguishable from an ordinary governance document -- it is a fact
+ * about what happened before, never a prediction or a disposition.
+ */
+export function isHumanPrecedent(source: string): boolean {
+  return source.startsWith("human_precedent/");
+}
+
+export const HUMAN_PRECEDENT_MEANING =
+  "Prior QP refusal of a similar gap — not a disposition. Citable as a fact about what happened before, never as a prediction of this run's outcome.";
+
 export const EVIDENCE_AUTHORITY_MEANING: Record<EvidenceAuthority, string> = {
   AUTHORITATIVE: "Approved and current. A run may cite this.",
   DRAFT: "Citable, but not yet approved. Weigh accordingly.",

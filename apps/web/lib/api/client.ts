@@ -148,6 +148,25 @@ export async function mutate<T>(path: string, body: unknown, signal?: AbortSigna
   return (await res.json()) as T;
 }
 
+/**
+ * GET a file download (CSV export, etc). Not `read()`: the response body is a file, not
+ * JSON, and a failed export should never retry -- same one-shot reasoning as `mutate()`,
+ * just for a GET that produces a side-effect-free but potentially large file.
+ */
+export async function download(path: string): Promise<Blob> {
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}${path}`, { headers: authHeader(), cache: "no-store" });
+  } catch {
+    throw new ApiError("Could not reach the Orchestrator API.", 0);
+  }
+  if (!res.ok) {
+    if (res.status === 401) clearSessionOnUnauthorized();
+    throw await parseError(res);
+  }
+  return res.blob();
+}
+
 /** POST that must succeed WITHOUT an existing session -- login itself. */
 export async function mutatePublic<T>(path: string, body: unknown): Promise<T> {
   let res: Response;

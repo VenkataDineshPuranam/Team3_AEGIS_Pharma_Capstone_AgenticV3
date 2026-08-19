@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { PageBody, PageHeader } from "@/components/layout/AppShell";
 import { useAuth } from "@/components/layout/AuthContext";
+import { RequireRole } from "@/components/layout/RequireRole";
 import { StatTile } from "@/components/dashboard/StatTile";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -88,6 +89,14 @@ function posture(runnable: ChaosDrillExperiment[]): {
  * fresh graph; it does not take down Neo4j, Redis, or the API.
  */
 export default function ChaosDrillPage() {
+  return (
+    <RequireRole roles={["Super Admin", "CISO / DPO"]}>
+      <ChaosDrillPageContent />
+    </RequireRole>
+  );
+}
+
+function ChaosDrillPageContent() {
   const { session } = useAuth();
   const catalog = useApiResource((s) => getChaosDrillExperiments(s), []);
   const history = useApiResource((s) => getChaosDrillHistory(20, s), []);
@@ -133,18 +142,6 @@ export default function ChaosDrillPage() {
       <PageHeader
         title="Chaos Drill"
         description="Named fail-closed injectors for degraded-mode claims. Each run forces a single failure on a fresh graph and records what the system actually did. Shared Neo4j, Redis, and API processes are not taken down."
-        actions={
-          <Button
-            variant="secondary"
-            onClick={() => {
-              catalog.refresh();
-              history.refresh();
-            }}
-            loading={catalog.loading || history.loading}
-          >
-            Refresh
-          </Button>
-        }
       />
 
       <PageBody className="space-y-6">

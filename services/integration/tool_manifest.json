@@ -19,6 +19,12 @@
       "owning_context": "Evidence & Provenance (per-binding: Batch Review | PV Intake | Supply Planning)"
     },
     {
+      "name": "precedent_retrieve.schema.json",
+      "sha256": "b779bf29db4e0e314e9f2037e7aa3ff725c627f7567e137c2783561706e9347d",
+      "read_only": true,
+      "owning_context": "Batch Review"
+    },
+    {
       "name": "pv_duplicate_check.schema.json",
       "sha256": "70c3e0f3b0311d12183adc07b5cccb2335f9dc97594057addca6fdc8f6e12536",
       "read_only": true,

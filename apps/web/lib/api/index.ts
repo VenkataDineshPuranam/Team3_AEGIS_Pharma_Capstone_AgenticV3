@@ -3,7 +3,7 @@
  * app -- so the no-retry-on-human-action rule in client.ts cannot be bypassed by a page
  * that reaches for `fetch` directly.
  */
-import { mutate, mutatePublic, read } from "./client";
+import { download, mutate, mutatePublic, read } from "./client";
 import type {
   ComplianceSnapshot,
   DashboardResponse,
@@ -80,6 +80,20 @@ export const getRunHistory = (
 
 export const getRunFilters = (signal?: AbortSignal) =>
   read<Record<string, string[]>>(`/api/runs/filters`, signal);
+
+/** CSV audit-report download -- Super Admin / Auditor / Unblinding authority only
+ *  (services/api/main.py::_require_audit_role). Triggers a real browser download. */
+export const downloadRunsExport = async (): Promise<void> => {
+  const blob = await download("/api/runs/export");
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `aegis-audit-report-${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+};
 
 export const getRun = (runId: string, signal?: AbortSignal) =>
   read<RunDetail>(`/api/runs/${encodeURIComponent(runId)}`, signal);

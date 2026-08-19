@@ -11,6 +11,7 @@
 | [007](ADR-007-degraded-mode-safe-not-offline-capable.md) | Degraded-mode-safe, not offline-capable | `accepted` | Cross-cutting | All hosted dependencies | Fact (incl. sponsor decision on EAB-2) | No — closed |
 | [008](ADR-008-one-graph-per-workflow-single-deployment.md) | One deployment, one graph per workflow | `accepted` | All three core contexts | Orchestrator API | Derivation | No |
 | [009](ADR-009-azure-platform.md) | Azure is the target cloud platform | `accepted`, fully — LLM-hosting route confirmed **Route A** (Claude via Azure AI Foundry) | Cross-cutting | All hosted containers (Container Apps, Redis, Blob Storage, Key Vault, Entra ID) | Fact (sponsor directive; route confirmed by user ahead of Stage 20a) | No |
+| [010](ADR-010-human-precedent-as-evidence.md) | A prior HITL rejection is retrievable only as a citable `EvidenceItem` (Shadow QP), never as agent memory | `accepted` | Batch Review only (EU Qualified Person) | `precedent.retrieve` tool, `graph.py`'s `hitl_interrupt`, Neo4j `EvidenceItem` | Reasoned extension of `memory_design.md` §2's own revisit trigger | No |
 
 ## Status summary
 

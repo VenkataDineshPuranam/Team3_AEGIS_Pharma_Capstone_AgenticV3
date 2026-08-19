@@ -22,7 +22,8 @@ flowchart TD
     egate -->|insufficient, broaden once| retrieve
     egate -->|insufficient after broaden| abstain
     egate -->|sufficient| reconcile
-    reconcile[reconcile<br/>batch.reconcile, structured] --> synth
+    reconcile[reconcile<br/>batch.reconcile, structured] --> precedent
+    precedent[precedent_retrieve<br/>precedent.retrieve, ADR-010 — deterministic, never blocks] --> synth
     synth[["synthesize (LLM)<br/>Batch-Review Agent"]] --> guard1
     guard1{prohibited_action_guard} -->|blocked| blocked[[ProhibitedActionBlocked<br/>quarantine draft, escalate]]
     guard1 -->|clear| critic
@@ -35,7 +36,8 @@ flowchart TD
     guard2 -->|clear| hroute
     hroute[hitl_route<br/>resolve approver role] --> hitl
     hitl[/hitl_interrupt<br/>EU Qualified Person/] -->|approved| finalize
-    hitl -->|rejected| finalize
+    hitl -->|rejected| mint[mint HumanPrecedent<br/>ADR-010, best-effort AFTER audit write]
+    mint --> finalize
     hitl -->|timeout| noaction[[no action<br/>escalate to CQO]]
     noaction --> finalize
     finalize[finalize<br/>AgentRun + audit write] --> END([response])
@@ -59,13 +61,14 @@ without sufficient, citable evidence.
 | 3 | `retrieve` | tool | `abstain` on tool unreachable (never proceed on an unretrieved-evidence guess) |
 | 4 | `evidence_gate` | deterministic | `abstain` on insufficiency; **halt + alert** if a non-citable item is present, because that means the retrieval-boundary filter failed and the run is untrustworthy |
 | 5 | `reconcile` | tool | `abstain` |
-| 6 | `synthesize` | **LLM** | `abstain` on budget cap |
-| 7 | `prohibited_action_guard` | deterministic hook | `blocked` |
-| 8 | `critic_verify` | **LLM** | `abstain` on repeated no-progress |
-| 9 | `hitl_route` | deterministic | `refuse` if no approver role resolves |
-| 10 | `hitl_interrupt` | durable interrupt | `no action` on timeout |
-| 11 | `finalize` | deterministic | — audit write is not optional; failure here fails the request |
-| 12 | `abstain` / `blocked` / `refuse` | terminal | — |
+| 6 | `precedent_retrieve` | tool (ADR-010) | never fails the run — `STORE_UNAVAILABLE` or empty leaves `evidence` unchanged and continues to `synthesize` |
+| 7 | `synthesize` | **LLM** | `abstain` on budget cap |
+| 8 | `prohibited_action_guard` | deterministic hook | `blocked` |
+| 9 | `critic_verify` | **LLM** | `abstain` on repeated no-progress |
+| 10 | `hitl_route` | deterministic | `refuse` if no approver role resolves |
+| 11 | `hitl_interrupt` | durable interrupt | `no action` on timeout; on `rejected`, best-effort mints a precedent (ADR-010) after the audit write |
+| 12 | `finalize` | deterministic | — audit write is not optional; failure here fails the request |
+| 13 | `abstain` / `blocked` / `refuse` | terminal | — |
 
 Two LLM nodes. Nine deterministic ones. **That ratio is the design.**
 

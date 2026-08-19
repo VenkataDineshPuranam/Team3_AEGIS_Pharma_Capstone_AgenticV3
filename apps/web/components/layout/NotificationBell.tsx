@@ -91,12 +91,18 @@ export function NotificationBell({ align = "right" }: { align?: "left" | "right"
     };
   }, [open]);
 
+  // writeLastSeen() notifies every mounted NotificationBell's useSyncExternalStore
+  // listener synchronously (two instances exist at once: the mobile header's and the
+  // desktop sidebar's, only one CSS-hidden at a time). Doing that from inside setOpen's
+  // updater function ran it during React's render phase and tripped "Cannot update a
+  // component while rendering a different component" -- an effect runs after commit,
+  // which is the safe place for a side effect that fans out to other components.
+  useEffect(() => {
+    if (open) writeLastSeen(new Date().toISOString());
+  }, [open]);
+
   function toggle() {
-    setOpen((wasOpen) => {
-      const nowOpen = !wasOpen;
-      if (nowOpen) writeLastSeen(new Date().toISOString());
-      return nowOpen;
-    });
+    setOpen((wasOpen) => !wasOpen);
   }
 
   return (

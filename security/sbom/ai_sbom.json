@@ -3,7 +3,7 @@
   "specVersion": "1.6",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-08-15T06:49:15.450792+00:00",
+    "timestamp": "2026-08-19T04:00:29.891484+00:00",
     "component": {
       "type": "application",
       "bom-ref": "aegis-pharma-v3",
@@ -118,7 +118,7 @@
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "4b877a4c882ad794cee54357cabdb7324195ada9b63e0f216e1fbedfef95b5c4"
+          "content": "881b9a7a57251a6cd29809b9e461fb2daee3c29891bc584f1da49322f0ca2749"
         }
       ],
       "properties": [
@@ -128,7 +128,7 @@
         },
         {
           "name": "aegis:chars",
-          "value": "855"
+          "value": "1100"
         }
       ]
     },
@@ -140,7 +140,7 @@
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "967d6a72b2f7e8351dc6e980970f23c57881fe59825a5247c9563ebf395a1dd2"
+          "content": "c82e6e7980bccfa3bf2fd369d59d840aca00225cc85778481546604a1d0ab616"
         }
       ],
       "properties": [
@@ -150,7 +150,7 @@
         },
         {
           "name": "aegis:chars",
-          "value": "758"
+          "value": "1259"
         }
       ]
     },
@@ -457,7 +457,7 @@
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "47cb0fdb44e5ae7f81bcbe4768bb3e8d0c813d15cc426c325947675ef073e6da"
+          "content": "169545ae282df1bd7c0e74808c34e8c51f0fe9eec68f95708fcfa964418442ac"
         }
       ],
       "properties": [

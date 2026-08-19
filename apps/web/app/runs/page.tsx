@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { PageBody, PageHeader } from "@/components/layout/AppShell";
+import { useAuth } from "@/components/layout/AuthContext";
 import { Button } from "@/components/ui/Button";
 import { Card, NotRecorded } from "@/components/ui/Card";
 import { SearchInput, Select } from "@/components/ui/Form";
@@ -10,10 +11,16 @@ import { EmptyState, ErrorState, SkeletonRows } from "@/components/ui/States";
 import { MobileCardList, Pagination, Table, Td, Th, Tr } from "@/components/ui/Table";
 import { Identifier, StateBadge, WorkflowChip } from "@/components/domain/Chips";
 import { useApiResource } from "@/hooks/useApiResource";
-import { getRunFilters, getRunHistory } from "@/lib/api";
+import { ApiError, downloadRunsExport, getRunFilters, getRunHistory } from "@/lib/api";
 import { ABSTENTION_EXPLANATIONS, formatDateTime, formatNumber, humanize } from "@/lib/format";
 
 const PAGE_SIZE = 25;
+
+/** Mirrors services/api/main.py::_AUDIT_EXPORT_ROLES -- UI convenience only, the API is
+ *  what actually enforces this (services/api/main.py::_require_audit_role). These three
+ *  roles all have an empty `approver_for` in ROLE_CATALOG: a full exportable run record
+ *  is the actual product surface their account exists for. */
+const AUDIT_EXPORT_ROLES = ["Super Admin", "Auditor", "Unblinding authority"];
 
 /**
  * Run History — historical investigation over the append-only audit store.
@@ -24,6 +31,23 @@ const PAGE_SIZE = 25;
  * present — a hardcoded list would eventually offer a state no run has.
  */
 export default function RunHistoryPage() {
+  const { session } = useAuth();
+  const canExport = Boolean(session && AUDIT_EXPORT_ROLES.includes(session.role));
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+
+  async function handleExport() {
+    setExporting(true);
+    setExportError(null);
+    try {
+      await downloadRunsExport();
+    } catch (e) {
+      setExportError(e instanceof ApiError ? e.userMessage : "The export could not be downloaded.");
+    } finally {
+      setExporting(false);
+    }
+  }
+
   const [workflow, setWorkflow] = useState("");
   const [terminalState, setTerminalState] = useState("");
   const [search, setSearch] = useState("");
@@ -72,13 +96,18 @@ export default function RunHistoryPage() {
         title="Run History"
         description="Every run recorded in the append-only audit store. Records are written when a run finalizes and can never be modified or removed."
         actions={
-          <Button variant="secondary" onClick={runs.refresh} loading={runs.loading}>
-            Refresh
-          </Button>
+          canExport ? (
+            <Button variant="secondary" onClick={handleExport} loading={exporting}>
+              Export audit report
+            </Button>
+          ) : undefined
         }
       />
 
       <PageBody className="space-y-4">
+        {exportError && (
+          <ErrorState message={exportError} action={<Button onClick={handleExport}>Try again</Button>} />
+        )}
         <div className="flex flex-wrap items-center gap-2">
           <SearchInput
             label="Search runs"

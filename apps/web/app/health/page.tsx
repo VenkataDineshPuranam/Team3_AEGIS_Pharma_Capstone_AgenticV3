@@ -28,11 +28,6 @@ export default function HealthPage() {
       <PageHeader
         title="System Health"
         description="Measured dependency status. Each entry is the result of an actual probe run at the time shown — not an inference from configuration."
-        actions={
-          <Button variant="secondary" onClick={health.refresh} loading={health.loading}>
-            Refresh
-          </Button>
-        }
       />
 
       <PageBody className="space-y-5">

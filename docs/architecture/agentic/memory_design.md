@@ -45,6 +45,16 @@ remembering something is not.
 tuning (ADR-003 guardrail applies), **not** introducing agent memory. Reopening this would
 require an ADR.
 
+**Reopened, narrowly:** [`ADR-010`](../../adr/ADR-010-human-precedent-as-evidence.md)
+(Shadow QP) does exactly what this section's revisit trigger asked for — an ADR, not a
+code change reached first. It does not contradict the three failures above; it closes each
+one by construction rather than accepting them: a prior rejection becomes retrievable only
+as an `EvidenceItem` (closes #1, uncitable path), append-only in the same supersession
+model ADR-003 already governs (closes #2), and minted **only** on `action=rejected` — an
+approval can never become "the QP approved a similar case" because it is never written
+(closes #3, cross-run authority accumulation). Scope: `batch_review` / EU Qualified Person
+only.
+
 ## 3. What persists, precisely
 
 | Item | Tier | Persisted | Note |

@@ -186,6 +186,12 @@ def build_record_card(run_id: str, *, role: str) -> dict[str, Any]:
         "domain_payload": pending.domain_payload if pending else None,
         "evidence": evidence,
         "evidence_ids": evidence_ids,
+        # ADR-010: a deterministic count, computed the same way EvidenceCard.tsx's
+        # isHumanPrecedent() flags a precedent item client-side -- no model involved,
+        # so this can never be a hallucinated "precedent exists" claim.
+        "precedent_evidence_count": sum(
+            1 for e in evidence if str(e.get("source", "")).startswith("human_precedent/")
+        ),
         "terminal_state": (audited or {}).get("terminal_state"),
         "abstention_reason": (audited or {}).get("abstention_reason"),
         "hitl_status": (audited or {}).get("hitl_status"),

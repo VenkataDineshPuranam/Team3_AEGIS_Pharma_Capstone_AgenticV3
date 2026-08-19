@@ -23,6 +23,8 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import csv
+import io
 import logging
 import os
 import uuid
@@ -36,6 +38,7 @@ load_dotenv()
 
 from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response
 from langgraph.types import Command
 
 from packages.config.llm_client import get_llm
@@ -305,6 +308,30 @@ def _require_super_admin(session: user_store.Session = Depends(require_user)) ->
     return session
 
 
+def _require_chaos_visibility(session: user_store.Session = Depends(require_user)) -> user_store.Session:
+    """Chaos drill catalog/history/run are all restricted to the same two roles that can
+    trigger a drill (user_store.can_run_chaos) -- Super Admin (system-wide oversight) and
+    CISO / DPO (security/incident ownership). Unlike other read surfaces here, there's no
+    separate "can view but not run" role for this one, so one gate covers all three
+    endpoints."""
+    if not user_store.can_run_chaos(session.role):
+        raise HTTPException(403, "Only Super Admin or CISO / DPO may view chaos drills.")
+    return session
+
+
+_AUDIT_EXPORT_ROLES = ("Super Admin", "Auditor", "Unblinding authority")
+
+
+def _require_audit_role(session: user_store.Session = Depends(require_user)) -> user_store.Session:
+    """The full audit-report export (Stage 26). Super Admin, Auditor, and Unblinding
+    authority all have empty `approver_for` in ROLE_CATALOG -- they never decide a run --
+    so a full, exportable record of every run is the actual product surface their account
+    exists for, not a convenience on top of one."""
+    if session.role not in _AUDIT_EXPORT_ROLES:
+        raise HTTPException(403, f"Only {', '.join(_AUDIT_EXPORT_ROLES)} may export the audit report.")
+    return session
+
+
 @app.get("/api/compliance")
 def compliance(session: user_store.Session = Depends(_require_super_admin)):
     """EU AI Act risk classification + ISO 42001 control mapping + open gap register,
@@ -462,6 +489,43 @@ def list_runs(
         conn.close()
     return RunHistoryPage(
         items=[AuditedRun(**r) for r in rows], total=total, limit=limit, offset=offset
+    )
+
+
+_EXPORT_COLUMNS = (
+    "run_id", "workflow", "terminal_state", "abstention_reason", "subject_id",
+    "requester_role", "approver_roles", "hitl_status", "decided_by", "decided_at",
+    "recorded_at", "llm_calls", "tokens_in", "tokens_out", "trace_id",
+    "policy_contract_version", "evidence_ids",
+)
+
+
+@app.get("/api/runs/export")
+def export_runs(session: user_store.Session = Depends(_require_audit_role)):
+    """Every finalized run as a CSV download -- the audit report Super Admin, Auditor, and
+    Unblinding authority can hand to someone outside this application. Complete (no
+    pagination), unlike /api/runs, because a partial audit report is worse than none."""
+    conn = audit_store.get_connection()
+    try:
+        rows = audit_store.export_all_runs(conn, exclude_drills=True)
+    finally:
+        conn.close()
+
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(_EXPORT_COLUMNS)
+    for row in rows:
+        writer.writerow(
+            [
+                "|".join(row[c]) if isinstance(row.get(c), list) else row.get(c, "")
+                for c in _EXPORT_COLUMNS
+            ]
+        )
+    filename = f"aegis-audit-report-{datetime.now(UTC).strftime('%Y%m%d-%H%M%S')}.csv"
+    return Response(
+        content=buf.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 
@@ -668,20 +732,17 @@ def health_detail():
 
 
 @app.get("/api/chaos-drill/experiments", response_model=ChaosDrillCatalog)
-def chaos_drill_experiments(session: user_store.Session = Depends(require_user)):
-    """Catalog of ADR-007 lab injectors + last result. Visible to any signed-in role;
-    `capabilities.can_run` is true only for CISO / DPO."""
+def chaos_drill_experiments(session: user_store.Session = Depends(_require_chaos_visibility)):
+    """Catalog of ADR-007 lab injectors + last result. Super Admin / CISO-DPO only -- see
+    _require_chaos_visibility's docstring. `capabilities.can_run` is true for both."""
     return ChaosDrillCatalog(**chaos_drill.list_experiments(session))
 
 
 @app.post("/api/chaos-drill/experiments/{experiment_id}/run", response_model=ChaosDrillResult)
-def chaos_drill_run(experiment_id: str, session: user_store.Session = Depends(require_user)):
+def chaos_drill_run(
+    experiment_id: str, session: user_store.Session = Depends(_require_chaos_visibility)
+):
     """Run one lab-safe failure injection. Does not take down Neo4j/Redis/API."""
-    if not user_store.can_run_chaos(session.role):
-        raise HTTPException(
-            status_code=403,
-            detail=f"Role {session.role!r} may not run a chaos drill.",
-        )
     try:
         return ChaosDrillResult(**chaos_drill.run_experiment(experiment_id, session))
     except KeyError:
@@ -693,7 +754,7 @@ def chaos_drill_run(experiment_id: str, session: user_store.Session = Depends(re
 @app.get("/api/chaos-drill/history", response_model=list[ChaosDrillSummary])
 def chaos_drill_history(
     limit: int = Query(default=20, ge=1, le=100),
-    session: user_store.Session = Depends(require_user),
+    session: user_store.Session = Depends(_require_chaos_visibility),
 ):
     return [ChaosDrillSummary(**row) for row in chaos_drill.list_history(limit=limit)]
 

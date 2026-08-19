@@ -11,7 +11,7 @@ from services.integration.tool_manifest import ToolManifestViolation, load_manif
 def test_current_tool_contracts_match_the_recorded_manifest():
     results = verify_manifest()
     assert all(r["status"] == "ok" for r in results)
-    assert len(results) == 8  # every real tool contract in packages/contracts/tool_contracts/ (Stage 21: +3 new workflows)
+    assert len(results) == 9  # every real tool contract in packages/contracts/tool_contracts/ (ADR-010: +precedent.retrieve)
 
 
 def test_no_tool_across_any_workflow_can_write_formulation_specification_or_clinical_parameters():
@@ -21,7 +21,7 @@ def test_no_tool_across_any_workflow_can_write_formulation_specification_or_clin
     supply_planning, research_review, clinical_integrity, regulatory_completeness) -- not
     asserted for one workflow and assumed for the rest."""
     results = verify_manifest()
-    assert len(results) == 8
+    assert len(results) == 9
     assert all(r["status"] == "ok" for r in results)
     manifest = load_manifest()
     assert all(tool["read_only"] is True for tool in manifest["tools"]), (

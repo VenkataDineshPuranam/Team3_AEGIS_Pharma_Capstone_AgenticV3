@@ -66,11 +66,6 @@ export default function EvidencePage() {
       <PageHeader
         title="Evidence"
         description="The knowledge-graph corpus that governed runs retrieve from. Every item is labelled with whether it may be relied upon — including the ones that may not."
-        actions={
-          <Button variant="secondary" onClick={evidence.refresh} loading={evidence.loading}>
-            Refresh
-          </Button>
-        }
       />
 
       <PageBody className="space-y-5">

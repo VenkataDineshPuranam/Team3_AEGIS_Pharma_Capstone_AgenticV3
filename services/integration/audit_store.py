@@ -479,6 +479,35 @@ def human_overrides(conn: sqlite3.Connection, run_id: str) -> list[dict]:
     ]
 
 
+def export_all_runs(conn: sqlite3.Connection, exclude_drills: bool = True) -> list[dict]:
+    """Every finalized run, newest-first, with its human decision(s) folded in -- the
+    audit-report export (Stage 26) for Super Admin / Auditor / Unblinding authority.
+    Unlike list_agent_runs, there is no limit clamp: an audit export must be complete, not
+    a page of it."""
+    where = "WHERE run_id NOT LIKE 'DRILL-%'" if exclude_drills else ""
+    rows = conn.execute(
+        f"SELECT {_RUN_COLUMNS} FROM agent_run {where} ORDER BY recorded_at DESC, rowid DESC"
+    ).fetchall()
+    runs = [_run_row_to_dict(r) for r in rows]
+
+    overrides = conn.execute(
+        "SELECT run_id, role, action, justification, recorded_at "
+        "FROM human_override_recorded ORDER BY id"
+    ).fetchall()
+    by_run: dict[str, list[dict]] = {}
+    for run_id, role, action, justification, recorded_at in overrides:
+        by_run.setdefault(run_id, []).append(
+            {"role": role, "action": action, "justification": justification, "recorded_at": recorded_at}
+        )
+
+    for run in runs:
+        decisions = by_run.get(run["run_id"], [])
+        run["human_decisions"] = decisions
+        run["decided_by"] = "; ".join(f"{d['role']} ({d['action']})" for d in decisions) or None
+        run["decided_at"] = decisions[-1]["recorded_at"] if decisions else None
+    return runs
+
+
 def store_stats(conn: sqlite3.Connection) -> dict:
     """Row counts per table -- the System Health page's "audit store" section, measured
     rather than asserted."""

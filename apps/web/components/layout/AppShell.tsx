@@ -28,11 +28,10 @@ interface NavItem {
   icon: ReactNode;
   /** Shows the live pending count. */
   badge?: "queue";
-  /** Restricts this destination to a specific role. Omitted = visible to everyone. This
+  /** Restricts this destination to specific roles. Omitted = visible to everyone. This
    *  is a UX convenience only, same as RequireAuth's own docstring says about itself --
-   *  the API's own 403 (services/api/main.py::_require_super_admin) is what actually
-   *  enforces it. */
-  role?: string;
+   *  the API's own 403s are what actually enforce it. */
+  roles?: string[];
 }
 
 const NAV: NavItem[] = [
@@ -84,27 +83,29 @@ const NAV: NavItem[] = [
     label: "Chaos Drill",
     description: "Fail-closed lab drills",
     icon: <IconChaos />,
+    roles: ["Super Admin", "CISO / DPO"],
   },
   {
     href: "/coverage",
     label: "Evaluation & Security",
     description: "What has been verified, and what has not",
     icon: <IconCheckShield />,
-    role: "Super Admin",
+    roles: ["Super Admin"],
   },
   {
     href: "/compliance",
     label: "Compliance",
     description: "EU AI Act and ISO 42001 evidence",
     icon: <IconScale />,
-    role: "Super Admin",
+    roles: ["Super Admin"],
   },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { session } = useAuth();
-  const nav = NAV.filter((item) => !item.role || item.role === session?.role);
+  const nav = NAV.filter((item) => !item.roles || (session && item.roles.includes(session.role)));
+  const isHome = pathname === "/";
   const [mobileOpen, setMobileOpen] = useState(false);
   // React's "adjust state during render" pattern rather than an effect: closing the
   // drawer on navigation is a pure function of the route changing, computed synchronously
@@ -156,7 +157,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </Link>
           )}
           <NotificationBell />
-          <SignOutButton />
+          {!isHome && <SignOutButton />}
         </div>
       </header>
 
@@ -179,7 +180,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 right of a full-width bar) would overflow off the left of the viewport
                 here, which is exactly the misalignment this fixes. */}
             <NotificationBell align="left" />
-            <SignOutButton />
+            {!isHome && <SignOutButton />}
           </div>
         </div>
 

@@ -23,6 +23,8 @@ from services.integration import audit_store, evidence_gate, hitl_route, prohibi
 from services.integration.batch_reconcile import ToolError as ReconcileError, reconcile as tool_reconcile
 from services.integration.evidence_retrieve import ToolError as RetrieveError, retrieve as tool_retrieve
 from services.integration.policy_engine import PolicyEngineUnavailable, get_prohibition_contract
+from services.integration.precedent_mint import finding_hash as precedent_finding_hash, mint_rejection
+from services.integration.precedent_retrieve import ToolError as PrecedentRetrieveError, retrieve as tool_precedent_retrieve
 from services.api.nodes.llm_interface import LLMNodes, StubLLM
 
 POLICY_VERSION = "v1"
@@ -39,6 +41,8 @@ def build_graph(
     policy_fn=None,
     cache_get=None,
     cache_set=None,
+    precedent_retrieve_fn=None,
+    precedent_mint_fn=None,
 ):
     """Compile the batch_review graph.
 
@@ -52,6 +56,8 @@ def build_graph(
     do_policy = policy_fn or get_prohibition_contract
     do_cache_get = cache_get or response_cache.get
     do_cache_set = cache_set or response_cache.set_cleared
+    do_precedent_retrieve = precedent_retrieve_fn or tool_precedent_retrieve
+    do_precedent_mint = precedent_mint_fn or mint_rejection
     audit_conn = audit_store.get_connection()
     dow_guard = DenialOfWalletGuard()
 
@@ -120,6 +126,29 @@ def build_graph(
         findings = tuple(ReconciliationFinding(**f) for f in result["findings"])
         payload = BatchPayload(batch_id=batch_id, reconciliation_complete=result["reconciliation_complete"], findings=findings)
         return {"domain_payload": payload, "tool_calls": state["tool_calls"] + 1}
+
+    def precedent_retrieve_node(state: GovernedState) -> dict:
+        """ADR-010: retrieves prior HITL rejections of a similar finding shape as citable
+        evidence. Never blocks the run -- STORE_UNAVAILABLE or an empty result leaves
+        `evidence` unchanged (a missing precedent is not proof none exists)."""
+        payload = state["domain_payload"]
+        gaps = [f for f in payload.findings if f.status in ("gap", "conflict")]
+        if not gaps:
+            return {}
+        finding_hash = precedent_finding_hash(payload.findings)
+        try:
+            result = do_precedent_retrieve(
+                run_id=state["run_id"],
+                finding_categories=sorted({f.category for f in gaps}),
+                finding_hash=finding_hash,
+                policy_contract_version=state["policy_contract_version"],
+            )
+        except PrecedentRetrieveError:
+            return {}
+        items = [EvidenceItem(**item) for item in result["items"]]
+        if not items:
+            return {}
+        return {"evidence": state["evidence"] + items, "tool_calls": state["tool_calls"] + 1}
 
     def synthesize(state: GovernedState) -> dict:
         # Cache lookup, per redis_tuning.md SS2's pipeline placement: only a prior
@@ -220,6 +249,12 @@ def build_graph(
             action=decision.action, justification=decision.justification,
             recorded_at=datetime.now(UTC).isoformat(),
         )
+        # ADR-010: best-effort, AFTER the audit write above -- a Neo4j failure here must
+        # never undo or block the human decision that was just committed.
+        if decision.action == "rejected":
+            do_precedent_mint(
+                state["run_id"], state["workflow"], state.get("domain_payload"), decision.justification,
+            )
         return {"hitl_status": decision.action, "terminal_state": "completed"}
 
     def mark_blocked_prohibition_adjacent(state: GovernedState) -> dict:
@@ -262,6 +297,7 @@ def build_graph(
     graph.add_node("retrieve", retrieve)
     graph.add_node("evidence_gate", evidence_gate_node)
     graph.add_node("reconcile", reconcile)
+    graph.add_node("precedent_retrieve", precedent_retrieve_node)
     graph.add_node("synthesize", synthesize)
     graph.add_node("guard1", guard)
     graph.add_node("guard2", guard2_with_cache_write)
@@ -300,9 +336,10 @@ def build_graph(
     graph.add_conditional_edges("evidence_gate", route_after_gate, {"terminal": "finalize", "reconcile": "reconcile", "retrieve": "retrieve"})
     graph.add_conditional_edges(
         "reconcile",
-        lambda s: "abstain" if s.get("terminal_state") == "abstained" else "synthesize",
-        {"abstain": "finalize", "synthesize": "synthesize"},
+        lambda s: "abstain" if s.get("terminal_state") == "abstained" else "precedent",
+        {"abstain": "finalize", "precedent": "precedent_retrieve"},
     )
+    graph.add_edge("precedent_retrieve", "synthesize")
     graph.add_conditional_edges(
         "synthesize",
         lambda s: "degraded" if s.get("terminal_state") == "abstained" else "guard1",

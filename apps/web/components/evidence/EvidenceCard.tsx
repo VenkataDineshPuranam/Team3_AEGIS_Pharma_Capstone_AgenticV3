@@ -4,7 +4,13 @@ import { useState } from "react";
 import { cn } from "@/lib/cn";
 import { Badge } from "@/components/ui/Badge";
 import type { EvidenceCatalogItem, EvidenceRef } from "@/lib/api";
-import { EVIDENCE_AUTHORITY_MEANING, evidenceAuthority, evidenceTone } from "@/lib/format";
+import {
+  EVIDENCE_AUTHORITY_MEANING,
+  HUMAN_PRECEDENT_MEANING,
+  evidenceAuthority,
+  evidenceTone,
+  isHumanPrecedent,
+} from "@/lib/format";
 
 /**
  * One evidence item.
@@ -29,6 +35,7 @@ export function EvidenceCard({
   const authority = evidenceAuthority(item.status, item.citable);
   const tone = evidenceTone(authority);
   const usable = authority === "AUTHORITATIVE" || authority === "DRAFT";
+  const precedent = isHumanPrecedent(item.source);
 
   const rule = {
     AUTHORITATIVE: "before:bg-[var(--evidence-authoritative-fg)]",
@@ -82,6 +89,15 @@ export function EvidenceCard({
             </span>
           </button>
         </div>
+
+        {/* ADR-010: distinguishable from an ordinary governance document, present whether
+            or not the item is usable -- a precedent is always worth flagging as what it
+            is. */}
+        {precedent && (
+          <p className="mt-2 rounded-[var(--radius-sm)] bg-[var(--evidence-draft-bg)] px-2 py-1.5 text-[12px] font-medium text-[var(--evidence-draft-fg)]">
+            {HUMAN_PRECEDENT_MEANING}
+          </p>
+        )}
 
         {/* The unmissable line. Present only when it is true. */}
         {!usable && (

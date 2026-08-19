@@ -47,6 +47,24 @@ class LLMNodes(Protocol):
         ...
 
 
+def _append_precedent_claim(claims: tuple, evidence: tuple) -> tuple:
+    """ADR-010: if precedent.retrieve added any human_precedent evidence to this run
+    (source_file always starts with "human_precedent/" -- see precedent_mint.py), add
+    one claim citing it, phrased as a fact about a prior rejection -- never as a
+    disposition ("the QP would reject this") and never as approval-shaped authority,
+    since only rejections are ever minted. Lets batch_review tests exercise a
+    precedent citation without a live model."""
+    precedent_ids = tuple(e.evidence_id for e in evidence if e.source.startswith("human_precedent/"))
+    if not precedent_ids:
+        return claims
+    return claims + (
+        Claim(
+            text="A similar finding shape was previously not accepted by the EU Qualified Person.",
+            cites=precedent_ids,
+        ),
+    )
+
+
 class StubLLM:
     """No network call. Reads domain_payload's findings and produces a deterministic
     draft that cites real evidence_ids -- enough for guard/critic/HITL routing to be
@@ -67,6 +85,7 @@ class StubLLM:
             else:
                 summary = f"Batch {payload.batch_id}: all reconciliation categories complete."
                 claims = (Claim(text="All categories complete per retrieved evidence.", cites=evidence_ids),)
+            claims = _append_precedent_claim(claims, state["evidence"])
         elif isinstance(payload, PVPayload):
             if payload.duplicate_suspected:
                 candidate_ids = ", ".join(c.candidate_case_id for c in payload.candidates)

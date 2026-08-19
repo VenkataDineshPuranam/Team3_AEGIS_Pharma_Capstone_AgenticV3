@@ -64,17 +64,6 @@ function CoverageDashboard() {
       <PageHeader
         title="Evaluation & Security Coverage"
         description="System-wide verification posture, visible only to Super Admin. Every status below cites a real file — nothing here is an estimate."
-        actions={
-          <Button
-            variant="secondary"
-            onClick={() => {
-              injects.refresh();
-              evals.refresh();
-            }}
-          >
-            Refresh
-          </Button>
-        }
       />
       <PageBody className="space-y-6">
         {/* --- system posture: one row combining both data sources -------- */}

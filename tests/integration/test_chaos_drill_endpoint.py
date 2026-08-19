@@ -32,8 +32,19 @@ def auth_qp():
     return _auth_headers("chaos_qp", "Chaos QP", "EU Qualified Person", "chaos-qp-pass")
 
 
+@pytest.fixture(scope="module")
+def auth_super_admin():
+    return _auth_headers("chaos_admin", "Chaos Admin", "Super Admin", "chaos-admin-pass")
+
+
 def test_unauthenticated_catalog_401():
     assert client.get("/api/chaos-drill/experiments").status_code == 401
+
+
+def test_qp_cannot_view_catalog(auth_qp):
+    """Chaos drill is restricted to Super Admin / CISO-DPO -- not just run, view too."""
+    r = client.get("/api/chaos-drill/experiments", headers=auth_qp)
+    assert r.status_code == 403
 
 
 def test_qp_cannot_run_drill(auth_qp):
@@ -52,11 +63,18 @@ def test_ciso_can_run_drill(auth_ciso):
     assert body["observed"]["terminal_state"] == "refused"
 
 
-def test_qp_can_list_catalog(auth_qp):
-    r = client.get("/api/chaos-drill/experiments", headers=auth_qp)
+def test_super_admin_can_run_drill(auth_super_admin):
+    r = client.post(
+        "/api/chaos-drill/experiments/CHAOS-POLICY-01/run", headers=auth_super_admin, json={}
+    )
+    assert r.status_code == 200, r.text
+
+
+def test_super_admin_can_list_catalog(auth_super_admin):
+    r = client.get("/api/chaos-drill/experiments", headers=auth_super_admin)
     assert r.status_code == 200
     body = r.json()
-    assert body["capabilities"]["can_run"] is False
+    assert body["capabilities"]["can_run"] is True
     ids = {e["id"] for e in body["experiments"]}
     assert "CHAOS-LLM-01" in ids
     assert "CHAOS-CKPT-01" in ids
@@ -67,8 +85,13 @@ def test_ops_only_run_returns_400(auth_ciso):
     assert r.status_code == 400
 
 
-def test_history_visible_to_qp(auth_qp, auth_ciso):
+def test_history_visible_to_super_admin(auth_super_admin, auth_ciso):
     client.post("/api/chaos-drill/experiments/CHAOS-NEO4J-01/run", headers=auth_ciso, json={})
-    r = client.get("/api/chaos-drill/history", headers=auth_qp)
+    r = client.get("/api/chaos-drill/history", headers=auth_super_admin)
     assert r.status_code == 200
     assert isinstance(r.json(), list)
+
+
+def test_history_hidden_from_qp(auth_qp):
+    r = client.get("/api/chaos-drill/history", headers=auth_qp)
+    assert r.status_code == 403

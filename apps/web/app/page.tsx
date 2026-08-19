@@ -70,11 +70,6 @@ export default function OverviewPage() {
       <PageHeader
         title={session ? `Welcome back, ${session.display_name.split(" ").pop()}` : "Overview"}
         description={headerDescription}
-        actions={
-          <Button variant="secondary" onClick={() => { queue.refresh(); dashboard.refresh(); }}>
-            Refresh
-          </Button>
-        }
       />
 
       <PageBody className="space-y-6">
@@ -85,6 +80,16 @@ export default function OverviewPage() {
             <Link href="/compliance" className="underline underline-offset-2">Compliance</Link> and{" "}
             <Link href="/coverage" className="underline underline-offset-2">Evaluation &amp; Security</Link>{" "}
             for the two additional sections only Super Admin can see.
+          </Notice>
+        )}
+        {(session?.role === "Auditor" || session?.role === "Unblinding authority") && (
+          <Notice tone="info" title={`${session.role}: read-only oversight`}>
+            This role has no approve, reject, or veto authority anywhere in the system — see{" "}
+            {myRole?.must_never ?? "the role catalog"} in{" "}
+            <Link href="/governance" className="underline underline-offset-2">Governance</Link>.
+            Your account exists to review the record, not act on it: see every finalized run in{" "}
+            <Link href="/runs" className="underline underline-offset-2">Run History</Link>, where
+            you can also export the full audit report as a CSV.
           </Notice>
         )}
         {unhealthy.length > 0 && (

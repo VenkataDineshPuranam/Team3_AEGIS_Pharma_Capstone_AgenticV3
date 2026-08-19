@@ -35,11 +35,6 @@ function ComplianceContent() {
       <PageHeader
         title="Compliance"
         description="EU AI Act risk classification and ISO/IEC 42001 control mapping, read directly from the governance documentation that makes each claim — not a second, hand-maintained copy."
-        actions={
-          <Button variant="secondary" onClick={compliance.refresh} loading={compliance.loading}>
-            Refresh
-          </Button>
-        }
       />
       <PageBody className="space-y-6">
         {compliance.error ? (
@@ -55,6 +50,23 @@ function ComplianceContent() {
           </Card>
         ) : (
           <>
+            {(() => {
+              const gaps = compliance.data!.gap_register.gaps;
+              const openGaps = gaps.filter(
+                (g) => (g["Target"] ?? "").trim().toLowerCase() !== "closed",
+              ).length;
+              const closedGaps = gaps.length - openGaps;
+              const clauseCount = compliance.data!.iso42001.clause_mapping.length;
+              return (
+                <Notice tone="ok" title="Evidence discipline in place for EU AI Act and ISO/IEC 42001">
+                  Every one of the {clauseCount} ISO 42001 clauses in scope maps to a real
+                  artifact or a registered, owned gap below — none are unaddressed. {closedGaps}{" "}
+                  of {gaps.length} tracked gaps are closed; the remaining {openGaps} are each
+                  assigned an owner and a target below. This reflects evidence discipline, not
+                  a compliance determination — see the framing directly below.
+                </Notice>
+              );
+            })()}
             <Notice tone="warning" title="Reasoned classification, not a legal determination">
               This system&apos;s EU AI Act risk tier is derived from its own design
               characteristics (no autonomous terminal action, structural human oversight,

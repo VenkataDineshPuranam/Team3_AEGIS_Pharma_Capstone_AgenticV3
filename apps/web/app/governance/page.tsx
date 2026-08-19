@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { PageBody, PageHeader } from "@/components/layout/AppShell";
 import { useAuth } from "@/components/layout/AuthContext";
@@ -40,16 +41,7 @@ export default function GovernancePage() {
             ? "What AEGIS is and how to use it — for the first time you sign in."
             : "The controls that make AEGIS more than a language model with a chat window: deterministic policy, evidence authority, and human accountability, read directly from what enforces them."
         }
-        actions={
-          <div className="flex items-center gap-2">
-            <SectionSwitch section={section} onChange={setSection} />
-            {section === "governance" && (
-              <Button variant="secondary" onClick={gov.refresh} loading={gov.loading}>
-                Refresh
-              </Button>
-            )}
-          </div>
-        }
+        actions={<SectionSwitch section={section} onChange={setSection} />}
       />
 
       <PageBody className="space-y-6">
@@ -289,6 +281,7 @@ function SectionSwitch({ section, onChange }: { section: Section; onChange: (s: 
 
 function GuideSection({ session }: { session: { display_name: string; role: string } | null }) {
   return (
+    <>
     <div className="max-w-3xl space-y-6">
       <Card>
         <CardHeader title="What this is" />
@@ -371,8 +364,215 @@ function GuideSection({ session }: { session: { display_name: string; role: stri
         </Card>
       )}
     </div>
+
+    <VisualTour />
+    </>
   );
 }
+
+/**
+ * A screenshot of each page with numbered red arrows pointing at what matters on it --
+ * the same walkthrough a colleague would give standing over your shoulder, for the
+ * (common) case where nobody is available to do that. Screenshots are static (taken from
+ * a real Super Admin / EU Qualified Person session, not mocked up) and live in
+ * apps/web/public/guide/ -- they age as the UI changes, same tradeoff every screenshot
+ * guide makes, and are worth regenerating whenever a page's layout changes materially.
+ */
+function VisualTour() {
+  return (
+    <div className="mt-2 max-w-5xl space-y-10">
+      <div>
+        <h2 className="text-lg font-semibold tracking-tight text-[var(--text-primary)]">
+          A visual tour
+        </h2>
+        <p className="mt-1 text-[13px] leading-relaxed text-[var(--text-secondary)]">
+          Every numbered red arrow below points at something real on that page. The list
+          under each screenshot explains what it is and why it matters — read it once and
+          the rest of the app stops needing a legend.
+        </p>
+      </div>
+
+      {TOUR_PAGES.map((page) => (
+        <Card key={page.name} as="section">
+          <CardHeader title={page.title} description={page.description} />
+          <CardBody className="space-y-4">
+            <Image
+              src={`/guide/${page.name}.png`}
+              alt={`Annotated screenshot of the ${page.title} page`}
+              width={page.width}
+              height={page.height}
+              sizes="(min-width: 1024px) 960px, 100vw"
+              className="h-auto w-full rounded-[var(--radius-md)] border border-[var(--border-subtle)]"
+            />
+            <ol className="grid gap-2.5 sm:grid-cols-2">
+              {page.legend.map((item) => (
+                <li key={item.number} className="flex gap-2.5 text-[13px] leading-relaxed">
+                  <span
+                    aria-hidden="true"
+                    className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-[var(--status-blocked-fg)] text-[11px] font-semibold text-white"
+                  >
+                    {item.number}
+                  </span>
+                  <span className="text-[var(--text-secondary)]">
+                    <strong className="font-semibold text-[var(--text-primary)]">{item.title}</strong>
+                    {" — "}
+                    {item.body}
+                  </span>
+                </li>
+              ))}
+            </ol>
+          </CardBody>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+const TOUR_PAGES: {
+  name: string;
+  title: string;
+  description: string;
+  width: number;
+  height: number;
+  legend: { number: number; title: string; body: string }[];
+}[] = [
+  {
+    name: "overview",
+    title: "Overview",
+    description: "The screen every role lands on first — signed in as Super Admin here",
+    width: 1440,
+    height: 1250,
+    legend: [
+      { number: 1, title: "Sidebar navigation", body: "Every destination your role can see. Items outside your role — Compliance, Evaluation & Security — are hidden here, not just blocked after a click." },
+      { number: 2, title: "Notification bell", body: "HITL escalation alerts. A red count means a pending run has crossed a severity tier and needs attention sooner." },
+      { number: 3, title: "Awaiting decision", body: "How many runs are paused for a human right now, across every workflow. Click through to the Decision Queue." },
+      { number: 4, title: "Decision queue (preview)", body: "The oldest pending runs, condensed from the full Decision Queue page. \"Open queue\" goes to the complete list." },
+      { number: 5, title: "Recent activity", body: "The most recently finalized runs across every workflow, with their outcome (completed, abstained, refused, blocked)." },
+      { number: 6, title: "System health", body: "Live status of every dependency the system needs — policy engine, audit store, Neo4j, Redis, the LLM provider." },
+    ],
+  },
+  {
+    name: "decision-queue",
+    title: "Decision Queue",
+    description: "Every run currently paused at a human-in-the-loop checkpoint",
+    width: 1440,
+    height: 850,
+    legend: [
+      { number: 1, title: "Page title", body: "Runs that have already passed evidence retrieval, the prohibited-action guard, and Critic verification — and now cannot complete until an accountable human decides." },
+      { number: 2, title: "Search", body: "Filter by run id, subject id, summary text, or approver role." },
+      { number: 3, title: "\"Awaiting your role\"", body: "Show only the runs your own signed-in role is actually eligible to decide — useful once the queue has runs for several different approvers in it." },
+      { number: 4, title: "Refresh", body: "The one page in the app that kept a manual refresh button — everywhere else refreshes itself, but this is the page you watch, so an explicit \"check right now\" earns its place." },
+    ],
+  },
+  {
+    name: "decision-detail",
+    title: "Deciding a run",
+    description: "Opening a pending run — the actual Approve / Reject flow",
+    width: 1440,
+    height: 900,
+    legend: [
+      { number: 1, title: "Human decision required", body: "States plainly who the governed approver is, who you are signed in as, and what you are being asked to certify — before you see a single button." },
+      { number: 2, title: "Approve", body: "Records your decision, with a required justification, to the append-only audit store. Only visible if your signed-in role is the actual governed approver for this run — computed server-side, never assumed from the UI." },
+      { number: 3, title: "Reject", body: "Same, recording a rejection. For a Batch Review rejection specifically, this also mints a citable precedent (Shadow QP, ADR-010) that a later run with a similar gap can retrieve as evidence — never as an auto-approval." },
+      { number: 4, title: "Structured findings tab", body: "The same findings in machine-readable form, each one traced to the exact evidence it cites — the same facts the summary prose is written from, in a form you can check line by line." },
+    ],
+  },
+  {
+    name: "run-history",
+    title: "Run History",
+    description: "Every run ever recorded — nothing is deleted or overwritten",
+    width: 1440,
+    height: 850,
+    legend: [
+      { number: 1, title: "Page title", body: "The append-only audit store's own read view. A record is written once, when a run finalizes, and can never be edited." },
+      { number: 2, title: "Search", body: "Filter by run id or subject id across the full history, server-side (not just the page currently loaded)." },
+      { number: 3, title: "Export audit report", body: "Downloads the complete run and decision history as a CSV — visible only to Super Admin, Auditor, and Unblinding authority, the three roles with no decide authority anywhere in the system." },
+    ],
+  },
+  {
+    name: "evidence",
+    title: "Evidence",
+    description: "The knowledge-graph corpus a run is allowed to cite from",
+    width: 1440,
+    height: 950,
+    legend: [
+      { number: 1, title: "Page title", body: "Every document a governed run could retrieve — and, deliberately, several it cannot, shown here so you can see why." },
+      { number: 2, title: "How to read these states", body: "The four authority states, made visually distinct on purpose: a non-citable item can never be mistaken for an authoritative one, in color or in greyscale." },
+      { number: 3, title: "Documents", body: "Total corpus size, split into what a run can retrieve (citable) and what is excluded server-side before a run ever sees it." },
+    ],
+  },
+  {
+    name: "workflows",
+    title: "Workflows",
+    description: "The six governed workflows this system supports, and where a run starts",
+    width: 1440,
+    height: 900,
+    legend: [
+      { number: 1, title: "Page title", body: "AEGIS supports six independent governed workflows. Each produces decision support only — never a terminal safety, release, or execution decision." },
+      { number: 2, title: "Workflow card", body: "What this workflow produces, what it structurally never does (not a policy promise — the output schema has no field that could represent it), and a \"Start run\" control to submit a real subject against the live governed graph." },
+    ],
+  },
+  {
+    name: "system-health",
+    title: "System Health",
+    description: "Measured dependency status — the result of a real probe, not configuration",
+    width: 1440,
+    height: 950,
+    legend: [
+      { number: 1, title: "Page title", body: "Every entry here is the result of an actual probe run at the time shown, not an inference from an environment variable being set." },
+      { number: 2, title: "Orchestrator API", body: "The API itself: which of the six workflows it's serving, and how many runs are currently awaiting a decision." },
+      { number: 3, title: "Dependencies", body: "Four distinct states (ok / degraded / unavailable / not configured), so a missing credential and a genuine outage are never shown the same way." },
+      { number: 4, title: "Audit store", body: "Where the append-only database actually lives on disk, and a live count of every record type it holds." },
+    ],
+  },
+  {
+    name: "chaos-drill",
+    title: "Chaos Drill",
+    description: "Proving the fail-closed claims, not just asserting them — Super Admin / CISO-DPO only",
+    width: 1440,
+    height: 1000,
+    legend: [
+      { number: 1, title: "Page title", body: "Named fail-closed injectors for degraded-mode claims. Restricted, on both the nav and the API, to Super Admin and CISO / DPO." },
+      { number: 2, title: "Lab drills", body: "Five named injectors — LLM provider unreachable, HITL timer expiry, and Neo4j / Redis / policy-engine unavailable — each with a specific, checkable claim about what the system should do." },
+      { number: 3, title: "Run", body: "Forces one failure on a fresh, isolated graph and records what the system actually did. Shared Neo4j, Redis, and API processes are never taken down." },
+    ],
+  },
+  {
+    name: "coverage",
+    title: "Evaluation & Security",
+    description: "What has actually been verified, and what has not — Super Admin only",
+    width: 1440,
+    height: 1000,
+    legend: [
+      { number: 1, title: "Page title", body: "System-wide verification posture. Every status on this page cites a real file — nothing here is an estimate." },
+      { number: 2, title: "Coverage by dimension", body: "The 13 risk dimensions from the original tabletop exercise this system's scope was built against, each scenario mapped to a real control, test, or document — or, honestly, to a registered gap." },
+    ],
+  },
+  {
+    name: "compliance",
+    title: "Compliance",
+    description: "EU AI Act and ISO 42001 evidence, read live from the governance docs — Super Admin only",
+    width: 1440,
+    height: 1000,
+    legend: [
+      { number: 1, title: "Page title", body: "Parsed live from the actual governance documents that make each claim — not a second, hand-maintained copy that could drift from what's true." },
+      { number: 2, title: "Evidence discipline banner", body: "An honest summary, not a compliance claim: every clause is addressed by a real artifact or a tracked, owned gap. The page states directly, right below this banner, that a risk tier is a reasoned classification, not a legal determination." },
+      { number: 3, title: "EU AI Act — boundary-pack questions", body: "The actual regulatory questions this system's classification answers, each with a citation into the code or docs that makes it true." },
+    ],
+  },
+  {
+    name: "governance",
+    title: "Governance",
+    description: "The live enforcement reference — read from the code and policy that actually enforce each rule",
+    width: 1440,
+    height: 1000,
+    legend: [
+      { number: 1, title: "Page title", body: "Unlike a policy document, this page is generated from the same files the running system enforces against — if the code changes, this page changes with it." },
+      { number: 2, title: "Prohibited actions", body: "The three independent enforcement layers (schema absence, tool-capability absence, runtime guard) that make a disposition structurally unrepresentable, shown per workflow with its actual banned terms and fields." },
+      { number: 3, title: "Getting Started / Governance toggle", body: "Switch back to this walkthrough at any time — the two used to be separate nav entries people kept mistaking for duplicates, so they're one page now." },
+    ],
+  },
+];
 
 function GuideRow({ to, label, body }: { to: string; label: string; body: string }) {
   return (

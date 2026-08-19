@@ -32,8 +32,13 @@ CREATE INDEX IF NOT EXISTS idx_chaos_drill_experiment ON chaos_drill_run(experim
 
 
 def get_connection(db_path: Path = DEFAULT_DB_PATH) -> sqlite3.Connection:
+    # check_same_thread=False and nolock=1 -- see audit_store.get_connection's identical
+    # fix. Same physical DB file, same Azure Files (SMB) mount, where SQLite's POSIX
+    # locking calls aren't reliably honored -- this module was missed when that fix was
+    # applied elsewhere, which is exactly why every chaos-drill endpoint 500'd with
+    # "database is locked" in production while audit_store/user_store worked fine.
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(db_path, check_same_thread=False)
+    conn = sqlite3.connect(f"file:{db_path.as_posix()}?nolock=1", uri=True, check_same_thread=False)
     conn.executescript(_SCHEMA)
     return conn
 
